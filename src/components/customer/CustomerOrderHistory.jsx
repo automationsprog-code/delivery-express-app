@@ -41,34 +41,38 @@ export default function CustomerOrderHistory({ onSelectService, onTrackOrder }) 
   const [ratingStars, setRatingStars] = useState(5);
   const [ratingComment, setRatingComment] = useState('');
 
-  // STRICT CUSTOMER ORDER ISOLATION
+  // STRICT CUSTOMER ORDER ISOLATION (Only show the logged-in customer's own orders)
   const myOrders = orders.filter(o => {
     if (currentUser?.role === 'admin' || currentUser?.role === 'rider') return true;
 
-    let localMyOrders = [];
-    try {
-      const parsed = JSON.parse(localStorage.getItem('delivery_express_my_orders') || '[]');
-      localMyOrders = Array.isArray(parsed) ? parsed : [];
-    } catch (_) {
-      localMyOrders = [];
+    if (!currentUser) {
+      let localMyOrders = [];
+      try {
+        const parsed = JSON.parse(localStorage.getItem('delivery_express_my_orders') || '[]');
+        localMyOrders = Array.isArray(parsed) ? parsed : [];
+      } catch (_) {
+        localMyOrders = [];
+      }
+      return Array.isArray(localMyOrders) && (localMyOrders.includes(o.trackingNumber) || localMyOrders.includes(o.id));
     }
-    const localMatch = Array.isArray(localMyOrders) && (localMyOrders.includes(o.trackingNumber) || localMyOrders.includes(o.id));
 
-    if (!currentUser) return localMatch;
-
-    const custPhone = currentUser?.phone ? String(currentUser.phone).replace(/\D/g, '') : '';
+    const custPhone = currentUser.phone ? String(currentUser.phone).replace(/\D/g, '') : '';
     const orderPhone = o.customerPhone ? String(o.customerPhone).replace(/\D/g, '') : '';
-    const phoneMatch = custPhone && orderPhone && custPhone.slice(-10) === orderPhone.slice(-10);
+    const phoneMatch = custPhone.length >= 7 && orderPhone.length >= 7 && custPhone.slice(-10) === orderPhone.slice(-10);
 
-    const custName = currentUser?.name?.trim().toLowerCase();
-    const orderName = o.customerName?.trim().toLowerCase();
-    const nameMatch = custName && orderName && (custName === orderName || custName.includes(orderName) || orderName.includes(custName));
-
-    const custEmail = currentUser?.email?.trim().toLowerCase();
+    const custEmail = currentUser.email ? String(currentUser.email).trim().toLowerCase() : '';
     const orderEmail = (o.details?.customer_email || o.customerEmail || '')?.trim().toLowerCase();
-    const emailMatch = custEmail && orderEmail && custEmail === orderEmail;
+    const emailMatch = Boolean(custEmail && orderEmail && custEmail === orderEmail);
 
-    return phoneMatch || nameMatch || emailMatch || localMatch;
+    const custId = currentUser.id ? String(currentUser.id) : '';
+    const orderCustId = (o.details?.customer_id || o.customerId || '')?.trim();
+    const idMatch = Boolean(custId && orderCustId && custId === orderCustId);
+
+    const custName = currentUser.name ? String(currentUser.name).trim().toLowerCase() : '';
+    const orderName = o.customerName ? String(o.customerName).trim().toLowerCase() : '';
+    const nameMatch = Boolean(custName && orderName && custName.length >= 3 && custName === orderName);
+
+    return phoneMatch || emailMatch || idMatch || nameMatch;
   });
 
   // Filtered orders

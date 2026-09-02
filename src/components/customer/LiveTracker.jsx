@@ -41,46 +41,47 @@ export default function LiveTracker() {
   const [selectedChips, setSelectedChips] = useState([]);
   const [hasSubmittedRating, setHasSubmittedRating] = useState(false);
 
-  // STRICT CUSTOMER ORDER ISOLATION (Only show the logged-in customer's orders)
+  // STRICT CUSTOMER ORDER ISOLATION (Only show the logged-in customer's own orders)
   const myOrders = orders.filter(o => {
     // Admin and Riders can inspect all orders
     if (currentUser?.role === 'admin' || currentUser?.role === 'rider') return true;
 
-    // Check device local bookings
-    let localMyOrders = [];
-    try {
-      const parsed = JSON.parse(localStorage.getItem('delivery_express_my_orders') || '[]');
-      localMyOrders = Array.isArray(parsed) ? parsed : [];
-    } catch (_) {
-      localMyOrders = [];
-    }
-    const localMatch = Array.isArray(localMyOrders) && (localMyOrders.includes(o.trackingNumber) || localMyOrders.includes(o.id));
-
+    // If no logged in user, only show what was booked in guest mode or actively searched
     if (!currentUser) {
+      let localMyOrders = [];
+      try {
+        const parsed = JSON.parse(localStorage.getItem('delivery_express_my_orders') || '[]');
+        localMyOrders = Array.isArray(parsed) ? parsed : [];
+      } catch (_) {
+        localMyOrders = [];
+      }
+      const localMatch = Array.isArray(localMyOrders) && (localMyOrders.includes(o.trackingNumber) || localMyOrders.includes(o.id));
       return localMatch || (activeTrackingId && (o.trackingNumber === activeTrackingId || o.id === activeTrackingId));
     }
 
-    // Match phone (last 10 digits)
-    const custPhone = currentUser?.phone ? String(currentUser.phone).replace(/\D/g, '') : '';
+    // Logged in Customer: Strictly match their own credentials (No cross-user contamination)
+    const custPhone = currentUser.phone ? String(currentUser.phone).replace(/\D/g, '') : '';
     const orderPhone = o.customerPhone ? String(o.customerPhone).replace(/\D/g, '') : '';
-    const phoneMatch = custPhone && orderPhone && custPhone.slice(-10) === orderPhone.slice(-10);
+    const phoneMatch = custPhone.length >= 7 && orderPhone.length >= 7 && custPhone.slice(-10) === orderPhone.slice(-10);
 
-    // Match customer name
-    const custName = currentUser?.name?.trim().toLowerCase();
-    const orderName = o.customerName?.trim().toLowerCase();
-    const nameMatch = custName && orderName && (custName === orderName || custName.includes(orderName) || orderName.includes(custName));
-
-    // Match email
-    const custEmail = currentUser?.email?.trim().toLowerCase();
+    const custEmail = currentUser.email ? String(currentUser.email).trim().toLowerCase() : '';
     const orderEmail = (o.details?.customer_email || o.customerEmail || '')?.trim().toLowerCase();
-    const emailMatch = custEmail && orderEmail && custEmail === orderEmail;
+    const emailMatch = Boolean(custEmail && orderEmail && custEmail === orderEmail);
 
-    return phoneMatch || nameMatch || emailMatch || localMatch;
+    const custId = currentUser.id ? String(currentUser.id) : '';
+    const orderCustId = (o.details?.customer_id || o.customerId || '')?.trim();
+    const idMatch = Boolean(custId && orderCustId && custId === orderCustId);
+
+    const custName = currentUser.name ? String(currentUser.name).trim().toLowerCase() : '';
+    const orderName = o.customerName ? String(o.customerName).trim().toLowerCase() : '';
+    const nameMatch = Boolean(custName && orderName && custName.length >= 3 && custName === orderName);
+
+    return phoneMatch || emailMatch || idMatch || nameMatch;
   });
 
-  // Selected Active Order
+  // Selected Active Order (Strictly from myOrders or explicit search input)
   const activeOrder = myOrders.find(o => o.trackingNumber === activeTrackingId || o.id === activeTrackingId)
-    || (searchInput ? orders.find(o => o.trackingNumber?.toLowerCase() === searchInput.trim().toLowerCase() || o.id?.toLowerCase() === searchInput.trim().toLowerCase()) : null)
+    || (searchInput ? myOrders.find(o => o.trackingNumber?.toLowerCase() === searchInput.trim().toLowerCase() || o.id?.toLowerCase() === searchInput.trim().toLowerCase()) : null)
     || myOrders[0]
     || null;
 
