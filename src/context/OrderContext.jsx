@@ -33,25 +33,38 @@ export function OrderProvider({ children }) {
 
   // Partner Stores & Food Menus (Balamban & West Cebu)
   const [storesList, setStoresList] = useState(() => {
-    const saved = localStorage.getItem('delivery_express_partner_stores');
-    return saved ? JSON.parse(saved) : DEFAULT_PARTNER_STORES;
+    try {
+      const saved = localStorage.getItem('delivery_express_partner_stores');
+      const parsed = saved ? JSON.parse(saved) : null;
+      return Array.isArray(parsed) ? parsed : DEFAULT_PARTNER_STORES;
+    } catch (_) {
+      return DEFAULT_PARTNER_STORES;
+    }
   });
 
   // Services & Rates
   const [showFareBreakdownDetails, setShowFareBreakdownDetails] = useState(() => {
-    const saved = localStorage.getItem('delivery_express_show_breakdown');
-    return saved === 'true'; // default false (hide distance and errand fee details)
+    try {
+      const saved = localStorage.getItem('delivery_express_show_breakdown');
+      return saved === 'true'; // default false (hide distance and errand fee details)
+    } catch (_) {
+      return false;
+    }
   });
 
   const [servicesList, setServicesList] = useState(() => {
-    const saved = localStorage.getItem('delivery_express_services_rates');
-    return saved ? JSON.parse(saved) : SERVICES;
+    try {
+      const saved = localStorage.getItem('delivery_express_services_rates');
+      const parsed = saved ? JSON.parse(saved) : null;
+      return Array.isArray(parsed) ? parsed : SERVICES;
+    } catch (_) {
+      return SERVICES;
+    }
   });
 
   // Payment Settings
   const [paymentSettings, setPaymentSettings] = useState(() => {
-    const saved = localStorage.getItem('delivery_express_payment_settings');
-    return saved ? JSON.parse(saved) : {
+    const defaultSettings = {
       gcashName: "DELIVERY EXPRESS BALAMBAN",
       gcashNumber: "0917-882-1923",
       gcashQrUrl: "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=DELIVERY_EXPRESS_GCASH_09178821923",
@@ -59,29 +72,44 @@ export function OrderProvider({ children }) {
       mayaNumber: "0928-441-9012",
       mayaQrUrl: ""
     };
+    try {
+      const saved = localStorage.getItem('delivery_express_payment_settings');
+      return saved ? JSON.parse(saved) : defaultSettings;
+    } catch (_) {
+      return defaultSettings;
+    }
   });
 
   // Current logged in user (Customer, Rider, or Admin)
   const [currentUser, setCurrentUser] = useState(() => {
-    const saved = localStorage.getItem('delivery_express_current_user');
-    return saved ? JSON.parse(saved) : null;
+    try {
+      const saved = localStorage.getItem('delivery_express_current_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch (_) {
+      return null;
+    }
   });
 
   // Active Role: PERSIST ON REFRESH based on currentUser
   const [activeRole, setActiveRole] = useState(() => {
-    const savedUser = localStorage.getItem('delivery_express_current_user');
-    if (savedUser) {
-      try {
+    try {
+      const savedUser = localStorage.getItem('delivery_express_current_user');
+      if (savedUser) {
         const parsed = JSON.parse(savedUser);
         return parsed.role || 'customer';
-      } catch (_) {}
-    }
+      }
+    } catch (_) {}
     return 'customer';
   });
 
   const [orders, setOrders] = useState(() => {
-    const saved = localStorage.getItem('delivery_express_orders_balamban');
-    return saved ? JSON.parse(saved) : [];
+    try {
+      const saved = localStorage.getItem('delivery_express_orders_balamban');
+      const parsed = saved ? JSON.parse(saved) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (_) {
+      return [];
+    }
   });
 
   const [riders, setRiders] = useState([

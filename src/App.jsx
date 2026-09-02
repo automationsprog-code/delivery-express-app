@@ -264,6 +264,16 @@ class ErrorBoundary extends React.Component {
     console.error("App Crash caught by ErrorBoundary:", error, errorInfo);
   }
 
+  handleResetAndReload = () => {
+    try {
+      localStorage.removeItem('delivery_express_services_rates');
+      localStorage.removeItem('delivery_express_show_breakdown');
+      localStorage.removeItem('delivery_express_partner_stores');
+      localStorage.removeItem('delivery_express_orders_balamban');
+    } catch (_) {}
+    window.location.reload();
+  };
+
   render() {
     if (this.state.hasError) {
       return (
@@ -271,16 +281,34 @@ class ErrorBoundary extends React.Component {
           <div className="w-16 h-16 rounded-3xl bg-rose-600/20 text-rose-500 flex items-center justify-center mx-auto text-2xl font-black">
             DE
           </div>
-          <h2 className="text-xl font-black">Delivery Express</h2>
+          <h2 className="text-xl font-black">Delivery Express Balamban</h2>
           <p className="text-xs text-zinc-400 max-w-sm">
-            Something went wrong while loading. Click below to refresh.
+            Temporary cache or network sync notice. Click below to load the fresh application.
           </p>
-          <button
-            onClick={() => window.location.reload()}
-            className="px-6 py-3 bg-rose-600 hover:bg-rose-500 text-white font-black rounded-2xl text-xs shadow-lg transition-all"
-          >
-            🔄 Refresh Application
-          </button>
+
+          <div className="flex flex-col sm:flex-row gap-2 w-full max-w-xs">
+            <button
+              onClick={() => window.location.reload()}
+              className="flex-1 px-5 py-3 bg-rose-600 hover:bg-rose-500 text-white font-black rounded-2xl text-xs shadow-lg transition-all"
+            >
+              🔄 Refresh Now
+            </button>
+            <button
+              onClick={this.handleResetAndReload}
+              className="flex-1 px-5 py-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold rounded-2xl text-xs border border-zinc-700 transition-all"
+            >
+              🧹 Clear Stale Cache
+            </button>
+          </div>
+
+          {this.state.error && (
+            <details className="text-[10px] text-zinc-500 max-w-sm text-left bg-zinc-900/50 p-2.5 rounded-xl border border-zinc-800">
+              <summary className="cursor-pointer font-mono text-zinc-400">Error Info</summary>
+              <pre className="mt-1 whitespace-pre-wrap overflow-x-auto text-rose-400 font-mono">
+                {String(this.state.error?.message || this.state.error)}
+              </pre>
+            </details>
+          )}
         </div>
       );
     }

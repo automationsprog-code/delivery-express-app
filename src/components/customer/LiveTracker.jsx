@@ -49,9 +49,12 @@ export default function LiveTracker() {
     // Check device local bookings
     let localMyOrders = [];
     try {
-      localMyOrders = JSON.parse(localStorage.getItem('delivery_express_my_orders') || '[]');
-    } catch (_) {}
-    const localMatch = localMyOrders.includes(o.trackingNumber) || localMyOrders.includes(o.id);
+      const parsed = JSON.parse(localStorage.getItem('delivery_express_my_orders') || '[]');
+      localMyOrders = Array.isArray(parsed) ? parsed : [];
+    } catch (_) {
+      localMyOrders = [];
+    }
+    const localMatch = Array.isArray(localMyOrders) && (localMyOrders.includes(o.trackingNumber) || localMyOrders.includes(o.id));
 
     if (!currentUser) {
       return localMatch || (activeTrackingId && (o.trackingNumber === activeTrackingId || o.id === activeTrackingId));
