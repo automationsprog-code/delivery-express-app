@@ -177,9 +177,7 @@ export function OrderProvider({ children }) {
     const fetchSupabaseData = async () => {
       try {
         // 1. Fetch Cloud Security Credentials & Cloud Avatars (Cross-device synced)
-        let cloudRiderPasswords = {};
-        let cloudRiderAvatars = {};
-        let cloudAdminPass = 'Pass123';
+        // 1. Fetch Cloud Rates, Payment Settings and Security Config
         try {
           const { data: secConfig } = await supabase
             .from('services')
@@ -194,24 +192,31 @@ export function OrderProvider({ children }) {
             cloudAdminPass = parsed.admin_pass || 'Pass123';
             if (parsed.payment_settings) {
               setPaymentSettings(parsed.payment_settings);
+              try { localStorage.setItem('delivery_express_payment_settings', JSON.stringify(parsed.payment_settings)); } catch (_) {}
             }
             if (parsed.services_rates && Array.isArray(parsed.services_rates)) {
               const cloudRatesMap = {};
               parsed.services_rates.forEach(sr => {
                 cloudRatesMap[sr.id] = sr;
               });
-              setServicesList(prev => prev.map(s => {
-                const cloudS = cloudRatesMap[s.id];
-                if (cloudS) {
-                  return {
-                    ...s,
-                    baseFare: cloudS.baseFare !== undefined && !isNaN(cloudS.baseFare) ? parseFloat(cloudS.baseFare) : s.baseFare,
-                    perKmRate: cloudS.perKmRate !== undefined && !isNaN(cloudS.perKmRate) ? parseFloat(cloudS.perKmRate) : s.perKmRate,
-                    errandFee: cloudS.errandFee !== undefined && !isNaN(cloudS.errandFee) ? parseFloat(cloudS.errandFee) : s.errandFee
-                  };
-                }
-                return s;
-              }));
+              setServicesList(prev => {
+                const merged = prev.map(s => {
+                  const cloudS = cloudRatesMap[s.id];
+                  if (cloudS) {
+                    return {
+                      ...s,
+                      baseFare: cloudS.baseFare !== undefined && !isNaN(cloudS.baseFare) ? parseFloat(cloudS.baseFare) : s.baseFare,
+                      perKmRate: cloudS.perKmRate !== undefined && !isNaN(cloudS.perKmRate) ? parseFloat(cloudS.perKmRate) : s.perKmRate,
+                      errandFee: cloudS.errandFee !== undefined && !isNaN(cloudS.errandFee) ? parseFloat(cloudS.errandFee) : s.errandFee
+                    };
+                  }
+                  return s;
+                });
+                try {
+                  localStorage.setItem('delivery_express_services_rates', JSON.stringify(merged));
+                } catch (_) {}
+                return merged;
+              });
             }
             localStorage.setItem('delivery_express_admin_password', cloudAdminPass);
           }
@@ -532,26 +537,107 @@ export function OrderProvider({ children }) {
     return hour >= 8 || hour < 2;
   };
 
-  const updatePaymentSettings = (newSettings) => {
-    setPaymentSettings(prev => ({ ...prev, ...newSettings }));
+  const updatePaymentSettings = async (newSettings) => {
+    setPaymentSettings(prev => {
+      const merged = { ...prev, ...newSettings };
+      try { localStorage.setItem('delivery_express_payment_settings', JSON.stringify(merged)); } catch (_) {}
+      return merged;
+    });
     showNotification('Payment Settings saved!', 'success');
     soundService.playOrderChime();
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data: existing } = await supabase.from('services').select('*').eq('id', 'system_security_config').maybeSingle();
+        let parsed = { admin_pass: 'Pass123', rider_passwords: {}, rider_avatars: {} };
+        if (existing && existing.description) {
+          try { parsed = JSON.parse(existing.description); } catch (_) {}
+        }
+        parsed.payment_settings = newSettings;
+        await supabase.from('services').upsert({
+          id: 'system_security_config',
+          name: 'Security Configuration',
+          icon: 'Lock',
+          description: JSON.stringify(parsed),
+          base_fare: 0,
+          per_km_rate: 0,
+          errand_fee: 0,
+          is_active: false
+        });
+      } catch (err) {
+        console.warn('Payment cloud sync warning:', err);
+      }
+    }
   };
 
-  const updateServiceRates = (serviceId, updatedRates) => {
-    setServicesList(prev => prev.map(s => {
-      if (s.id === serviceId) {
-        return {
-          ...s,
-          baseFare: parseFloat(updatedRates.baseFare),
-          perKmRate: parseFloat(updatedRates.perKmRate),
-          errandFee: parseFloat(updatedRates.errandFee || 0)
-        };
-      }
-      return s;
-    }));
-    showNotification('Courier rates updated!', 'success');
+  const updateServiceRates = async (serviceId, updatedRates) => {
+    const newBase = parseFloat(updatedRates.baseFare);
+    const newPerKm = parseFloat(updatedRates.perKmRate);
+    const newErrand = parseFloat(updatedRates.errandFee || 0);
+
+    let updatedList = [];
+    setServicesList(prev => {
+      updatedList = prev.map(s => {
+        if (s.id === serviceId) {
+          return {
+            ...s,
+            baseFare: newBase,
+            perKmRate: newPerKm,
+            errandFee: newErrand
+          };
+        }
+        return s;
+      });
+      try {
+        localStorage.setItem('delivery_express_services_rates', JSON.stringify(updatedList));
+      } catch (_) {}
+      return updatedList;
+    });
+
+    showNotification('Courier rates updated across all devices!', 'success');
     soundService.playOrderChime();
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        // 1. Update system_security_config so all devices immediately fetch the synced rates
+        const { data: existing } = await supabase.from('services').select('*').eq('id', 'system_security_config').maybeSingle();
+        let parsed = { admin_pass: 'Pass123', rider_passwords: {}, rider_avatars: {} };
+        if (existing && existing.description) {
+          try { parsed = JSON.parse(existing.description); } catch (_) {}
+        }
+        
+        parsed.services_rates = updatedList.map(s => ({
+          id: s.id,
+          name: s.name,
+          baseFare: s.baseFare,
+          perKmRate: s.perKmRate,
+          errandFee: s.errandFee
+        }));
+
+        await supabase.from('services').upsert({
+          id: 'system_security_config',
+          name: 'Security Configuration',
+          icon: 'Lock',
+          description: JSON.stringify(parsed),
+          base_fare: 0,
+          per_km_rate: 0,
+          errand_fee: 0,
+          is_active: false
+        });
+
+        // 2. Also upsert to individual service record
+        await supabase.from('services').upsert({
+          id: serviceId,
+          name: updatedRates.name || serviceId,
+          base_fare: newBase,
+          per_km_rate: newPerKm,
+          errand_fee: newErrand,
+          is_active: true
+        });
+      } catch (err) {
+        console.warn('Supabase rate sync error:', err);
+      }
+    }
   };
 
   // Create new order (Instant, Optimistic & Non-blocking)
@@ -559,6 +645,7 @@ export function OrderProvider({ children }) {
     const service = servicesList.find(s => s.id === orderInput.serviceId) || servicesList[0];
     const trackingNumber = `DE-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
     const custAvatar = orderInput.customerAvatar || currentUser?.avatar || null;
+    const custEmail = currentUser?.email || orderInput.customerEmail || '';
 
     const newOrder = {
       id: trackingNumber,
@@ -567,6 +654,7 @@ export function OrderProvider({ children }) {
       serviceName: service.name,
       customerName: orderInput.customerName,
       customerPhone: orderInput.customerPhone,
+      customerEmail: custEmail,
       customerAvatar: custAvatar,
       pickupAddress: orderInput.pickupAddress,
       pickupLandmark: orderInput.pickupLandmark || '',
@@ -585,7 +673,8 @@ export function OrderProvider({ children }) {
       riderPhone: null,
       details: {
         ...(orderInput.details || {}),
-        customer_avatar: custAvatar
+        customer_avatar: custAvatar,
+        customer_email: custEmail
       },
       customerNotes: orderInput.customerNotes || '',
       messages: [
@@ -606,6 +695,13 @@ export function OrderProvider({ children }) {
         { step: 'Delivered', time: 'Pending', done: false }
       ]
     };
+
+    // Save tracking ID into customer's local list
+    try {
+      const myExisting = JSON.parse(localStorage.getItem('delivery_express_my_orders') || '[]');
+      myExisting.unshift(trackingNumber);
+      localStorage.setItem('delivery_express_my_orders', JSON.stringify(myExisting));
+    } catch (_) {}
 
     setOrders(prev => [newOrder, ...prev]);
     setActiveTrackingId(trackingNumber);

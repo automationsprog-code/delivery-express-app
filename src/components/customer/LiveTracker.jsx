@@ -28,7 +28,7 @@ import {
 } from 'lucide-react';
 
 export default function LiveTracker() {
-  const { orders, riders, activeTrackingId, setActiveTrackingId, cancelOrder, rateRider } = useOrder();
+  const { orders, riders, activeTrackingId, setActiveTrackingId, cancelOrder, rateRider, currentUser, activeRole } = useOrder();
   const [searchInput, setSearchInput] = useState('');
   const [showChatModal, setShowChatModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
@@ -41,7 +41,45 @@ export default function LiveTracker() {
   const [selectedChips, setSelectedChips] = useState([]);
   const [hasSubmittedRating, setHasSubmittedRating] = useState(false);
 
-  const activeOrder = orders.find(o => o.trackingNumber === activeTrackingId || o.id === activeTrackingId) || orders[0];
+  // STRICT CUSTOMER ORDER ISOLATION (Only show the logged-in customer's orders)
+  const myOrders = orders.filter(o => {
+    // Admin and Riders can inspect all orders
+    if (currentUser?.role === 'admin' || currentUser?.role === 'rider') return true;
+
+    // Check device local bookings
+    let localMyOrders = [];
+    try {
+      localMyOrders = JSON.parse(localStorage.getItem('delivery_express_my_orders') || '[]');
+    } catch (_) {}
+    const localMatch = localMyOrders.includes(o.trackingNumber) || localMyOrders.includes(o.id);
+
+    if (!currentUser) {
+      return localMatch || (activeTrackingId && (o.trackingNumber === activeTrackingId || o.id === activeTrackingId));
+    }
+
+    // Match phone (last 10 digits)
+    const custPhone = currentUser?.phone ? String(currentUser.phone).replace(/\D/g, '') : '';
+    const orderPhone = o.customerPhone ? String(o.customerPhone).replace(/\D/g, '') : '';
+    const phoneMatch = custPhone && orderPhone && custPhone.slice(-10) === orderPhone.slice(-10);
+
+    // Match customer name
+    const custName = currentUser?.name?.trim().toLowerCase();
+    const orderName = o.customerName?.trim().toLowerCase();
+    const nameMatch = custName && orderName && (custName === orderName || custName.includes(orderName) || orderName.includes(custName));
+
+    // Match email
+    const custEmail = currentUser?.email?.trim().toLowerCase();
+    const orderEmail = (o.details?.customer_email || o.customerEmail || '')?.trim().toLowerCase();
+    const emailMatch = custEmail && orderEmail && custEmail === orderEmail;
+
+    return phoneMatch || nameMatch || emailMatch || localMatch;
+  });
+
+  // Selected Active Order
+  const activeOrder = myOrders.find(o => o.trackingNumber === activeTrackingId || o.id === activeTrackingId)
+    || (searchInput ? orders.find(o => o.trackingNumber?.toLowerCase() === searchInput.trim().toLowerCase() || o.id?.toLowerCase() === searchInput.trim().toLowerCase()) : null)
+    || myOrders[0]
+    || null;
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -61,7 +99,9 @@ export default function LiveTracker() {
     return ORDER_STATUSES[status] || { label: status, color: 'bg-slate-100 text-slate-700 dark:bg-zinc-800 dark:text-zinc-300' };
   };
 
-  const assignedRider = riders.find(r => r.id === activeOrder?.riderId || r.name === activeOrder?.riderName) || riders[0];
+  const assignedRider = activeOrder?.riderId 
+    ? (riders.find(r => r.id === activeOrder.riderId || r.name === activeOrder.riderName) || riders[0])
+    : null;
   const riderAvatar = assignedRider?.avatar || '/rider-nigel.jpg';
 
   const pickupCoords = activeOrder?.pickupCoords || [10.5015, 123.7150];
@@ -138,14 +178,14 @@ export default function LiveTracker() {
         </form>
       </div>
 
-      {/* MULTIPLE ACTIVE BOOKINGS SELECTOR TABS */}
-      {orders.length > 1 && (
+      {/* MULTIPLE ACTIVE BOOKINGS SELECTOR TABS (STRICTLY FOR CURRENT CUSTOMER) */}
+      {myOrders.length > 1 && (
         <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
           <div className="flex items-center gap-1.5 text-slate-500 dark:text-zinc-400 font-bold px-1 shrink-0">
             <Layers className="w-4 h-4 text-rose-500" />
-            <span>Your Active Bookings ({orders.length}):</span>
+            <span>Your Active Bookings ({myOrders.length}):</span>
           </div>
-          {orders.map((o) => {
+          {myOrders.map((o) => {
             const isSelected = (activeOrder?.trackingNumber === o.trackingNumber) || (activeOrder?.id === o.id);
             return (
               <button
@@ -170,54 +210,64 @@ export default function LiveTracker() {
       )}
 
       {!activeOrder ? (
-        <div className="p-12 text-center text-slate-500 dark:text-zinc-400 bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200 dark:border-zinc-800 shadow-sm">
-          <Package className="w-12 h-12 mx-auto mb-3 text-slate-400 dark:text-zinc-600" />
-          <p className="text-sm font-bold text-slate-800 dark:text-zinc-200">No active orders yet.</p>
-          <p className="text-xs text-slate-400 dark:text-zinc-500">Book a service to track your courier live in Balamban!</p>
+        <div className="p-12 text-center text-slate-500 dark:text-zinc-400 bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200 dark:border-zinc-800 shadow-sm space-y-3">
+          <Package className="w-12 h-12 mx-auto text-slate-400 dark:text-zinc-600" />
+          <div>
+            <p className="text-base font-extrabold text-slate-800 dark:text-zinc-200">No active bookings for your account.</p>
+            <p className="text-xs text-slate-400 dark:text-zinc-500 mt-0.5">Book a delivery service to track your courier live in Balamban!</p>
+          </div>
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6">
           
-          {/* Left Column: Interactive Map & Rider Status */}
-          <div className="lg:col-span-7 space-y-5">
-            
-            {/* Live Map Preview */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs px-1">
-                <span className="font-bold text-slate-700 dark:text-zinc-300 flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping inline-block"></span>
-                  Live Courier GPS & Route (Balamban)
-                </span>
-                <span className="text-slate-500 dark:text-zinc-400 font-semibold">{activeOrder.distanceKm} km trip</span>
+          {/* Left Column: Interactive GPS Route Map */}
+          <div className="lg:col-span-7 space-y-4">
+            <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl overflow-hidden shadow-sm">
+              <div className="p-4 border-b border-slate-100 dark:border-zinc-800 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
+                  <span className="text-xs font-bold text-slate-800 dark:text-zinc-200">Live Courier GPS & Route (Balamban)</span>
+                </div>
+                <span className="text-xs text-slate-400 dark:text-zinc-500 font-mono">{activeOrder.distanceKm} km trip</span>
               </div>
-              
-              <DeliveryMap 
-                pickupCoords={pickupCoords}
-                dropoffCoords={dropoffCoords}
-                riderCoords={activeOrder.riderName ? riderCoords : null}
-                height="380px" 
-              />
+
+              <div className="h-72 sm:h-96 w-full">
+                <DeliveryMap
+                  pickupCoords={pickupCoords}
+                  dropoffCoords={dropoffCoords}
+                  riderCoords={riderCoords}
+                  isRiderAssigned={activeOrder.status !== 'pending'}
+                  pickupLabel={`Pickup: ${activeOrder.pickupAddress}`}
+                  dropoffLabel={`Dropoff: ${activeOrder.dropoffAddress}`}
+                />
+              </div>
             </div>
 
             {/* Assigned Rider Card with Real Photo */}
             <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl p-5 shadow-sm space-y-4 card-float">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="relative">
-                    <img
-                      src={riderAvatar}
-                      alt={activeOrder.riderName || 'Rider Avatar'}
-                      className="w-14 h-14 rounded-2xl object-cover border-2 border-amber-500 shadow-md bg-white dark:bg-zinc-800"
-                    />
-                    <div className="absolute -bottom-1 -right-1 bg-emerald-500 text-white p-0.5 rounded-full">
-                      <ShieldCheck className="w-3.5 h-3.5" />
+                  {activeOrder.riderName ? (
+                    <div className="relative">
+                      <img
+                        src={riderAvatar}
+                        alt={activeOrder.riderName}
+                        className="w-14 h-14 rounded-2xl object-cover border-2 border-amber-500 shadow-md bg-white dark:bg-zinc-800"
+                      />
+                      <div className="absolute -bottom-1 -right-1 bg-emerald-500 text-white p-0.5 rounded-full">
+                        <ShieldCheck className="w-3.5 h-3.5" />
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-500 to-rose-500 text-white flex items-center justify-center shadow-lg shadow-amber-500/30 animate-pulse">
+                      <Bike className="w-7 h-7 text-white" />
+                    </div>
+                  )}
 
                   <div>
                     <div className="flex items-center gap-2">
                       <h4 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white">
-                        {activeOrder.riderName || 'Assigning nearest Balamban rider...'}
+                        {activeOrder.riderName ? activeOrder.riderName : 'Assigning nearest Balamban rider...'}
                       </h4>
                       {activeOrder.riderName && (
                         <span className="bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 text-[10px] font-bold px-2 py-0.5 rounded-md border border-amber-200 dark:border-amber-500/20">

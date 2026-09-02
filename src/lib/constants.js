@@ -103,7 +103,7 @@ export const SERVICES = [
     icon: "Utensils",
     badge: "Popular",
     color: "from-amber-500 to-rose-600",
-    baseFare: 50,
+    baseFare: 70,
     perKmRate: 10,
     errandFee: 15,
     fields: [
