@@ -39,7 +39,12 @@ import {
   Eye,
   EyeOff,
   Lock,
-  Key
+  Key,
+  UserCheck,
+  Phone,
+  Mail,
+  MapPin,
+  Search
 } from 'lucide-react';
 import { fetchPanahonWeather, MUNICIPALITY_COORDS } from '../../services/weatherService';
 
@@ -57,6 +62,8 @@ export default function AdminDashboard() {
   const { 
     orders, 
     riders, 
+    registeredCustomers,
+    deleteCustomer,
     weather,
     refreshWeather,
     broadcastWeatherAlert,
@@ -85,10 +92,12 @@ export default function AdminDashboard() {
     toggleRiderDuty
   } = useOrder();
 
-  const [activeTab, setActiveTab] = useState('dispatch'); // 'dispatch' | 'staff' | 'menus' | 'rates' | 'payments' | 'broadcast'
+  const [activeTab, setActiveTab] = useState('dispatch'); // 'dispatch' | 'staff' | 'customers' | 'menus' | 'rates' | 'payments' | 'broadcast'
   const [selectedStatusFilter, setSelectedStatusFilter] = useState('all');
   const [selectedWeatherTown, setSelectedWeatherTown] = useState('Balamban');
   const [isRefreshingWeather, setIsRefreshingWeather] = useState(false);
+  const [customerSearch, setCustomerSearch] = useState('');
+  const [showCustomerPassMap, setShowCustomerPassMap] = useState({});
 
   // Store Management Modals
   const [showAddStoreModal, setShowAddStoreModal] = useState(false);
@@ -321,6 +330,7 @@ export default function AdminDashboard() {
           {[
             { id: 'dispatch', label: 'Live Dispatch Board', icon: LayoutDashboard },
             { id: 'staff', label: `Staff & Riders (${riders.length})`, icon: Users },
+            { id: 'customers', label: `Registered Customers (${(registeredCustomers || []).length})`, icon: UserCheck },
             { id: 'menus', label: `Food & Menus (${storesList.length})`, icon: UtensilsCrossed },
             { id: 'rates', label: 'Edit Rates & Base Fares', icon: Sliders },
             { id: 'payments', label: 'GCash / QR Payments', icon: QrCode },
@@ -621,6 +631,178 @@ export default function AdminDashboard() {
               );
             })}
           </div>
+        </div>
+      )}
+
+      {/* TAB: REGISTERED CUSTOMERS ROSTER */}
+      {activeTab === 'customers' && (
+        <div className="space-y-6 animate-fadeIn">
+          {/* Header Banner */}
+          <div className="bg-gradient-to-r from-blue-500/10 via-indigo-500/10 to-transparent p-4 sm:p-5 rounded-3xl border border-blue-500/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-blue-600 text-white rounded-2xl shadow-sm">
+                <UserCheck className="w-6 h-6" />
+              </div>
+              <div>
+                <h4 className="font-extrabold text-slate-900 dark:text-white text-base">
+                  Registered Customer Accounts ({registeredCustomers.length})
+                </h4>
+                <p className="text-xs text-slate-500 dark:text-zinc-400">
+                  Real-time database of verified customer profiles, contact numbers, and delivery locations across West Cebu.
+                </p>
+              </div>
+            </div>
+
+            {/* Customer Search Bar */}
+            <div className="relative w-full sm:w-64">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+              <input
+                type="text"
+                value={customerSearch}
+                onChange={(e) => setCustomerSearch(e.target.value)}
+                placeholder="Search name, phone, email..."
+                className="w-full pl-9 pr-3 py-2 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl text-xs text-slate-900 dark:text-white font-medium focus:outline-none focus:border-blue-500"
+              />
+            </div>
+          </div>
+
+          {/* Customers List / Roster */}
+          {registeredCustomers.length === 0 ? (
+            <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 p-12 text-center rounded-3xl space-y-3">
+              <UserCheck className="w-12 h-12 mx-auto text-slate-300 dark:text-zinc-600" />
+              <h5 className="font-extrabold text-slate-700 dark:text-zinc-300">No Customers Registered Yet</h5>
+              <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                When customers register their accounts via mobile or PC, their profile details will automatically sync and appear here.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {registeredCustomers
+                .filter(c => {
+                  if (!customerSearch) return true;
+                  const q = customerSearch.toLowerCase();
+                  return (
+                    (c.name && c.name.toLowerCase().includes(q)) ||
+                    (c.phone && c.phone.includes(q)) ||
+                    (c.email && c.email.toLowerCase().includes(q)) ||
+                    (c.municipality && c.municipality.toLowerCase().includes(q))
+                  );
+                })
+                .map((cust, idx) => {
+                  const showPass = showCustomerPassMap[cust.id || cust.email || idx];
+                  const customerOrdersCount = orders.filter(o => 
+                    (o.customerName && cust.name && o.customerName.toLowerCase() === cust.name.toLowerCase()) ||
+                    (o.customerPhone && cust.phone && o.customerPhone.slice(-10) === cust.phone.slice(-10))
+                  ).length;
+
+                  return (
+                    <div
+                      key={cust.id || cust.email || idx}
+                      className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl p-5 shadow-sm space-y-3 card-float"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <img
+                            src={cust.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'}
+                            alt={cust.name}
+                            className="w-12 h-12 rounded-2xl object-cover border border-slate-200 dark:border-zinc-700 shadow-sm shrink-0"
+                          />
+                          <div className="min-w-0">
+                            <h5 className="font-extrabold text-sm text-slate-900 dark:text-white truncate">
+                              {cust.name}
+                            </h5>
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                              Verified Customer
+                            </span>
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() => {
+                            if (confirm(`Remove account for customer "${cust.name}"?`)) {
+                              deleteCustomer(cust.id || cust.email || cust.phone);
+                            }
+                          }}
+                          className="p-1.5 text-slate-400 hover:text-rose-600 rounded-xl transition-colors shrink-0"
+                          title="Delete Customer Account"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      {/* Details Box */}
+                      <div className="p-3 bg-slate-50 dark:bg-zinc-950 rounded-2xl space-y-1.5 text-xs">
+                        {cust.phone && (
+                          <div className="flex items-center justify-between text-slate-600 dark:text-zinc-400">
+                            <span className="flex items-center gap-1.5">
+                              <Phone className="w-3.5 h-3.5 text-blue-500" />
+                              <span>Mobile:</span>
+                            </span>
+                            <a href={`tel:${cust.phone}`} className="font-bold text-slate-900 dark:text-white hover:text-blue-600">
+                              {cust.phone}
+                            </a>
+                          </div>
+                        )}
+
+                        {cust.email && (
+                          <div className="flex items-center justify-between text-slate-600 dark:text-zinc-400">
+                            <span className="flex items-center gap-1.5">
+                              <Mail className="w-3.5 h-3.5 text-rose-500" />
+                              <span>Email:</span>
+                            </span>
+                            <span className="font-bold text-slate-900 dark:text-white truncate max-w-[170px]" title={cust.email}>
+                              {cust.email}
+                            </span>
+                          </div>
+                        )}
+
+                        {cust.municipality && (
+                          <div className="flex items-center justify-between text-slate-600 dark:text-zinc-400">
+                            <span className="flex items-center gap-1.5">
+                              <MapPin className="w-3.5 h-3.5 text-amber-500" />
+                              <span>Location:</span>
+                            </span>
+                            <span className="font-bold text-slate-900 dark:text-white">
+                              {cust.municipality}
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Customer Password - Masked by default */}
+                        <div className="flex items-center justify-between text-slate-600 dark:text-zinc-400 pt-1 border-t border-slate-200/60 dark:border-zinc-800">
+                          <span className="flex items-center gap-1.5">
+                            <Lock className="w-3.5 h-3.5 text-indigo-500" />
+                            <span>Password:</span>
+                          </span>
+                          <div className="flex items-center gap-1.5 font-mono">
+                            <span className="font-bold text-slate-900 dark:text-white text-xs">
+                              {showPass ? cust.password || 'Pass123' : '••••••••'}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setShowCustomerPassMap(prev => ({ ...prev, [cust.id || cust.email || idx]: !showPass }))}
+                              className="text-slate-400 hover:text-slate-600"
+                              title={showPass ? 'Hide password' : 'View password'}
+                            >
+                              {showPass ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Orders Stat Footer */}
+                      <div className="flex items-center justify-between pt-1 text-[11px] text-slate-500 dark:text-zinc-400">
+                        <span>Total Orders: <strong className="text-slate-900 dark:text-white font-bold">{customerOrdersCount}</strong></span>
+                        <span className="text-[10px] text-slate-400">
+                          {cust.createdAt ? new Date(cust.createdAt).toLocaleDateString() : 'Active Member'}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          )}
         </div>
       )}
 

@@ -126,6 +126,16 @@ export function OrderProvider({ children }) {
     }
   });
 
+  const [registeredCustomers, setRegisteredCustomers] = useState(() => {
+    try {
+      const saved = localStorage.getItem('delivery_express_registered_customers');
+      const parsed = saved ? JSON.parse(saved) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (_) {
+      return [];
+    }
+  });
+
   const [riders, setRiders] = useState([
     {
       id: 'b2c77a52-42ae-4f07-a8fa-540722d74fae',
@@ -289,10 +299,11 @@ export function OrderProvider({ children }) {
               const localCusts = JSON.parse(localStorage.getItem('delivery_express_registered_customers') || '[]');
               const combined = [...localCusts];
               parsed.registered_customers.forEach(c => {
-                if (!combined.some(x => x.email === c.email || (x.phone && c.phone && x.phone.slice(-10) === c.phone.slice(-10)))) {
+                if (!combined.some(x => (x.email && c.email && x.email.toLowerCase() === c.email.toLowerCase()) || (x.phone && c.phone && x.phone.slice(-10) === c.phone.slice(-10)))) {
                   combined.push(c);
                 }
               });
+              setRegisteredCustomers(combined);
               try { localStorage.setItem('delivery_express_registered_customers', JSON.stringify(combined)); } catch (_) {}
             }
             localStorage.setItem('delivery_express_admin_password', cloudAdminPass);
@@ -535,55 +546,54 @@ export function OrderProvider({ children }) {
   const registerCustomer = async (customerData) => {
     const userObj = {
       role: 'customer',
+      id: `cust-${Date.now()}`,
       name: customerData.name?.trim() || `${customerData.firstName || ''} ${customerData.lastName || ''}`.trim(),
       firstName: customerData.firstName?.trim() || customerData.name?.split(' ')[0] || '',
       lastName: customerData.lastName?.trim() || customerData.name?.split(' ').slice(1).join(' ') || '',
       email: (customerData.email || '').trim().toLowerCase(),
       phone: (customerData.phone || '').replace(/\D/g, ''),
+      municipality: customerData.municipality || 'Balamban',
       avatar: customerData.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-      password: customerData.password?.trim()
+      password: customerData.password?.trim() || 'Pass123',
+      createdAt: new Date().toISOString()
     };
 
-    let existing = [];
-    try {
-      const saved = localStorage.getItem('delivery_express_registered_customers');
-      existing = saved ? JSON.parse(saved) : [];
-      if (!Array.isArray(existing)) existing = [];
-    } catch (_) {
-      existing = [];
-    }
-
-    // Filter out previous entry with same email or phone
-    existing = existing.filter(c => 
-      !(c.email && userObj.email && c.email === userObj.email) &&
-      !(c.phone && userObj.phone && c.phone.slice(-10) === userObj.phone.slice(-10))
-    );
-    existing.push(userObj);
-    localStorage.setItem('delivery_express_registered_customers', JSON.stringify(existing));
+    let updatedList = [];
+    setRegisteredCustomers(prev => {
+      const filtered = prev.filter(c => 
+        !(c.email && userObj.email && c.email.toLowerCase() === userObj.email.toLowerCase()) &&
+        !(c.phone && userObj.phone && c.phone.slice(-10) === userObj.phone.slice(-10))
+      );
+      updatedList = [...filtered, userObj];
+      try { localStorage.setItem('delivery_express_registered_customers', JSON.stringify(updatedList)); } catch (_) {}
+      return updatedList;
+    });
     
-    // Cloud sync registered customers to Supabase
-    await syncSysConfig({ registered_customers: existing });
+    // Cloud sync registered customers to Supabase SYS-CONFIG-RATES
+    await syncSysConfig({ registered_customers: updatedList });
 
     setCurrentUser(userObj);
     setActiveRole('customer');
     soundService.playSuccessFanfare();
-    showNotification(`Account verified & created! Welcome, ${userObj.name}`, 'success');
+    showNotification(`Account created & signed in! Welcome, ${userObj.name}`, 'success');
+  };
+
+  const deleteCustomer = async (customerIdOrEmail) => {
+    let updatedList = [];
+    setRegisteredCustomers(prev => {
+      updatedList = prev.filter(c => c.id !== customerIdOrEmail && c.email !== customerIdOrEmail && c.phone !== customerIdOrEmail);
+      try { localStorage.setItem('delivery_express_registered_customers', JSON.stringify(updatedList)); } catch (_) {}
+      return updatedList;
+    });
+    await syncSysConfig({ registered_customers: updatedList });
+    showNotification('Customer account deleted', 'info');
   };
 
   const loginCustomerWithPassword = (emailOrPhone, password) => {
-    let existing = [];
-    try {
-      const saved = localStorage.getItem('delivery_express_registered_customers');
-      existing = saved ? JSON.parse(saved) : [];
-      if (!Array.isArray(existing)) existing = [];
-    } catch (_) {
-      existing = [];
-    }
-
     const cleanInput = (emailOrPhone || '').trim().toLowerCase();
     const cleanDigits = cleanInput.replace(/\D/g, '');
 
-    const found = existing.find(c => {
+    const found = registeredCustomers.find(c => {
       const cEmail = (c.email || '').trim().toLowerCase();
       const cPhone = (c.phone || '').replace(/\D/g, '');
       const emailMatches = cEmail && cEmail === cleanInput;
@@ -1700,8 +1710,10 @@ export function OrderProvider({ children }) {
         paymentSettings,
         updatePaymentSettings,
         currentUser,
+        registeredCustomers,
         registerCustomer,
         loginCustomerWithPassword,
+        deleteCustomer,
         loginAsCustomer,
         loginAsRider,
         loginAsAdmin,

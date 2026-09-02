@@ -98,10 +98,15 @@ export default function AuthModal({ onClose, defaultTab = 'customer' }) {
       return;
     }
     const computedName = googleName.trim() || googleEmail.split('@')[0].replace(/[._]/g, ' ');
-    loginAsCustomer({
-      name: computedName.charAt(0).toUpperCase() + computedName.slice(1),
-      email: googleEmail.trim(),
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'
+    const formattedName = computedName.charAt(0).toUpperCase() + computedName.slice(1);
+    registerCustomer({
+      name: formattedName,
+      firstName: formattedName.split(' ')[0] || formattedName,
+      lastName: formattedName.split(' ').slice(1).join(' ') || '',
+      email: googleEmail.trim().toLowerCase(),
+      phone: '',
+      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+      password: 'GoogleUser123'
     });
     onClose();
   };
