@@ -19,7 +19,8 @@ import {
   Upload, 
   LayoutDashboard,
   ShieldCheck,
-  Power
+  Power,
+  Sparkles
 } from 'lucide-react';
 
 const MUNICIPALITIES_AND_ZONES = [
