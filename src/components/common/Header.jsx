@@ -228,11 +228,11 @@ export default function Header() {
               </div>
             )}
 
-            {/* Reset Roster to Nigel */}
+            {/* Live Cloud Refresh / Sync */}
             <button
               onClick={resetSampleData}
-              title="Reset Demo Data"
-              className="p-2 sm:p-2.5 rounded-xl sm:rounded-2xl bg-slate-100 dark:bg-zinc-900 text-slate-500 dark:text-zinc-400 border border-slate-200 dark:border-zinc-800"
+              title="Sync Live Cloud Database"
+              className="p-2 sm:p-2.5 rounded-xl sm:rounded-2xl bg-slate-100 dark:bg-zinc-900 hover:bg-slate-200 dark:hover:bg-zinc-800 text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-zinc-800 transition-colors shadow-sm"
             >
               <RotateCcw className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </button>

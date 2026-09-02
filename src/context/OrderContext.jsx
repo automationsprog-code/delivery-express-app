@@ -1639,11 +1639,10 @@ export function OrderProvider({ children }) {
     }
   };
 
-  const resetSampleData = () => {
-    setOrders([]);
-    setRiders([]);
-    setActiveTrackingId('');
-    showNotification('Roster cleared!', 'info');
+  const refreshLiveDatabase = async () => {
+    showNotification('Syncing with live cloud database...', 'info');
+    await fetchSupabaseData();
+    showNotification('Live cloud database synced!', 'success');
   };
 
   return (
@@ -1710,7 +1709,8 @@ export function OrderProvider({ children }) {
         updateRider,
         deleteRider,
         deleteOrder,
-        resetSampleData
+        refreshLiveDatabase,
+        resetSampleData: refreshLiveDatabase
       }}
     >
       {children}
