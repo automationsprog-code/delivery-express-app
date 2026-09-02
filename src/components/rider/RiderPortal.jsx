@@ -84,55 +84,52 @@ export default function RiderPortal() {
 
   const totalEarningsToday = myCompletedOrders.reduce((acc, curr) => acc + (curr.estimatedFare || 80), 0);
 
+  const [isLocationSharing, setIsLocationSharing] = useState(true);
+  const [gpsStatus, setGpsStatus] = useState('Live');
+
+  // Automatic Background GPS Location Stream (Grab/FoodPanda Style)
+  useEffect(() => {
+    if (!isOnline || !isLocationSharing) {
+      setGpsStatus('Paused');
+      return;
+    }
+
+    if (!navigator.geolocation) {
+      setGpsStatus('Not Supported');
+      return;
+    }
+
+    setGpsStatus('Live');
+
+    // Continuous watch position
+    const watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        updateRiderLocation(currentRider.id, latitude, longitude);
+        setGpsStatus('Live');
+      },
+      (err) => {
+        console.warn('GPS location error:', err);
+        setGpsStatus('Searching...');
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 5000
+      }
+    );
+
+    return () => {
+      navigator.geolocation.clearWatch(watchId);
+    };
+  }, [isOnline, isLocationSharing, currentRider.id]);
+
   const handleOpenMaps = (address) => {
     window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address + ', Balamban, Cebu')}`, '_blank');
   };
 
   const handleOpenWaze = (address) => {
     window.open(`https://waze.com/ul?q=${encodeURIComponent(address + ', Balamban, Cebu')}`, '_blank');
-  };
-
-  const handleBroadcastGPS = () => {
-    if (!navigator.geolocation) {
-      alert('Geolocation is not supported on this device.');
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const { latitude, longitude } = position.coords;
-        updateRiderLocation(currentRider.id, latitude, longitude);
-        alert(`Your Live GPS Location (${latitude.toFixed(4)}, ${longitude.toFixed(4)}) is now broadcasted to Balamban customers!`);
-      },
-      (err) => {
-        console.warn(err);
-        alert('Could not get GPS. Using Balamban center.');
-      },
-      { enableHighAccuracy: true }
-    );
-  };
-
-  const handleSimulateMovement = () => {
-    setIsSimulatingMove(true);
-    let step = 0;
-    const points = [
-      [10.5015, 123.7150],
-      [10.4960, 123.7155],
-      [10.4900, 123.7130],
-      [10.4820, 123.7100],
-      [10.4750, 123.7070],
-      [10.4720, 123.7060]
-    ];
-
-    const interval = setInterval(() => {
-      if (step < points.length) {
-        const [lat, lng] = points[step];
-        updateRiderLocation(currentRider.id, lat, lng);
-        step++;
-      } else {
-        clearInterval(interval);
-        setIsSimulatingMove(false);
-      }
-    }, 1200);
   };
 
   // Camera & Photo Upload Capture for Proof of Delivery
@@ -241,7 +238,7 @@ export default function RiderPortal() {
         </div>
 
         {/* DUTY TOGGLE SWITCH & GPS CONTROLS */}
-        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+        <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
           
           {/* Main Duty Active / Inactive Toggle Button */}
           <button
@@ -256,21 +253,20 @@ export default function RiderPortal() {
             <span>{isOnline ? 'Set OFF DUTY' : 'Set ACTIVE ON DUTY'}</span>
           </button>
 
+          {/* Grab-Style Live Location Sharing Toggle */}
           <button
-            onClick={handleBroadcastGPS}
-            className="px-3.5 py-2.5 bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 text-slate-800 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 rounded-2xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm"
+            onClick={() => setIsLocationSharing(prev => !prev)}
+            className={`px-3.5 py-2.5 rounded-2xl text-xs font-black flex items-center justify-center gap-2 transition-all shadow-sm ${
+              isLocationSharing && isOnline
+                ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700'
+                : 'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 border border-slate-200 dark:border-zinc-700'
+            }`}
+            title="Turn Live Location Sharing ON/OFF"
           >
-            <LocateFixed className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-            <span>Broadcast GPS</span>
-          </button>
-
-          <button
-            onClick={handleSimulateMovement}
-            disabled={isSimulatingMove}
-            className="px-3.5 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 text-zinc-950 rounded-2xl text-xs font-black flex items-center justify-center gap-1.5 shadow-md disabled:opacity-50"
-          >
-            <Radio className={`w-3.5 h-3.5 ${isSimulatingMove ? 'animate-spin' : ''}`} />
-            <span>{isSimulatingMove ? 'Moving...' : 'Simulate Ride'}</span>
+            <LocateFixed className={`w-4 h-4 ${isLocationSharing && isOnline ? 'text-emerald-500 animate-pulse' : 'text-slate-400'}`} />
+            <span>
+              {isLocationSharing && isOnline ? '📍 Location: ON 🟢' : '📍 Location: OFF ⚪'}
+            </span>
           </button>
         </div>
 

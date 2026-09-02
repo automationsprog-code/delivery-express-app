@@ -106,7 +106,9 @@ export default function LiveTracker() {
 
   const pickupCoords = activeOrder?.pickupCoords || [10.5015, 123.7150];
   const dropoffCoords = activeOrder?.dropoffCoords || [10.4720, 123.7060];
-  const riderCoords = activeOrder?.riderCoords || [10.4850, 123.7110];
+  const riderCoords = (assignedRider?.lat && assignedRider?.lng)
+    ? [parseFloat(assignedRider.lat), parseFloat(assignedRider.lng)]
+    : (activeOrder?.riderCoords || [10.4850, 123.7110]);
 
   const canCancel = activeOrder && (activeOrder.status === 'pending' || activeOrder.status === 'assigned');
 

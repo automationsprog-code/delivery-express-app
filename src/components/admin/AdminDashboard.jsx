@@ -444,16 +444,27 @@ export default function AdminDashboard() {
                             </span>
                           </td>
                           <td className="py-3 px-4">
-                            <select
-                              value={order.riderId || ''}
-                              onChange={(e) => assignRider(order.id || order.trackingNumber, e.target.value)}
-                              className="bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-xl px-2 py-1 text-xs text-slate-900 dark:text-white font-medium"
-                            >
-                              <option value="">Unassigned</option>
-                              {riders.map(r => (
-                                <option key={r.id} value={r.id}>{r.name} ({r.zone})</option>
-                              ))}
-                            </select>
+                            {order.status === 'delivered' ? (
+                              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 rounded-xl text-xs font-black shadow-2xs">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                                <span>{order.riderName || 'Nigel'} (Completed)</span>
+                              </div>
+                            ) : order.status === 'cancelled' ? (
+                              <span className="text-xs text-slate-400 font-bold italic bg-slate-100 dark:bg-zinc-800 px-2.5 py-1 rounded-lg">
+                                Cancelled
+                              </span>
+                            ) : (
+                              <select
+                                value={order.riderId || ''}
+                                onChange={(e) => assignRider(order.id || order.trackingNumber, e.target.value)}
+                                className="bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-xl px-2.5 py-1.5 text-xs text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-rose-500"
+                              >
+                                <option value="">Unassigned</option>
+                                {riders.map(r => (
+                                  <option key={r.id} value={r.id}>{r.name} ({r.zone})</option>
+                                ))}
+                              </select>
+                            )}
                           </td>
                           <td className="py-3 px-4 text-right">
                             <button
