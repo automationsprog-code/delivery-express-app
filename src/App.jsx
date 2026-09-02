@@ -37,10 +37,10 @@ function MainContent() {
       {/* Universal Header */}
       <Header />
 
-      {/* Main Body Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+      {/* Main Body Container: Expanded for Wide Screen Displays (No empty side gaps) */}
+      <main className="flex-1 max-w-[1600px] w-full mx-auto px-4 sm:px-8 lg:px-12 py-6 space-y-6">
         
-        {/* VIEW 1: CUSTOMER VIEW (DEFAULT - NO LOGIN NEEDED) */}
+        {/* VIEW 1: CUSTOMER VIEW (DEFAULT) */}
         {activeRole === 'customer' && (
           <div className="space-y-6">
             
@@ -105,8 +105,8 @@ function MainContent() {
       </main>
 
       {/* Footer */}
-      <footer className="mt-auto border-t border-slate-200 dark:border-zinc-800/80 bg-white dark:bg-zinc-950 py-8 px-4 text-xs text-slate-500 dark:text-zinc-400">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4 text-center md:text-left">
+      <footer className="mt-auto border-t border-slate-200 dark:border-zinc-800/80 bg-white dark:bg-zinc-950 py-8 px-4 sm:px-8 text-xs text-slate-500 dark:text-zinc-400">
+        <div className="max-w-[1600px] mx-auto flex flex-col md:flex-row items-center justify-between gap-4 text-center md:text-left">
           
           <div className="flex items-center gap-2.5 justify-center md:justify-start">
             <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-rose-600 to-amber-500 flex items-center justify-center text-white font-bold shadow-sm">

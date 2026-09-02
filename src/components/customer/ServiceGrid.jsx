@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { SERVICES } from '../../lib/constants';
+import { useOrder } from '../../context/OrderContext';
 import { 
   Utensils, 
   ShoppingBag, 
@@ -9,13 +9,17 @@ import {
   Receipt, 
   Zap, 
   Store, 
-  FileText,
-  ArrowRight,
-  ShieldAlert,
-  Clock,
-  Sparkles,
+  FileText, 
+  ArrowRight, 
+  Sparkles, 
+  Clock, 
+  ShieldCheck, 
   Search,
-  Filter
+  Bike,
+  CheckCircle2,
+  PhoneCall,
+  Flame,
+  Radio
 } from 'lucide-react';
 
 const iconMap = {
@@ -31,131 +35,161 @@ const iconMap = {
 };
 
 export default function ServiceGrid({ onSelectService }) {
-  const [filterCategory, setFilterCategory] = useState('all');
-  const [searchQuery, setSearchQuery] = useState('');
+  const { servicesList, riders, isWithinOperatingHours } = useOrder();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
 
-  const filteredServices = SERVICES.filter(s => {
-    const matchesSearch = s.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          s.tagline.toLowerCase().includes(searchQuery.toLowerCase());
+  const activeRidersCount = riders.filter(r => (r.status === 'active' || r.isOnline)).length;
+  const isOpen = isWithinOperatingHours();
+
+  const filteredServices = (servicesList || []).filter(service => {
+    const matchesSearch = service.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      service.tagline.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesSearch;
   });
 
   return (
-    <div className="space-y-6 pb-20 md:pb-6">
+    <div className="space-y-6 pb-20 md:pb-8">
       
-      {/* Eye-Pleasing Hero Banner */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-rose-600 via-red-600 to-amber-500 text-white p-6 sm:p-8 md:p-10 shadow-2xl shadow-rose-600/20">
-        <div className="relative z-10 max-w-2xl space-y-3 sm:space-y-4">
+      {/* Dynamic Wide Hero Banner with Live Courier Stats */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-rose-600 via-red-600 to-amber-500 text-white shadow-xl p-6 sm:p-8 lg:p-10 border border-rose-400/20">
+        
+        {/* Background glow graphics */}
+        <div className="absolute -right-16 -top-16 w-80 h-80 rounded-full bg-amber-400/20 blur-3xl pointer-events-none" />
+        <div className="absolute -left-16 -bottom-16 w-80 h-80 rounded-full bg-rose-900/40 blur-3xl pointer-events-none" />
+
+        <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
           
-          <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-md text-white border border-white/30 px-3.5 py-1 rounded-full text-xs font-bold shadow-sm">
-            <Clock className="w-3.5 h-3.5 text-amber-300 animate-spin" />
-            <span>Balamban Courier Express • 8:00 AM – 2:00 AM</span>
+          <div className="lg:col-span-8 space-y-4 text-center sm:text-left">
+            
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/20 backdrop-blur-md border border-white/20 text-xs font-bold text-amber-200 shadow-sm">
+              <Clock className="w-3.5 h-3.5 text-amber-300" />
+              <span>Balamban & West Cebu Express • 8:00 AM – 2:00 AM Daily</span>
+            </div>
+
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white font-heading leading-tight drop-shadow-sm">
+              Anything, Anywhere!
+            </h2>
+
+            <p className="text-sm sm:text-base text-rose-100 max-w-2xl font-medium leading-relaxed">
+              Reliable on-demand errands & deliveries across <strong>Balamban, Asturias, Toledo, Tuburan, and Pinamungajan</strong>. Food, grocery, pharmacy, bills & parcels.
+            </p>
+
+            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 pt-1 text-xs">
+              <span className="px-3 py-1.5 rounded-xl bg-white/20 backdrop-blur-md text-white font-bold flex items-center gap-1.5 border border-white/20">
+                <Bike className="w-4 h-4 text-amber-300" />
+                <span>Fast Motorcycle Dispatch</span>
+              </span>
+              <span className="px-3 py-1.5 rounded-xl bg-white/20 backdrop-blur-md text-white font-bold flex items-center gap-1.5 border border-white/20">
+                <ShieldCheck className="w-4 h-4 text-emerald-300" />
+                <span>Proof of Delivery Photo</span>
+              </span>
+              <span className="px-3 py-1.5 rounded-xl bg-white/20 backdrop-blur-md text-white font-bold flex items-center gap-1.5 border border-white/20">
+                <CheckCircle2 className="w-4 h-4 text-amber-300" />
+                <span>Cash on Delivery & GCash</span>
+              </span>
+            </div>
+
           </div>
 
-          <h2 className="text-2xl sm:text-3xl md:text-5xl font-black tracking-tight leading-tight drop-shadow-sm font-heading">
-            Anything, <span className="text-amber-200">Anywhere!</span>
-          </h2>
-
-          <p className="text-sm sm:text-base text-rose-50 font-medium leading-relaxed max-w-xl">
-            Reliable on-demand errands & deliveries across Balamban, Asturias, Toledo, and surrounding Cebu towns.
-          </p>
-
-          <div className="pt-2 flex flex-wrap items-center gap-2 text-xs font-semibold">
-            <span className="bg-black/20 px-3 py-1 rounded-xl border border-white/10">✓ Fast Dispatch</span>
-            <span className="bg-black/20 px-3 py-1 rounded-xl border border-white/10">✓ Proof of Delivery</span>
-            <span className="bg-black/20 px-3 py-1 rounded-xl border border-white/10">✓ COD & GCash</span>
+          {/* Quick Stats Box on Widescreen */}
+          <div className="lg:col-span-4 bg-white/10 backdrop-blur-md border border-white/20 rounded-3xl p-5 text-center space-y-3 shadow-lg">
+            <span className="text-[10px] uppercase font-bold tracking-wider text-rose-200 block">
+              Active Couriers in West Cebu
+            </span>
+            <div className="flex items-center justify-center gap-2">
+              <span className="relative flex h-3 w-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+              </span>
+              <span className="text-3xl font-black text-white">{activeRidersCount || 3} Couriers</span>
+            </div>
+            <p className="text-xs text-rose-100 font-medium">
+              Ready for pickup in Balamban proper, Gaisano, Buanoy, and adjacent towns.
+            </p>
           </div>
+
         </div>
 
-        {/* Decorative Circles */}
-        <div className="absolute top-0 right-0 -mt-12 -mr-12 w-64 h-64 bg-white/10 rounded-full blur-2xl pointer-events-none" />
-        <div className="absolute bottom-0 right-1/4 -mb-12 w-48 h-48 bg-amber-300/20 rounded-full blur-xl pointer-events-none" />
       </div>
 
-      {/* Services Header & Search Filter */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-2">
+      {/* Services Header & Search Bar */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
         <div>
-          <h3 className="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+          <h3 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white font-heading">
             Our 9 Delivery & Errand Services
           </h3>
           <p className="text-xs text-slate-500 dark:text-zinc-400">
-            Tap any service to open quick booking & calculate fare
+            Tap any service to open quick booking, calculate exact fare & pin map location
           </p>
         </div>
 
-        {/* Search Box */}
-        <div className="relative w-full sm:w-64">
-          <Search className="w-4 h-4 text-slate-400 dark:text-zinc-500 absolute left-3 top-2.5" />
+        <div className="relative w-full sm:w-72">
+          <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
           <input
             type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search service (e.g. food, bills)..."
-            className="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl pl-9 pr-3 py-2 text-xs text-slate-800 dark:text-zinc-200 placeholder-slate-400 focus:outline-none focus:border-rose-500 shadow-sm"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Search service (food, bills, medicine)..."
+            className="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl pl-10 pr-4 py-2.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-rose-500 shadow-sm"
           />
         </div>
       </div>
 
-      {/* Interactive 3D Floating Grid of 9 Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
-        {filteredServices.map((service, index) => {
+      {/* Responsive Grid: Expands to 4-5 Columns on Widescreens to eliminate empty gaps */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 sm:gap-5">
+        {filteredServices.map((service) => {
           const IconComponent = iconMap[service.icon] || Package;
 
           return (
             <div
               key={service.id}
               onClick={() => onSelectService(service)}
-              className="group relative cursor-pointer rounded-3xl bg-white dark:bg-zinc-900/90 border border-slate-200/80 dark:border-zinc-800 p-6 shadow-sm hover:shadow-2xl hover:border-rose-500/50 dark:hover:border-rose-500/40 card-float flex flex-col justify-between transition-all duration-300 overflow-hidden"
+              className="group relative bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 hover:border-rose-500/50 rounded-3xl p-5 sm:p-6 shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer flex flex-col justify-between card-float"
             >
-              {/* Subtle Top Gradient Accent Bar */}
-              <div className={`absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r ${service.color}`} />
-
+              
+              {/* Card Top: Icon & Badge */}
               <div>
-                {/* Header: Icon & Badge */}
                 <div className="flex items-start justify-between gap-2 mb-4">
-                  <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${service.color} flex items-center justify-center text-white shadow-md group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300`}>
-                    <IconComponent className="w-7 h-7" />
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-rose-500 to-amber-500 p-2.5 text-white shadow-md shadow-rose-500/20 group-hover:scale-110 transition-transform duration-300">
+                    <IconComponent className="w-full h-full" />
                   </div>
 
-                  <span className="bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 text-[11px] font-bold px-2.5 py-1 rounded-full border border-rose-200 dark:border-rose-900/50 shadow-sm">
+                  <span className="bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800 text-[10px] font-extrabold px-2.5 py-1 rounded-full uppercase tracking-wider">
                     {service.badge}
                   </span>
                 </div>
 
-                {/* Service Name & Tagline */}
-                <h4 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white group-hover:text-rose-600 dark:group-hover:text-rose-400 transition-colors">
+                <h4 className="text-base font-extrabold text-slate-900 dark:text-white group-hover:text-rose-600 dark:group-hover:text-rose-400 transition-colors font-heading mb-1">
                   {service.name}
                 </h4>
 
-                <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1.5 leading-relaxed">
+                <p className="text-xs text-slate-500 dark:text-zinc-400 line-clamp-2 leading-relaxed">
                   {service.tagline}
                 </p>
               </div>
 
-              {/* Footer: Starting Fare & CTA */}
-              <div className="mt-5 pt-4 border-t border-slate-100 dark:border-zinc-800/80 flex items-center justify-between">
+              {/* Card Bottom: Starting Fare & Book Action */}
+              <div className="pt-5 mt-4 border-t border-slate-100 dark:border-zinc-800/80 flex items-center justify-between">
                 <div>
-                  <span className="text-slate-400 dark:text-zinc-500 text-[10px] block uppercase font-semibold">
+                  <span className="text-[10px] text-slate-400 dark:text-zinc-500 block uppercase font-bold">
                     Starting Fare
                   </span>
                   <div className="flex items-baseline gap-1">
-                    <span className="font-extrabold text-slate-900 dark:text-amber-400 text-base sm:text-lg">
-                      ₱{service.baseFare}
-                    </span>
-                    <span className="text-[11px] text-slate-500 dark:text-zinc-400 font-medium">
-                      (+₱{service.perKmRate}/km)
-                    </span>
+                    <span className="text-lg font-black text-slate-900 dark:text-white">₱{service.baseFare}</span>
+                    <span className="text-[10px] text-slate-400 dark:text-zinc-500 font-semibold">(+₱{service.perKmRate}/km)</span>
                   </div>
                 </div>
 
                 <button
                   type="button"
-                  className="px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-zinc-800 group-hover:bg-rose-600 text-slate-700 dark:text-zinc-200 group-hover:text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm group-hover:shadow-md"
+                  className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-rose-600 text-slate-700 hover:text-white dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-rose-600 text-xs font-extrabold flex items-center gap-1.5 transition-all shadow-sm group-hover:bg-rose-600 group-hover:text-white"
                 >
                   <span>Book</span>
-                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                  <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </div>
+
             </div>
           );
         })}

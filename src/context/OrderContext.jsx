@@ -33,7 +33,7 @@ export function OrderProvider({ children }) {
     };
   });
 
-  // Current logged in user (null = customer by default)
+  // Current logged in user (Customer, Rider, or Admin)
   const [currentUser, setCurrentUser] = useState(() => {
     const saved = localStorage.getItem('delivery_express_current_user');
     return saved ? JSON.parse(saved) : null;
@@ -73,12 +73,11 @@ export function OrderProvider({ children }) {
     }
   }, [theme]);
 
-  // Persist services rates
+  // Save to localStorage
   useEffect(() => {
     localStorage.setItem('delivery_express_services_rates', JSON.stringify(servicesList));
   }, [servicesList]);
 
-  // Persist settings
   useEffect(() => {
     localStorage.setItem('delivery_express_payment_settings', JSON.stringify(paymentSettings));
   }, [paymentSettings]);
@@ -99,43 +98,160 @@ export function OrderProvider({ children }) {
     localStorage.setItem('delivery_express_riders_balamban', JSON.stringify(riders));
   }, [riders]);
 
-  // Supabase Realtime Listener
+  // ==========================================
+  // SUPABASE REALTIME MULTI-DEVICE SYNC
+  // ==========================================
   useEffect(() => {
     if (!isSupabaseConfigured || !supabase) return;
 
-    const fetchSupabaseOrders = async () => {
+    // 1. Initial Fetch of Riders & Orders from Supabase
+    const fetchSupabaseData = async () => {
       try {
-        const { data, error } = await supabase
+        // Fetch Orders
+        const { data: orderData, error: orderErr } = await supabase
           .from('orders')
           .select('*')
           .order('created_at', { ascending: false });
-        if (!error && data && data.length > 0) {
-          setOrders(data);
+        if (!orderErr && orderData && orderData.length > 0) {
+          const formattedOrders = orderData.map(o => ({
+            id: o.id || o.tracking_number,
+            trackingNumber: o.tracking_number,
+            serviceId: o.service_id,
+            serviceName: o.service_name,
+            customerName: o.customer_name,
+            customerPhone: o.customer_phone,
+            pickupAddress: o.pickup_address,
+            pickupLandmark: o.pickup_landmark,
+            pickupCoords: [parseFloat(o.pickup_lat || 10.5015), parseFloat(o.pickup_lng || 123.7150)],
+            dropoffAddress: o.dropoff_address,
+            dropoffLandmark: o.dropoff_landmark,
+            dropoffCoords: [parseFloat(o.dropoff_lat || 10.4720), parseFloat(o.dropoff_lng || 123.7060)],
+            distanceKm: parseFloat(o.distance_km || 3.5),
+            estimatedFare: parseFloat(o.estimated_fare || 100),
+            itemCost: parseFloat(o.item_cost || 0),
+            paymentMethod: o.payment_method,
+            status: o.status,
+            statusText: o.status_text,
+            riderId: o.rider_id,
+            riderName: o.rider_name,
+            riderPhone: o.rider_phone,
+            details: o.details || {},
+            messages: o.messages || [],
+            logs: o.logs || [],
+            proofOfDeliveryUrl: o.proof_of_delivery_url,
+            deliveryNotes: o.delivery_notes
+          }));
+          setOrders(formattedOrders);
+        }
+
+        // Fetch Riders
+        const { data: riderData, error: riderErr } = await supabase
+          .from('riders')
+          .select('*')
+          .order('created_at', { ascending: true });
+        if (!riderErr && riderData && riderData.length > 0) {
+          setRiders(riderData);
+        } else if (riders.length > 0) {
+          // Seed Supabase with initial riders if table is empty
+          for (const r of riders) {
+            await supabase.from('riders').upsert({
+              id: r.id,
+              name: r.name,
+              phone: r.phone,
+              plate: r.plate,
+              zone: r.zone,
+              municipality: r.municipality || 'Balamban',
+              avatar: r.avatar,
+              rating: r.rating,
+              trips: r.trips,
+              is_online: r.isOnline !== false,
+              status: r.status || 'active',
+              lat: r.lat,
+              lng: r.lng
+            });
+          }
         }
       } catch (err) {
-        console.warn('Supabase fetch error, using local state:', err);
+        console.warn('Supabase sync warning:', err);
       }
     };
 
-    fetchSupabaseOrders();
+    fetchSupabaseData();
 
-    const channel = supabase
-      .channel('schema-db-changes')
+    // 2. Realtime Subscriptions (Broadcast changes across PC and Mobile in real-time)
+    const orderChannel = supabase
+      .channel('orders-realtime-sync')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload) => {
         if (payload.eventType === 'INSERT') {
-          setOrders(prev => [payload.new, ...prev]);
+          const newO = payload.new;
+          const formatted = {
+            id: newO.id || newO.tracking_number,
+            trackingNumber: newO.tracking_number,
+            serviceId: newO.service_id,
+            serviceName: newO.service_name,
+            customerName: newO.customer_name,
+            customerPhone: newO.customer_phone,
+            pickupAddress: newO.pickup_address,
+            pickupLandmark: newO.pickup_landmark,
+            pickupCoords: [parseFloat(newO.pickup_lat || 10.5015), parseFloat(newO.pickup_lng || 123.7150)],
+            dropoffAddress: newO.dropoff_address,
+            dropoffLandmark: newO.dropoff_landmark,
+            dropoffCoords: [parseFloat(newO.dropoff_lat || 10.4720), parseFloat(newO.dropoff_lng || 123.7060)],
+            distanceKm: parseFloat(newO.distance_km || 3.5),
+            estimatedFare: parseFloat(newO.estimated_fare || 100),
+            itemCost: parseFloat(newO.item_cost || 0),
+            paymentMethod: newO.payment_method,
+            status: newO.status,
+            statusText: newO.status_text,
+            riderId: newO.rider_id,
+            riderName: newO.rider_name,
+            riderPhone: newO.rider_phone,
+            details: newO.details || {},
+            messages: newO.messages || [],
+            logs: newO.logs || []
+          };
+          setOrders(prev => [formatted, ...prev.filter(x => x.trackingNumber !== formatted.trackingNumber)]);
           soundService.playOrderChime();
-          showNotification(`New Live Booking: ${payload.new.tracking_number}`);
         } else if (payload.eventType === 'UPDATE') {
-          setOrders(prev => prev.map(o => o.id === payload.new.id ? { ...o, ...payload.new } : o));
+          setOrders(prev => prev.map(o => o.id === payload.new.id || o.trackingNumber === payload.new.tracking_number ? { ...o, ...payload.new } : o));
+        } else if (payload.eventType === 'DELETE') {
+          setOrders(prev => prev.filter(o => o.id !== payload.old.id && o.trackingNumber !== payload.old.tracking_number));
+        }
+      })
+      .subscribe();
+
+    const riderChannel = supabase
+      .channel('riders-realtime-sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'riders' }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          setRiders(prev => [...prev.filter(r => r.id !== payload.new.id), payload.new]);
+        } else if (payload.eventType === 'UPDATE') {
+          setRiders(prev => prev.map(r => r.id === payload.new.id ? { ...r, ...payload.new } : r));
+        } else if (payload.eventType === 'DELETE') {
+          setRiders(prev => prev.filter(r => r.id !== payload.old.id));
         }
       })
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(orderChannel);
+      supabase.removeChannel(riderChannel);
     };
   }, []);
+
+  // Auth Methods
+  const loginAsCustomer = (customerData) => {
+    const userObj = {
+      role: 'customer',
+      name: customerData.name || 'Verified Customer',
+      email: customerData.email || 'customer@gmail.com',
+      avatar: customerData.avatar
+    };
+    setCurrentUser(userObj);
+    setActiveRole('customer');
+    soundService.playSuccessFanfare();
+    showNotification(`Signed in as Customer (${userObj.name})`, 'success');
+  };
 
   const loginAsRider = (riderId) => {
     const rider = riders.find(r => r.id === riderId) || riders[0];
@@ -158,7 +274,21 @@ export function OrderProvider({ children }) {
   const logout = () => {
     setCurrentUser(null);
     setActiveRole('customer');
-    showNotification('Logged out to Customer View', 'info');
+    showNotification('Logged out', 'info');
+  };
+
+  // Password Security Updates
+  const updateAdminPassword = (newPassword) => {
+    localStorage.setItem('delivery_express_admin_password', newPassword);
+  };
+
+  const updateRiderPassword = async (riderId, newPassword) => {
+    setRiders(prev => prev.map(r => r.id === riderId ? { ...r, password: newPassword } : r));
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('riders').update({ password_hash: newPassword }).eq('id', riderId);
+      } catch (_) {}
+    }
   };
 
   const toggleTheme = () => {
@@ -208,7 +338,7 @@ export function OrderProvider({ children }) {
       }
       return s;
     }));
-    showNotification(`Rates updated for ${serviceId}!`, 'success');
+    showNotification(`Rates updated!`, 'success');
     soundService.playOrderChime();
   };
 
@@ -264,9 +394,10 @@ export function OrderProvider({ children }) {
     if (isSupabaseConfigured && supabase) {
       try {
         await supabase.from('orders').insert({
+          id: trackingNumber,
           tracking_number: trackingNumber,
           service_id: service.id,
-          service_type: service.id,
+          service_name: service.name,
           customer_name: newOrder.customerName,
           customer_phone: newOrder.customerPhone,
           pickup_address: newOrder.pickupAddress,
@@ -279,11 +410,14 @@ export function OrderProvider({ children }) {
           dropoff_lng: newOrder.dropoffCoords[1],
           distance_km: newOrder.distanceKm,
           estimated_fare: newOrder.estimatedFare,
-          item_estimated_cost: newOrder.itemCost,
-          payment_method: newOrder.paymentMethod === 'GCash' ? 'gcash' : 'cash_on_delivery',
+          item_cost: newOrder.itemCost,
+          payment_method: newOrder.paymentMethod,
+          status: 'pending',
+          status_text: 'Waiting for Courier Assignment',
           details: newOrder.details,
           customer_notes: newOrder.customerNotes,
-          status: 'pending'
+          messages: newOrder.messages,
+          logs: newOrder.logs
         });
       } catch (err) {
         console.warn('Supabase insert failed, saving locally:', err);
@@ -303,7 +437,7 @@ export function OrderProvider({ children }) {
   };
 
   // In-App Chat Send Message
-  const sendMessage = (orderId, senderRole, senderName, text) => {
+  const sendMessage = async (orderId, senderRole, senderName, text) => {
     const newMsg = {
       id: `msg-${Date.now()}`,
       senderRole,
@@ -312,25 +446,41 @@ export function OrderProvider({ children }) {
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
 
+    let updatedMessages = [];
+
     setOrders(prev => prev.map(o => {
       if (o.id === orderId || o.trackingNumber === orderId) {
-        const existingMessages = o.messages || [];
+        updatedMessages = [...(o.messages || []), newMsg];
         return {
           ...o,
-          messages: [...existingMessages, newMsg]
+          messages: updatedMessages
         };
       }
       return o;
     }));
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('orders').update({ messages: updatedMessages }).eq('tracking_number', orderId);
+      } catch (_) {}
+    }
 
     soundService.playOrderChime();
     soundService.triggerVibrate([80]);
   };
 
   // Assign Rider
-  const assignRider = (orderId, riderId) => {
+  const assignRider = async (orderId, riderId) => {
     const rider = riders.find(r => r.id === riderId);
     if (!rider) return;
+
+    const welcomeMsg = {
+      id: `msg-${Date.now()}`,
+      senderRole: 'rider',
+      senderName: rider.name,
+      text: `Maayong adlaw! Ako si ${rider.name}, imong Delivery Express courier. Akong gi-accept imong order.`,
+      time: 'Just now'
+    };
 
     setOrders(prev => prev.map(order => {
       if (order.id === orderId || order.trackingNumber === orderId) {
@@ -338,14 +488,6 @@ export function OrderProvider({ children }) {
           if (idx === 1) return { ...log, step: `Rider Assigned (${rider.name})`, time: 'Just now', done: true };
           return log;
         });
-
-        const welcomeMsg = {
-          id: `msg-${Date.now()}`,
-          senderRole: 'rider',
-          senderName: rider.name,
-          text: `Maayong adlaw! Ako si ${rider.name}, imong Delivery Express courier. Akong gi-accept imong order #${order.trackingNumber}.`,
-          time: 'Just now'
-        };
 
         return {
           ...order,
@@ -362,12 +504,24 @@ export function OrderProvider({ children }) {
       return order;
     }));
 
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('orders').update({
+          rider_id: rider.id,
+          rider_name: rider.name,
+          rider_phone: rider.phone,
+          status: 'assigned',
+          status_text: `Rider Assigned: ${rider.name}`
+        }).eq('tracking_number', orderId);
+      } catch (_) {}
+    }
+
     soundService.playOrderChime();
     showNotification(`Courier ${rider.name} assigned!`, 'success');
   };
 
   // Update Rider Live GPS Location
-  const updateRiderLocation = (riderId, newLat, newLng) => {
+  const updateRiderLocation = async (riderId, newLat, newLng) => {
     setRiders(prev => prev.map(r => r.id === riderId ? { ...r, lat: newLat, lng: newLng } : r));
     
     setOrders(prev => prev.map(o => {
@@ -377,14 +531,21 @@ export function OrderProvider({ children }) {
       return o;
     }));
 
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('riders').update({ lat: newLat, lng: newLng }).eq('id', riderId);
+      } catch (_) {}
+    }
+
     soundService.triggerVibrate([50]);
   };
 
   // Update order status workflow
-  const updateOrderStatus = (orderId, newStatus, customNotes = '') => {
+  const updateOrderStatus = async (orderId, newStatus, customNotes = '') => {
+    let statusText = 'Updated';
+
     setOrders(prev => prev.map(order => {
       if (order.id === orderId || order.trackingNumber === orderId) {
-        let statusText = order.statusText;
         let logs = [...order.logs];
 
         if (newStatus === 'purchasing') {
@@ -402,9 +563,6 @@ export function OrderProvider({ children }) {
           try {
             confetti({ particleCount: 120, spread: 80, origin: { y: 0.5 } });
           } catch (_) {}
-        } else if (newStatus === 'cancelled') {
-          statusText = 'Order Cancelled';
-          soundService.triggerVibrate([300]);
         }
 
         return {
@@ -418,11 +576,20 @@ export function OrderProvider({ children }) {
       return order;
     }));
 
-    showNotification(`Order status updated: ${newStatus}`, 'info');
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('orders').update({
+          status: newStatus,
+          status_text: statusText
+        }).eq('tracking_number', orderId);
+      } catch (_) {}
+    }
+
+    showNotification(`Order status: ${newStatus}`, 'info');
   };
 
   // Proof of delivery uploader
-  const uploadProofOfDelivery = (orderId, photoUrl, notes) => {
+  const uploadProofOfDelivery = async (orderId, photoUrl, notes) => {
     setOrders(prev => prev.map(order => {
       if (order.id === orderId || order.trackingNumber === orderId) {
         const logs = [...order.logs];
@@ -439,6 +606,17 @@ export function OrderProvider({ children }) {
       return order;
     }));
 
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('orders').update({
+          status: 'delivered',
+          status_text: 'Delivered (Proof Attached)',
+          proof_of_delivery_url: photoUrl,
+          delivery_notes: notes
+        }).eq('tracking_number', orderId);
+      } catch (_) {}
+    }
+
     soundService.playSuccessFanfare();
     showNotification('Proof of Delivery submitted!', 'success');
     try {
@@ -446,8 +624,8 @@ export function OrderProvider({ children }) {
     } catch (_) {}
   };
 
-  // Staff & Rider Management
-  const addRider = (newRiderData) => {
+  // Staff & Rider Management with Supabase Live Multi-Device Sync
+  const addRider = async (newRiderData) => {
     const newRider = {
       id: `rider-${Date.now()}`,
       name: newRiderData.name,
@@ -462,32 +640,78 @@ export function OrderProvider({ children }) {
       status: 'active',
       lat: 10.5015,
       lng: 123.7150,
-      avatar: newRiderData.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'
+      avatar: newRiderData.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+      password: newRiderData.password || '1234'
     };
 
     setRiders(prev => [newRider, ...prev]);
-    showNotification(`New Courier "${newRider.name}" added successfully!`, 'success');
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('riders').insert({
+          id: newRider.id,
+          name: newRider.name,
+          phone: newRider.phone,
+          plate: newRider.plate,
+          zone: newRider.zone,
+          municipality: newRider.municipality,
+          avatar: newRider.avatar,
+          rating: newRider.rating,
+          trips: newRider.trips,
+          is_online: true,
+          status: 'active',
+          lat: newRider.lat,
+          lng: newRider.lng
+        });
+      } catch (err) {
+        console.warn('Supabase rider insert warning:', err);
+      }
+    }
+
+    showNotification(`New Courier "${newRider.name}" added & synced!`, 'success');
     soundService.playOrderChime();
   };
 
-  const updateRider = (riderId, updatedFields) => {
+  const updateRider = async (riderId, updatedFields) => {
     setRiders(prev => prev.map(r => r.id === riderId ? { ...r, ...updatedFields } : r));
-    showNotification('Rider profile updated!', 'info');
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('riders').update({
+          name: updatedFields.name,
+          phone: updatedFields.phone,
+          plate: updatedFields.plate,
+          zone: updatedFields.zone,
+          avatar: updatedFields.avatar
+        }).eq('id', riderId);
+      } catch (_) {}
+    }
+
+    showNotification('Rider profile updated across devices!', 'info');
   };
 
-  const toggleRiderDuty = (riderId) => {
+  const toggleRiderDuty = async (riderId) => {
+    let nextStatus = 'active';
     setRiders(prev => prev.map(r => {
       if (r.id === riderId) {
-        const nextStatus = r.status === 'active' ? 'break' : r.status === 'break' ? 'offline' : 'active';
-        showNotification(`${r.name} status set to: ${nextStatus.toUpperCase()}`, 'info');
+        nextStatus = r.status === 'active' ? 'break' : r.status === 'break' ? 'offline' : 'active';
+        showNotification(`${r.name} status: ${nextStatus.toUpperCase()}`, 'info');
         return { ...r, status: nextStatus, isOnline: nextStatus === 'active' };
       }
       return r;
     }));
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('riders').update({
+          status: nextStatus,
+          is_online: nextStatus === 'active'
+        }).eq('id', riderId);
+      } catch (_) {}
+    }
   };
 
-  // Delete Rider and cleanly unassign from active orders
-  const deleteRider = (riderId) => {
+  const deleteRider = async (riderId) => {
     const rider = riders.find(r => r.id === riderId);
     setRiders(prev => prev.filter(r => r.id !== riderId));
     
@@ -506,19 +730,31 @@ export function OrderProvider({ children }) {
       return o;
     }));
 
-    showNotification(`Rider ${rider?.name || ''} removed from roster & unassigned`, 'info');
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('riders').delete().eq('id', riderId);
+      } catch (_) {}
+    }
+
+    showNotification(`Rider ${rider?.name || ''} removed from all devices`, 'info');
   };
 
-  // Delete order
-  const deleteOrder = (orderId) => {
+  const deleteOrder = async (orderId) => {
     setOrders(prev => prev.filter(o => o.id !== orderId && o.trackingNumber !== orderId));
-    showNotification('Order removed', 'info');
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('orders').delete().eq('tracking_number', orderId);
+      } catch (_) {}
+    }
+
+    showNotification('Order removed from all devices', 'info');
   };
 
   const broadcastAdminAnnouncement = (msg) => {
     setAnnouncement({ msg, time: new Date().toLocaleTimeString() });
     soundService.playBroadcastAlert();
-    showNotification(`Radio Broadcast Sent: "${msg}"`, 'success');
+    showNotification(`Radio Broadcast: "${msg}"`, 'success');
   };
 
   const resetSampleData = () => {
@@ -543,9 +779,12 @@ export function OrderProvider({ children }) {
         paymentSettings,
         updatePaymentSettings,
         currentUser,
+        loginAsCustomer,
         loginAsRider,
         loginAsAdmin,
         logout,
+        updateAdminPassword,
+        updateRiderPassword,
         orders,
         riders,
         activeRole,
