@@ -986,18 +986,27 @@ export function OrderProvider({ children }) {
   };
 
   const updateRider = async (riderId, updatedFields) => {
+    let mergedRider = null;
+    setRiders(prev => prev.map(r => {
+      if (r.id === riderId) {
+        mergedRider = { ...r, ...updatedFields };
+        return mergedRider;
+      }
+      return r;
+    }));
+
     if (updatedFields.avatar) {
       localStorage.setItem(`rider_avatar_${riderId}`, updatedFields.avatar);
     }
 
-    setRiders(prev => prev.map(r => r.id === riderId ? { ...r, ...updatedFields } : r));
-
-    if (isSupabaseConfigured && supabase) {
+    if (isSupabaseConfigured && supabase && mergedRider) {
       try {
+        const plateToSave = mergedRider.plate || 'MIO GEAR - G629MC';
+        const zoneToSave = mergedRider.zone || 'Balamban Proper';
         await supabase.from('riders').update({
-          full_name: updatedFields.name,
-          phone: updatedFields.phone,
-          motorcycle_plate: `${updatedFields.plate} (${updatedFields.zone})`
+          full_name: mergedRider.name,
+          phone: mergedRider.phone,
+          motorcycle_plate: `${plateToSave} (${zoneToSave})`
         }).eq('id', riderId);
 
         // Sync avatar to cloud so mobile phone sees it instantly
