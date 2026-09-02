@@ -184,10 +184,27 @@ export function OrderProvider({ children }) {
             const riderPhone = o.details?.rider_phone || assignedRiderObj?.phone || (o.rider_id ? '0917-882-1923' : null);
 
             const st = o.status || 'pending';
-            const isAssigned = st !== 'pending' && (!!o.rider_id || !!riderName);
+            const isAssigned = st !== 'pending' && st !== 'cancelled' && (!!o.rider_id || !!riderName);
             const isPurchased = st === 'at_pickup_purchasing' || st === 'purchasing' || st === 'out_for_delivery' || st === 'in_transit' || st === 'delivered';
             const isOutForDelivery = st === 'out_for_delivery' || st === 'in_transit' || st === 'delivered';
             const isDelivered = st === 'delivered';
+            const isCancelled = st === 'cancelled';
+
+            let logs = [];
+            if (isCancelled) {
+              logs = [
+                { step: 'Booking Submitted', time: 'Received', done: true },
+                { step: 'Order Cancelled by Customer', time: 'Cancelled', done: true }
+              ];
+            } else {
+              logs = [
+                { step: 'Booking Confirmed (Balamban)', time: 'Received', done: true },
+                { step: `Rider Assigned ${riderName ? '(' + riderName + ')' : ''}`, time: isAssigned ? 'Assigned' : 'Searching...', done: isAssigned },
+                { step: 'Purchased / Picked Up', time: isPurchased ? 'Done' : 'Pending', done: isPurchased },
+                { step: 'Out for Delivery', time: isOutForDelivery ? 'On the way' : 'Pending', done: isOutForDelivery },
+                { step: 'Delivered & Completed', time: isDelivered ? 'Delivered' : 'Pending', done: isDelivered }
+              ];
+            }
 
             return {
               id: o.id || o.tracking_number,
@@ -207,19 +224,13 @@ export function OrderProvider({ children }) {
               itemCost: parseFloat(o.item_estimated_cost || 0),
               paymentMethod: o.payment_method === 'cash_on_delivery' ? 'Cash on Delivery' : 'GCash',
               status: st,
-              statusText: st === 'pending' ? 'Waiting for Courier Assignment' : st === 'at_pickup_purchasing' ? 'Purchasing / At Store' : st === 'out_for_delivery' ? 'Out for Delivery' : st === 'delivered' ? 'Delivered & Completed' : 'In Progress',
+              statusText: st === 'pending' ? 'Waiting for Courier Assignment' : st === 'at_pickup_purchasing' ? 'Purchasing / At Store' : st === 'out_for_delivery' ? 'Out for Delivery' : st === 'delivered' ? 'Delivered & Completed' : st === 'cancelled' ? 'Cancelled by Customer' : 'In Progress',
               riderId: o.rider_id,
               riderName: riderName,
               riderPhone: riderPhone,
               details: o.details || {},
               messages: rawMessages,
-              logs: [
-                { step: 'Booking Confirmed (Balamban)', time: 'Received', done: true },
-                { step: `Rider Assigned ${riderName ? '(' + riderName + ')' : ''}`, time: isAssigned ? 'Assigned' : 'Searching...', done: isAssigned },
-                { step: 'Purchased / Picked Up', time: isPurchased ? 'Done' : 'Pending', done: isPurchased },
-                { step: 'Out for Delivery', time: isOutForDelivery ? 'On the way' : 'Pending', done: isOutForDelivery },
-                { step: 'Delivered & Completed', time: isDelivered ? 'Delivered' : 'Pending', done: isDelivered }
-              ],
+              logs,
               proofOfDeliveryUrl: o.proof_of_delivery_url,
               deliveryNotes: o.delivery_notes
             };
@@ -478,6 +489,52 @@ export function OrderProvider({ children }) {
     }
 
     return newOrder;
+  };
+
+  // Customer Cancel Order
+  const cancelOrder = async (orderId, reason = 'Cancelled by Customer') => {
+    const cancelMsg = {
+      id: `msg-${Date.now()}`,
+      senderRole: 'system',
+      senderName: 'System',
+      text: `Order was cancelled by the customer. Reason: ${reason}`,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+
+    setOrders(prev => prev.map(order => {
+      if (order.id === orderId || order.trackingNumber === orderId) {
+        return {
+          ...order,
+          status: 'cancelled',
+          statusText: 'Cancelled by Customer',
+          messages: [...(order.messages || []), cancelMsg],
+          logs: [
+            { step: 'Booking Submitted', time: 'Received', done: true },
+            { step: `Order Cancelled (${reason})`, time: 'Just now', done: true }
+          ]
+        };
+      }
+      return order;
+    }));
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const targetOrder = orders.find(o => o.id === orderId || o.trackingNumber === orderId);
+        const currentDetails = targetOrder?.details || {};
+        await supabase.from('orders').update({
+          status: 'cancelled',
+          details: {
+            ...currentDetails,
+            cancel_reason: reason
+          }
+        }).eq('tracking_number', orderId);
+      } catch (err) {
+        console.warn('Supabase cancel order warning:', err);
+      }
+    }
+
+    showNotification(`Order #${orderId} has been cancelled`, 'info');
+    soundService.playOrderChime();
   };
 
   // In-App Realtime Chat Sync across all devices
@@ -876,6 +933,7 @@ export function OrderProvider({ children }) {
         broadcastAdminAnnouncement,
         isWithinOperatingHours,
         createOrder,
+        cancelOrder,
         assignRider,
         sendMessage,
         updateRiderLocation,

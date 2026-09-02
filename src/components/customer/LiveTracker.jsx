@@ -18,13 +18,17 @@ import {
   Camera,
   Share2,
   AlertCircle,
-  MessagesSquare
+  MessagesSquare,
+  XCircle,
+  X
 } from 'lucide-react';
 
 export default function LiveTracker() {
-  const { orders, riders, activeTrackingId, setActiveTrackingId } = useOrder();
+  const { orders, riders, activeTrackingId, setActiveTrackingId, cancelOrder } = useOrder();
   const [searchInput, setSearchInput] = useState('');
   const [showChatModal, setShowChatModal] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelReason, setCancelReason] = useState('Change of mind / plans');
 
   const activeOrder = orders.find(o => o.trackingNumber === activeTrackingId || o.id === activeTrackingId) || orders[0];
 
@@ -52,6 +56,14 @@ export default function LiveTracker() {
   const pickupCoords = activeOrder?.pickupCoords || [10.5015, 123.7150];
   const dropoffCoords = activeOrder?.dropoffCoords || [10.4720, 123.7060];
   const riderCoords = activeOrder?.riderCoords || [10.4850, 123.7110];
+
+  const canCancel = activeOrder && (activeOrder.status === 'pending' || activeOrder.status === 'assigned');
+
+  const handleConfirmCancel = () => {
+    if (!activeOrder) return;
+    cancelOrder(activeOrder.trackingNumber || activeOrder.id, cancelReason);
+    setShowCancelModal(false);
+  };
 
   return (
     <div className="space-y-6 pb-20 md:pb-6">
@@ -203,6 +215,17 @@ export default function LiveTracker() {
               </div>
             )}
 
+            {/* Cancelled Banner */}
+            {activeOrder.status === 'cancelled' && (
+              <div className="p-4 rounded-3xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-3">
+                <XCircle className="w-5 h-5 text-rose-500 shrink-0" />
+                <div>
+                  <strong className="block text-sm">This booking has been cancelled</strong>
+                  <span>You can place a new order anytime from the services menu.</span>
+                </div>
+              </div>
+            )}
+
           </div>
 
           {/* Right Column: Order Details & Timeline Stepper */}
@@ -285,7 +308,7 @@ export default function LiveTracker() {
                     Order / Item Specifications:
                   </span>
                   {Object.entries(activeOrder.details)
-                    .filter(([k]) => k !== 'chat_messages' && k !== 'rider_name' && k !== 'rider_phone' && k !== 'rider_plate')
+                    .filter(([k]) => k !== 'chat_messages' && k !== 'rider_name' && k !== 'rider_phone' && k !== 'rider_plate' && k !== 'cancel_reason')
                     .map(([key, val]) => (
                       <div key={key} className="text-slate-700 dark:text-zinc-300">
                         <span className="text-slate-400 dark:text-zinc-500 capitalize">{key.replace(/([A-Z])/g, ' $1')}: </span>
@@ -309,6 +332,20 @@ export default function LiveTracker() {
                 </div>
               </div>
 
+              {/* Cancel Order Action Button */}
+              {canCancel && (
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowCancelModal(true)}
+                    className="w-full py-2.5 px-4 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900 rounded-2xl text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 shadow-sm"
+                  >
+                    <XCircle className="w-4 h-4" />
+                    <span>Cancel This Booking</span>
+                  </button>
+                </div>
+              )}
+
             </div>
 
           </div>
@@ -323,6 +360,61 @@ export default function LiveTracker() {
           senderRole="customer"
           onClose={() => setShowChatModal(false)}
         />
+      )}
+
+      {/* Customer Cancellation Confirmation Modal */}
+      {showCancelModal && activeOrder && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl p-6 max-w-sm w-full shadow-2xl space-y-4">
+            <div className="flex justify-between items-center">
+              <h4 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
+                <XCircle className="w-5 h-5 text-rose-600" />
+                <span>Cancel Booking?</span>
+              </h4>
+              <button onClick={() => setShowCancelModal(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-600 dark:text-zinc-300">
+              Are you sure you want to cancel order <strong>#{activeOrder.trackingNumber}</strong>?
+            </p>
+
+            <div className="space-y-2 text-xs">
+              <label className="block font-bold text-slate-700 dark:text-zinc-300">
+                Reason for cancellation:
+              </label>
+              <select
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-xl p-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-rose-500 font-medium"
+              >
+                <option value="Change of mind / plans">Change of mind / plans</option>
+                <option value="Ordered by mistake">Ordered by mistake / wrong address</option>
+                <option value="Will re-order later">Will re-order later</option>
+                <option value="Courier took too long">Courier assignment took too long</option>
+                <option value="Other reason">Other personal reason</option>
+              </select>
+            </div>
+
+            <div className="flex gap-2 pt-2 text-xs">
+              <button
+                type="button"
+                onClick={() => setShowCancelModal(false)}
+                className="flex-1 py-2.5 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 rounded-xl font-bold"
+              >
+                Keep Order
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmCancel}
+                className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl font-black shadow-md"
+              >
+                Yes, Cancel
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
     </div>
