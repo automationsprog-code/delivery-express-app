@@ -261,146 +261,156 @@ export default function RiderPortal() {
               <p className="text-xs text-slate-400 dark:text-zinc-500">Pick up an available order from the right feed to start!</p>
             </div>
           ) : (
-            myActiveOrders.map((order) => (
-              <div
-                key={order.id}
-                className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 hover:border-amber-500/50 rounded-3xl p-5 sm:p-6 shadow-sm space-y-4 card-float transition-all"
-              >
-                {/* Header with Tracking & Fare */}
-                <div className="flex items-start justify-between">
-                  <div>
-                    <span className="bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-500/20 text-[10px] font-bold px-2.5 py-0.5 rounded-full">
-                      {order.serviceName}
-                    </span>
-                    <h4 className="text-base font-black text-slate-900 dark:text-white font-mono mt-1">
-                      {order.trackingNumber}
-                    </h4>
-                    <p className="text-xs text-slate-500 dark:text-zinc-400">
-                      Customer: <strong className="text-slate-800 dark:text-zinc-200">{order.customerName}</strong> ({order.customerPhone})
-                    </p>
-                  </div>
+            myActiveOrders.map((order) => {
+              const isAssigned = order.status === 'assigned';
+              const isPurchasing = order.status === 'purchasing' || order.status === 'at_pickup_purchasing';
+              const isOutForDelivery = order.status === 'in_transit' || order.status === 'out_for_delivery';
 
-                  <div className="text-right">
-                    <span className="text-[10px] text-slate-400 dark:text-zinc-500 block font-bold">Courier Payout</span>
-                    <span className="text-lg font-black text-emerald-600 dark:text-emerald-400">₱{order.estimatedFare}</span>
-                    <span className="text-[10px] text-slate-400 dark:text-zinc-500 block font-semibold">{order.paymentMethod}</span>
-                  </div>
-                </div>
-
-                {/* Pickup & Dropoff */}
-                <div className="p-3.5 bg-slate-50 dark:bg-zinc-950 rounded-2xl border border-slate-200 dark:border-zinc-800/80 space-y-2.5 text-xs">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-start gap-2">
-                      <span className="w-2 h-2 rounded-full bg-blue-500 mt-1 shrink-0" />
-                      <div>
-                        <span className="text-slate-400 dark:text-zinc-500 text-[10px] block font-bold">1. PICKUP (BALAMBAN)</span>
-                        <p className="text-slate-800 dark:text-zinc-200 font-semibold">{order.pickupAddress}</p>
-                        {order.pickupLandmark && <span className="text-slate-500 dark:text-zinc-400 text-[11px]">{order.pickupLandmark}</span>}
-                      </div>
-                    </div>
-                    <div className="flex gap-1 shrink-0">
-                      <button 
-                        onClick={() => handleOpenMaps(order.pickupAddress)}
-                        className="px-2.5 py-1 bg-white dark:bg-zinc-800 hover:bg-slate-100 text-slate-700 dark:text-zinc-300 rounded-xl text-[10px] font-bold border border-slate-200 dark:border-zinc-700 shadow-sm"
-                      >
-                        Maps
-                      </button>
-                      <button 
-                        onClick={() => handleOpenWaze(order.pickupAddress)}
-                        className="px-2.5 py-1 bg-sky-50 dark:bg-zinc-800 text-sky-600 dark:text-sky-400 rounded-xl text-[10px] font-bold border border-sky-200 dark:border-zinc-700 shadow-sm"
-                      >
-                        Waze
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start justify-between gap-2 pt-2 border-t border-slate-200 dark:border-zinc-800/60">
-                    <div className="flex items-start gap-2">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500 mt-1 shrink-0" />
-                      <div>
-                        <span className="text-slate-400 dark:text-zinc-500 text-[10px] block font-bold">2. DROPOFF (BALAMBAN)</span>
-                        <p className="text-slate-800 dark:text-zinc-200 font-semibold">{order.dropoffAddress}</p>
-                        {order.dropoffLandmark && <span className="text-slate-500 dark:text-zinc-400 text-[11px]">{order.dropoffLandmark}</span>}
-                      </div>
-                    </div>
-                    <div className="flex gap-1 shrink-0">
-                      <button 
-                        onClick={() => handleOpenMaps(order.dropoffAddress)}
-                        className="px-2.5 py-1 bg-white dark:bg-zinc-800 hover:bg-slate-100 text-slate-700 dark:text-zinc-300 rounded-xl text-[10px] font-bold border border-slate-200 dark:border-zinc-700 shadow-sm"
-                      >
-                        Maps
-                      </button>
-                      <button 
-                        onClick={() => handleOpenWaze(order.dropoffAddress)}
-                        className="px-2.5 py-1 bg-sky-50 dark:bg-zinc-800 text-sky-600 dark:text-sky-400 rounded-xl text-[10px] font-bold border border-sky-200 dark:border-zinc-700 shadow-sm"
-                      >
-                        Waze
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Items & Customer Instructions */}
-                {order.details && Object.keys(order.details).length > 0 && (
-                  <div className="p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-500/20 rounded-2xl text-xs space-y-1">
-                    <span className="text-[10px] font-bold uppercase text-amber-700 dark:text-amber-400 block">Errand Instructions:</span>
-                    {Object.entries(order.details).map(([k, v]) => (
-                      <p key={k} className="text-slate-700 dark:text-zinc-300 text-[11px]">
-                        <strong className="text-slate-500 dark:text-zinc-400 capitalize">{k.replace(/([A-Z])/g, ' $1')}:</strong> {String(v)}
+              return (
+                <div
+                  key={order.id}
+                  className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 hover:border-amber-500/50 rounded-3xl p-5 sm:p-6 shadow-sm space-y-4 card-float transition-all"
+                >
+                  {/* Header with Tracking & Fare */}
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <span className="bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-500/20 text-[10px] font-bold px-2.5 py-0.5 rounded-full">
+                        {order.serviceName}
+                      </span>
+                      <h4 className="text-base font-black text-slate-900 dark:text-white font-mono mt-1">
+                        {order.trackingNumber}
+                      </h4>
+                      <p className="text-xs text-slate-500 dark:text-zinc-400">
+                        Customer: <strong className="text-slate-800 dark:text-zinc-200">{order.customerName}</strong> ({order.customerPhone})
                       </p>
-                    ))}
+                    </div>
+
+                    <div className="text-right">
+                      <span className="text-[10px] text-slate-400 dark:text-zinc-500 block font-bold">Courier Payout</span>
+                      <span className="text-lg font-black text-emerald-600 dark:text-emerald-400">₱{order.estimatedFare}</span>
+                      <span className="text-[10px] text-slate-400 dark:text-zinc-500 block font-semibold">{order.paymentMethod}</span>
+                    </div>
                   </div>
-                )}
 
-                {/* Status Advancement Action Buttons */}
-                <div className="pt-2 flex flex-wrap items-center gap-2">
-                  {order.status === 'assigned' && (
-                    <button
-                      onClick={() => updateOrderStatus(order.id, 'purchasing')}
-                      className="flex-1 py-3 px-4 bg-purple-600 hover:bg-purple-500 text-white rounded-2xl text-xs font-bold transition-all shadow-md"
-                    >
-                      ✓ Arrived at Store / Purchasing
-                    </button>
+                  {/* Pickup & Dropoff */}
+                  <div className="p-3.5 bg-slate-50 dark:bg-zinc-950 rounded-2xl border border-slate-200 dark:border-zinc-800/80 space-y-2.5 text-xs">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-start gap-2">
+                        <span className="w-2 h-2 rounded-full bg-blue-500 mt-1 shrink-0" />
+                        <div>
+                          <span className="text-slate-400 dark:text-zinc-500 text-[10px] block font-bold">1. PICKUP (BALAMBAN)</span>
+                          <p className="text-slate-800 dark:text-zinc-200 font-semibold">{order.pickupAddress}</p>
+                          {order.pickupLandmark && <span className="text-slate-500 dark:text-zinc-400 text-[11px]">{order.pickupLandmark}</span>}
+                        </div>
+                      </div>
+                      <div className="flex gap-1 shrink-0">
+                        <button 
+                          onClick={() => handleOpenMaps(order.pickupAddress)}
+                          className="px-2.5 py-1 bg-white dark:bg-zinc-800 hover:bg-slate-100 text-slate-700 dark:text-zinc-300 rounded-xl text-[10px] font-bold border border-slate-200 dark:border-zinc-700 shadow-sm"
+                        >
+                          Maps
+                        </button>
+                        <button 
+                          onClick={() => handleOpenWaze(order.pickupAddress)}
+                          className="px-2.5 py-1 bg-sky-50 dark:bg-zinc-800 text-sky-600 dark:text-sky-400 rounded-xl text-[10px] font-bold border border-sky-200 dark:border-zinc-700 shadow-sm"
+                        >
+                          Waze
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start justify-between gap-2 pt-2 border-t border-slate-200 dark:border-zinc-800/60">
+                      <div className="flex items-start gap-2">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 mt-1 shrink-0" />
+                        <div>
+                          <span className="text-slate-400 dark:text-zinc-500 text-[10px] block font-bold">2. DROPOFF (BALAMBAN)</span>
+                          <p className="text-slate-800 dark:text-zinc-200 font-semibold">{order.dropoffAddress}</p>
+                          {order.dropoffLandmark && <span className="text-slate-500 dark:text-zinc-400 text-[11px]">{order.dropoffLandmark}</span>}
+                        </div>
+                      </div>
+                      <div className="flex gap-1 shrink-0">
+                        <button 
+                          onClick={() => handleOpenMaps(order.dropoffAddress)}
+                          className="px-2.5 py-1 bg-white dark:bg-zinc-800 hover:bg-slate-100 text-slate-700 dark:text-zinc-300 rounded-xl text-[10px] font-bold border border-slate-200 dark:border-zinc-700 shadow-sm"
+                        >
+                          Maps
+                        </button>
+                        <button 
+                          onClick={() => handleOpenWaze(order.dropoffAddress)}
+                          className="px-2.5 py-1 bg-sky-50 dark:bg-zinc-800 text-sky-600 dark:text-sky-400 rounded-xl text-[10px] font-bold border border-sky-200 dark:border-zinc-700 shadow-sm"
+                        >
+                          Waze
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Items & Customer Instructions (Filtered out internal technical metadata) */}
+                  {order.details && Object.keys(order.details).length > 0 && (
+                    <div className="p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-500/20 rounded-2xl text-xs space-y-1">
+                      <span className="text-[10px] font-bold uppercase text-amber-700 dark:text-amber-400 block">Errand Instructions:</span>
+                      {Object.entries(order.details)
+                        .filter(([k]) => k !== 'chat_messages' && k !== 'rider_name' && k !== 'rider_phone' && k !== 'rider_plate' && k !== 'cancel_reason')
+                        .map(([k, v]) => (
+                          <div key={k} className="text-slate-700 dark:text-zinc-300 text-[11px]">
+                            <strong className="text-slate-500 dark:text-zinc-400 capitalize">{k.replace(/([A-Z])/g, ' $1')}: </strong> 
+                            <span className="font-semibold whitespace-pre-line">{String(v)}</span>
+                          </div>
+                        ))}
+                    </div>
                   )}
 
-                  {order.status === 'purchasing' && (
+                  {/* Status Advancement Action Buttons (FOOLPROOF ENUM MAPPING) */}
+                  <div className="pt-2 flex flex-wrap items-center gap-2">
+                    {isAssigned && (
+                      <button
+                        onClick={() => updateOrderStatus(order.id, 'purchasing')}
+                        className="flex-1 py-3.5 px-4 bg-purple-600 hover:bg-purple-500 text-white rounded-2xl text-xs font-black transition-all shadow-md flex items-center justify-center gap-1.5"
+                      >
+                        <span>✓ Arrived at Store / Purchasing</span>
+                      </button>
+                    )}
+
+                    {isPurchasing && (
+                      <button
+                        onClick={() => updateOrderStatus(order.id, 'in_transit')}
+                        className="flex-1 py-3.5 px-4 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white rounded-2xl text-xs font-black transition-all shadow-lg flex items-center justify-center gap-1.5"
+                      >
+                        <Bike className="w-4 h-4" />
+                        <span>✓ Items Ready ➔ Out for Delivery</span>
+                      </button>
+                    )}
+
+                    {isOutForDelivery && (
+                      <button
+                        onClick={() => setSelectedOrderForPod(order)}
+                        className="flex-1 py-3.5 px-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-2xl text-xs font-black transition-all shadow-lg flex items-center justify-center gap-2"
+                      >
+                        <Camera className="w-4 h-4" />
+                        <span>Upload Proof & Complete Delivery</span>
+                      </button>
+                    )}
+
+                    {/* Open Grab-Style In-App Chat Button */}
                     <button
-                      onClick={() => updateOrderStatus(order.id, 'in_transit')}
-                      className="flex-1 py-3 px-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl text-xs font-bold transition-all shadow-md"
+                      onClick={() => setSelectedOrderForChat(order)}
+                      className="p-3 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 rounded-2xl border border-rose-200 dark:border-rose-900 transition-colors shadow-sm"
+                      title="Chat with Customer"
                     >
-                      ✓ Items Ready ➔ Out for Delivery
+                      <MessageSquare className="w-4 h-4" />
                     </button>
-                  )}
 
-                  {order.status === 'in_transit' && (
-                    <button
-                      onClick={() => setSelectedOrderForPod(order)}
-                      className="flex-1 py-3 px-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-2xl text-xs font-black transition-all shadow-lg flex items-center justify-center gap-2"
+                    <a
+                      href={`tel:${order.customerPhone}`}
+                      className="p-3 bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 text-emerald-600 dark:text-emerald-400 rounded-2xl border border-slate-200 dark:border-zinc-700 transition-colors shadow-sm"
+                      title="Call Customer"
                     >
-                      <Camera className="w-4 h-4" />
-                      <span>Upload Proof & Complete Delivery</span>
-                    </button>
-                  )}
-
-                  {/* Open In-App Chat Button for Rider */}
-                  <button
-                    onClick={() => setSelectedOrderForChat(order)}
-                    className="p-3 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 rounded-2xl border border-rose-200 dark:border-rose-900 transition-colors shadow-sm"
-                    title="Chat with Customer"
-                  >
-                    <MessageSquare className="w-4 h-4" />
-                  </button>
-
-                  <a
-                    href={`tel:${order.customerPhone}`}
-                    className="p-3 bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 text-emerald-600 dark:text-emerald-400 rounded-2xl border border-slate-200 dark:border-zinc-700 transition-colors shadow-sm"
-                    title="Call Customer"
-                  >
-                    <Phone className="w-4 h-4" />
-                  </a>
+                      <Phone className="w-4 h-4" />
+                    </a>
+                  </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
 
@@ -459,7 +469,7 @@ export default function RiderPortal() {
 
       </div>
 
-      {/* In-App Real-Time Chat Modal for Rider */}
+      {/* Grab-Style In-App Real-Time Chat Modal */}
       {selectedOrderForChat && (
         <OrderChatModal
           order={selectedOrderForChat}
