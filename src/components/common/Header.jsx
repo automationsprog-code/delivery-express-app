@@ -231,7 +231,7 @@ export default function Header() {
 
             {/* Live Cloud Refresh / Sync */}
             <button
-              onClick={refreshLiveDatabase}
+              onClick={resetSampleData}
               title="Sync Live Cloud Database"
               className="p-1.5 sm:p-2.5 rounded-xl sm:rounded-2xl bg-slate-100 dark:bg-zinc-900 hover:bg-slate-200 dark:hover:bg-zinc-800 text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-zinc-800 transition-colors shadow-sm"
             >
