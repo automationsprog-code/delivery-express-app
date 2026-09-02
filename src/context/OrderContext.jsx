@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { SERVICES, BRAND } from '../lib/constants';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { soundService } from '../lib/soundUtils';
+import { fetchPanahonWeather, MUNICIPALITY_COORDS } from '../services/weatherService';
 import confetti from 'canvas-confetti';
 
 const OrderContext = createContext();
@@ -13,6 +14,22 @@ export function OrderProvider({ children }) {
 
   const [soundActive, setSoundActive] = useState(true);
   const [vibrationActive, setVibrationActive] = useState(true);
+
+  // Real-time PANAHON Weather State
+  const [weather, setWeather] = useState({
+    success: true,
+    location: 'Balamban',
+    temp: 31,
+    feelsLike: 35,
+    humidity: 68,
+    windSpeed: 29,
+    condition: 'Partly Cloudy / Fair',
+    icon: '⛅',
+    advisory: 'Good delivery weather across West Cebu. Roads are dry.',
+    isRainy: false,
+    isWindy: true,
+    timestamp: 'Live'
+  });
 
   // Services & Rates
   const [servicesList, setServicesList] = useState(() => {
@@ -99,6 +116,32 @@ export function OrderProvider({ children }) {
       document.documentElement.classList.remove('dark');
     }
   }, [theme]);
+
+  // 🌦️ Real-time PANAHON Weather Auto-Updater (DOST-PAGASA & Open-Meteo)
+  const refreshWeather = async (targetTown = 'Balamban', customLat = null, customLng = null) => {
+    try {
+      let lat = customLat;
+      let lng = customLng;
+      if (!lat || !lng) {
+        const coords = MUNICIPALITY_COORDS[targetTown] || { lat: 10.5015, lng: 123.7150 };
+        lat = coords.lat;
+        lng = coords.lng;
+      }
+      const data = await fetchPanahonWeather(lat, lng, targetTown);
+      setWeather(data);
+      return data;
+    } catch (err) {
+      console.warn('Weather fetch error:', err);
+    }
+  };
+
+  useEffect(() => {
+    refreshWeather('Balamban');
+    const interval = setInterval(() => {
+      refreshWeather(weather.location || 'Balamban');
+    }, 180000); // every 3 minutes
+    return () => clearInterval(interval);
+  }, []);
 
   // Persist locally
   useEffect(() => {
@@ -1095,6 +1138,15 @@ export function OrderProvider({ children }) {
     showNotification(`Radio: "${msg}"`, 'success');
   };
 
+  const broadcastWeatherAlert = async (targetTown = 'Balamban') => {
+    const data = await refreshWeather(targetTown);
+    if (data) {
+      const msg = `🌧️ PANAHON WEATHER ADVISORY (${data.location}): ${data.condition} • ${data.temp}°C (Feels ${data.feelsLike}°C). Wind: ${data.windSpeed}km/h. Advisory: ${data.advisory}`;
+      broadcastAdminAnnouncement(msg);
+      return msg;
+    }
+  };
+
   const resetSampleData = () => {
     setOrders([]);
     setRiders([]);
@@ -1111,6 +1163,9 @@ export function OrderProvider({ children }) {
         toggleSound,
         vibrationActive,
         toggleVibration,
+        weather,
+        refreshWeather,
+        broadcastWeatherAlert,
         servicesList,
         updateServiceRates,
         paymentSettings,

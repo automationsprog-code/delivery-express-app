@@ -33,6 +33,7 @@ export default function RiderPortal() {
   const { 
     orders, 
     riders, 
+    weather,
     selectedRiderId, 
     setSelectedRiderId, 
     assignRider, 
@@ -292,6 +293,32 @@ export default function RiderPortal() {
         </div>
 
       </div>
+
+      {/* Real-time PANAHON Weather Advisory Card for Courier */}
+      {weather && (
+        <div className={`p-4 rounded-3xl border shadow-sm flex items-center justify-between gap-3 card-float ${
+          weather.isRainy 
+            ? 'bg-gradient-to-r from-rose-500/10 via-amber-500/10 to-transparent border-rose-500/30' 
+            : 'bg-gradient-to-r from-sky-500/10 via-blue-500/10 to-transparent border-sky-500/20'
+        }`}>
+          <div className="flex items-center gap-3.5">
+            <span className="text-3xl sm:text-4xl">{weather.icon}</span>
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">
+                  PANAHON Weather ({weather.location})
+                </span>
+                <span className="text-[10px] bg-sky-100 dark:bg-sky-950/80 text-sky-800 dark:text-sky-300 font-bold px-2 py-0.5 rounded-full border border-sky-300 dark:border-sky-800">
+                  {weather.temp}°C • Wind {weather.windSpeed}km/h • Humidity {weather.humidity}%
+                </span>
+              </div>
+              <p className="text-xs text-slate-600 dark:text-zinc-300 font-medium mt-1">
+                {weather.condition} — <strong className="text-slate-900 dark:text-white font-extrabold">{weather.advisory}</strong>
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Grid: My Active Jobs vs Available Jobs */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6">

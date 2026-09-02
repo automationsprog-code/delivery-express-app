@@ -56,7 +56,7 @@ export default function Header() {
 
   return (
     <>
-      {/* Top Alert Bar - Clean responsive layout */}
+      {/* Top Alert Bar - Clean responsive layout with PANAHON Weather */}
       <div className="bg-gradient-to-r from-rose-900 via-zinc-900 to-amber-900 text-white text-[11px] sm:text-xs border-b border-rose-500/20 px-3.5 sm:px-8 py-1.5 flex items-center justify-between gap-2 shadow-sm">
         <div className="flex items-center gap-2 sm:gap-3 truncate">
           <div className="flex items-center gap-1.5 font-medium shrink-0">
@@ -69,13 +69,27 @@ export default function Header() {
             </span>
           </div>
 
-          <span className="text-zinc-300 truncate">({BRAND.operatingHours.display})</span>
+          <span className="text-zinc-300 truncate hidden xs:inline">({BRAND.operatingHours.display})</span>
         </div>
+
+        {/* Live PANAHON Weather Widget in Navbar */}
+        {weather && (
+          <div 
+            title={`PANAHON Live Weather: ${weather.condition} in ${weather.location} (Feels like ${weather.feelsLike}°C). Advisory: ${weather.advisory}`}
+            className="flex items-center gap-1.5 bg-black/30 hover:bg-black/50 px-2.5 py-0.5 rounded-full border border-amber-400/30 text-amber-200 text-[10px] sm:text-xs font-semibold cursor-default shrink-0 transition-colors"
+          >
+            <span className="text-xs sm:text-sm">{weather.icon}</span>
+            <span className="font-bold text-white truncate max-w-[80px] sm:max-w-none">{weather.location}:</span>
+            <span className="text-amber-300 font-black">{weather.temp}°C</span>
+            <span className="hidden md:inline text-zinc-300 font-normal">({weather.condition})</span>
+            <span className="hidden lg:inline text-blue-200 text-[10px]">💨 {weather.windSpeed}km/h</span>
+          </div>
+        )}
 
         <div className="flex items-center gap-2 sm:gap-3 shrink-0 text-xs">
           <div className="flex items-center gap-1 text-emerald-300 font-medium">
             <Database className="w-3 h-3" />
-            <span className="hidden xs:inline">Live Cloud Sync</span>
+            <span className="hidden sm:inline">Live Cloud Sync</span>
           </div>
         </div>
       </div>

@@ -23,8 +23,16 @@ import {
   Power,
   Sparkles,
   Camera,
-  Loader2
+  Loader2,
+  CloudRain,
+  Sun,
+  Wind,
+  Droplets,
+  Thermometer,
+  RefreshCw,
+  Compass
 } from 'lucide-react';
+import { fetchPanahonWeather, MUNICIPALITY_COORDS } from '../../services/weatherService';
 
 const MUNICIPALITIES = [
   'Balamban',
@@ -40,6 +48,9 @@ export default function AdminDashboard() {
   const { 
     orders, 
     riders, 
+    weather,
+    refreshWeather,
+    broadcastWeatherAlert,
     servicesList, 
     updateServiceRates, 
     paymentSettings, 
@@ -56,6 +67,8 @@ export default function AdminDashboard() {
 
   const [activeTab, setActiveTab] = useState('dispatch'); // 'dispatch' | 'staff' | 'rates' | 'payments' | 'broadcast'
   const [selectedStatusFilter, setSelectedStatusFilter] = useState('all');
+  const [selectedWeatherTown, setSelectedWeatherTown] = useState('Balamban');
+  const [isRefreshingWeather, setIsRefreshingWeather] = useState(false);
 
   // Rates editing state
   const [editingRates, setEditingRates] = useState({});
@@ -706,40 +719,178 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* TAB 5: RADIO BROADCAST TO STAFF */}
+      {/* TAB 5: PANAHON WEATHER RADAR & RADIO BROADCAST TO STAFF */}
       {activeTab === 'broadcast' && (
-        <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl p-6 shadow-sm space-y-4 max-w-xl">
-          <div className="flex items-center gap-3">
-            <div className="p-3 rounded-2xl bg-amber-500/10 text-amber-500">
-              <Radio className="w-6 h-6" />
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          
+          {/* Left: PANAHON Realtime Weather Station */}
+          <div className="lg:col-span-6 bg-gradient-to-br from-slate-900 via-zinc-900 to-sky-950 text-white border border-sky-500/20 rounded-3xl p-6 shadow-xl space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2.5 rounded-2xl bg-sky-500/20 text-sky-400">
+                  <CloudRain className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="font-extrabold text-white text-sm sm:text-base flex items-center gap-1.5">
+                    <span>PANAHON Live Weather Radar</span>
+                    <span className="text-[9px] bg-sky-500 text-zinc-950 font-black px-2 py-0.5 rounded-full uppercase">PAGASA Feed</span>
+                  </h4>
+                  <p className="text-[11px] text-sky-200/70">Real-time Doppler meteorology for West Cebu towns</p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={async () => {
+                  setIsRefreshingWeather(true);
+                  await refreshWeather(selectedWeatherTown);
+                  setIsRefreshingWeather(false);
+                }}
+                title="Refresh Live Weather"
+                className="p-2 bg-white/10 hover:bg-white/20 rounded-xl text-sky-300 transition-colors"
+              >
+                <RefreshCw className={`w-4 h-4 ${isRefreshingWeather ? 'animate-spin' : ''}`} />
+              </button>
             </div>
-            <div>
-              <h4 className="font-extrabold text-slate-900 dark:text-white text-base">
-                Radio Announcement Broadcast
-              </h4>
-              <p className="text-xs text-slate-500 dark:text-zinc-400">
-                Send an audio chime and banner announcement to all active couriers
-              </p>
+
+            {/* Municipality Selector Tabs */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+              {['Balamban', 'Asturias', 'Toledo City', 'Tuburan', 'Pinamungajan'].map(town => (
+                <button
+                  key={town}
+                  type="button"
+                  onClick={async () => {
+                    setSelectedWeatherTown(town);
+                    setIsRefreshingWeather(true);
+                    await refreshWeather(town);
+                    setIsRefreshingWeather(false);
+                  }}
+                  className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap text-[11px] ${
+                    selectedWeatherTown === town
+                      ? 'bg-sky-500 text-zinc-950 shadow-md shadow-sky-500/20'
+                      : 'bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10'
+                  }`}
+                >
+                  {town}
+                </button>
+              ))}
+            </div>
+
+            {/* Live Weather Telemetry Dashboard */}
+            {weather && (
+              <div className="space-y-3">
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="text-4xl sm:text-5xl">{weather.icon}</span>
+                    <div>
+                      <div className="text-2xl sm:text-3xl font-black text-white">{weather.temp}°C</div>
+                      <div className="text-xs text-sky-300 font-bold">{weather.condition}</div>
+                      <div className="text-[10px] text-slate-400">Feels like {weather.feelsLike}°C • {weather.location}</div>
+                    </div>
+                  </div>
+
+                  <div className="text-right space-y-1 text-[11px]">
+                    <div className="flex items-center gap-1 text-blue-300 justify-end">
+                      <Wind className="w-3.5 h-3.5" />
+                      <span>{weather.windSpeed} km/h wind</span>
+                    </div>
+                    <div className="flex items-center gap-1 text-sky-300 justify-end">
+                      <Droplets className="w-3.5 h-3.5" />
+                      <span>{weather.humidity}% humidity</span>
+                    </div>
+                    <div className="flex items-center gap-1 text-amber-300 justify-end font-bold">
+                      <span>{weather.rainMm > 0 ? `🌧️ ${weather.rainMm} mm rain` : '☀️ 0.0 mm rain'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Road Safety Advisory */}
+                <div className={`p-3.5 rounded-2xl border text-xs flex items-start gap-2.5 ${
+                  weather.isRainy 
+                    ? 'bg-rose-950/40 border-rose-500/30 text-rose-200' 
+                    : 'bg-emerald-950/30 border-emerald-500/30 text-emerald-200'
+                }`}>
+                  <Compass className="w-4 h-4 shrink-0 mt-0.5 text-amber-400" />
+                  <div>
+                    <strong className="block text-white font-extrabold">Courier Safety & Road Advisory:</strong>
+                    <span className="text-[11px] leading-relaxed">{weather.advisory}</span>
+                  </div>
+                </div>
+
+                {/* 1-Click Broadcast Panahon Action */}
+                <div className="flex gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      await broadcastWeatherAlert(selectedWeatherTown);
+                    }}
+                    className="flex-1 py-3 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-zinc-950 font-black rounded-2xl text-xs shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-95"
+                  >
+                    <Radio className="w-4 h-4 text-zinc-950" />
+                    <span>1-Click Broadcast Panahon to Couriers</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBroadcastText(`🌧️ PANAHON WEATHER (${weather.location}): ${weather.condition}, ${weather.temp}°C. Wind: ${weather.windSpeed}km/h. Advisory: ${weather.advisory}`);
+                    }}
+                    className="px-3.5 py-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-2xl text-xs border border-white/10"
+                    title="Insert weather into text editor"
+                  >
+                    Insert 📝
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Right: Custom Radio Dispatch Center */}
+          <div className="lg:col-span-6 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl p-6 shadow-sm space-y-4 flex flex-col justify-between">
+            <div className="space-y-2">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-2xl bg-amber-500/10 text-amber-500">
+                  <Radio className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="font-extrabold text-slate-900 dark:text-white text-base">
+                    Radio Broadcast & Courier Dispatch
+                  </h4>
+                  <p className="text-xs text-slate-500 dark:text-zinc-400">
+                    Send chime alerts, typhoon advisories, and road status to all courier screens
+                  </p>
+                </div>
+              </div>
+
+              <form onSubmit={handleSendBroadcast} className="space-y-3 pt-2">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1.5">
+                    Custom Announcement Message:
+                  </label>
+                  <textarea
+                    rows={4}
+                    required
+                    value={broadcastText}
+                    onChange={(e) => setBroadcastText(e.target.value)}
+                    placeholder="e.g. Heavy rain advisory in Balamban & Toledo proper. Drive safely and secure all packages with waterproof cover."
+                    className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-800 rounded-2xl p-3 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-rose-500 resize-none font-medium"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full py-3 bg-gradient-to-r from-rose-600 via-amber-500 to-amber-600 hover:from-rose-500 hover:to-amber-500 text-white font-extrabold rounded-2xl text-xs sm:text-sm shadow-md shadow-rose-600/20 flex items-center justify-center gap-2"
+                >
+                  <Send className="w-4 h-4" />
+                  <span>Transmit Radio Announcement</span>
+                </button>
+              </form>
+            </div>
+
+            <div className="p-3 bg-slate-50 dark:bg-zinc-950/60 rounded-2xl border border-slate-200 dark:border-zinc-800 text-[11px] text-slate-500 dark:text-zinc-400">
+              💡 <strong>Tip:</strong> Inig broadcast nimo, motingog ang radio chime sa tanang rider ug costumer nga active sa web application!
             </div>
           </div>
 
-          <form onSubmit={handleSendBroadcast} className="space-y-3 pt-2">
-            <textarea
-              rows={3}
-              required
-              value={broadcastText}
-              onChange={(e) => setBroadcastText(e.target.value)}
-              placeholder="e.g. Heavy rain alert in Balamban & Toledo proper. Drive safely! All riders prioritize cake deliveries."
-              className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-800 rounded-2xl p-3 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-rose-500 resize-none"
-            />
-            <button
-              type="submit"
-              className="w-full py-3 bg-gradient-to-r from-rose-600 to-amber-500 text-white font-extrabold rounded-2xl text-xs shadow-md shadow-rose-600/20 flex items-center justify-center gap-2"
-            >
-              <Send className="w-3.5 h-3.5" />
-              <span>Broadcast Announcement Now</span>
-            </button>
-          </form>
         </div>
       )}
 
