@@ -128,6 +128,11 @@ export default function AdminDashboard() {
   const [gcashName, setGcashName] = useState(paymentSettings.gcashName || 'DELIVERY EXPRESS BALAMBAN');
   const [gcashNumber, setGcashNumber] = useState(paymentSettings.gcashNumber || '0917-882-1923');
   const [gcashQrUrl, setGcashQrUrl] = useState(paymentSettings.gcashQrUrl || '');
+  const [bankName, setBankName] = useState(paymentSettings.bankName || 'BDO / BPI / UnionBank');
+  const [bankAccountName, setBankAccountName] = useState(paymentSettings.bankAccountName || 'DELIVERY EXPRESS BALAMBAN');
+  const [bankAccountNumber, setBankAccountNumber] = useState(paymentSettings.bankAccountNumber || '1234-5678-9012');
+  const [bankQrUrl, setBankQrUrl] = useState(paymentSettings.bankQrUrl || '');
+  const [paymentPreviewTab, setPaymentPreviewTab] = useState('gcash');
 
   // Announcement state
   const [broadcastText, setBroadcastText] = useState('');
@@ -213,7 +218,64 @@ export default function AdminDashboard() {
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setGcashQrUrl(reader.result);
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const maxDim = 500;
+          let width = img.width;
+          let height = img.height;
+          if (width > height) {
+            if (width > maxDim) {
+              height *= maxDim / width;
+              width = maxDim;
+            }
+          } else {
+            if (height > maxDim) {
+              width *= maxDim / height;
+              height = maxDim;
+            }
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          setGcashQrUrl(canvas.toDataURL('image/jpeg', 0.85));
+        };
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleBankQrUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const maxDim = 500;
+          let width = img.width;
+          let height = img.height;
+          if (width > height) {
+            if (width > maxDim) {
+              height *= maxDim / width;
+              width = maxDim;
+            }
+          } else {
+            if (height > maxDim) {
+              width *= maxDim / height;
+              height = maxDim;
+            }
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          setBankQrUrl(canvas.toDataURL('image/jpeg', 0.85));
+        };
+        img.src = reader.result;
       };
       reader.readAsDataURL(file);
     }
@@ -231,13 +293,13 @@ export default function AdminDashboard() {
       plate: newRiderPlate,
       zone: newRiderZone,
       password: newRiderPassword || 'Pass123',
-      avatar: newRiderAvatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'
+      avatar: newRiderAvatar && !newRiderAvatar.includes('unsplash') ? newRiderAvatar : null
     });
     setNewRiderName('');
     setNewRiderPhone('');
     setNewRiderPlate('');
     setNewRiderPassword('Pass123');
-    setNewRiderAvatar('https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80');
+    setNewRiderAvatar('');
     setShowAddRiderModal(false);
   };
 
@@ -250,7 +312,7 @@ export default function AdminDashboard() {
       plate: editingRider.plate,
       zone: editingRider.zone,
       password: editingRider.password || 'Pass123',
-      avatar: editingRider.avatar || '/rider-nigel.jpg'
+      avatar: editingRider.avatar && !editingRider.avatar.includes('unsplash') ? editingRider.avatar : null
     });
     setEditingRider(null);
   };
@@ -260,7 +322,11 @@ export default function AdminDashboard() {
     updatePaymentSettings({
       gcashName,
       gcashNumber,
-      gcashQrUrl
+      gcashQrUrl,
+      bankName,
+      bankAccountName,
+      bankAccountNumber,
+      bankQrUrl
     });
   };
 
@@ -1180,96 +1246,220 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* TAB 4: GCASH / QR PAYMENTS MANAGER */}
+      {/* TAB 4: GCASH & BANK QR PAYMENTS MANAGER */}
       {activeTab === 'payments' && (
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           
-          <div className="md:col-span-7 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl p-6 shadow-sm space-y-4">
+          <div className="lg:col-span-7 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl p-5 sm:p-6 shadow-sm space-y-5">
             <div className="flex items-center gap-3">
               <div className="p-3 rounded-2xl bg-blue-500/10 text-blue-600 dark:text-blue-400">
                 <QrCode className="w-6 h-6" />
               </div>
               <div>
                 <h4 className="font-extrabold text-slate-900 dark:text-white text-base">
-                  GCash & QR Code Payment Settings
+                  GCash, Maya & Bank QR Payment Gateways
                 </h4>
                 <p className="text-xs text-slate-500 dark:text-zinc-400">
-                  Upload your official Delivery Express GCash QR code for customer scan-to-pay
+                  Configure official GCash and Bank Transfer / QR Ph scan-to-pay accounts for customers
                 </p>
               </div>
             </div>
 
-            <form onSubmit={handleSavePaymentSettings} className="space-y-4 text-xs pt-2">
-              <div>
-                <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
-                  GCash Registered Account Name
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={gcashName}
-                  onChange={(e) => setGcashName(e.target.value)}
-                  placeholder="e.g. DELIVERY EXPRESS BALAMBAN"
-                  className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-2xl p-3 text-slate-900 dark:text-white font-bold"
-                />
-              </div>
+            <form onSubmit={handleSavePaymentSettings} className="space-y-5 text-xs">
+              
+              {/* GCASH CONFIG SECTION */}
+              <div className="p-4 bg-blue-50/50 dark:bg-blue-950/20 rounded-2xl border border-blue-200 dark:border-blue-900/40 space-y-3">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-blue-500" />
+                  <span className="font-black text-blue-900 dark:text-blue-300 uppercase tracking-wider text-[11px]">
+                    1. GCash Payment Settings
+                  </span>
+                </div>
 
-              <div>
-                <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
-                  GCash Registered Mobile / Account #
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={gcashNumber}
-                  onChange={(e) => setGcashNumber(e.target.value)}
-                  placeholder="e.g. 0917-882-1923"
-                  className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-2xl p-3 text-slate-900 dark:text-white font-bold"
-                />
-              </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
+                      GCash Account Name
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={gcashName}
+                      onChange={(e) => setGcashName(e.target.value)}
+                      placeholder="e.g. DELIVERY EXPRESS BALAMBAN"
+                      className="w-full bg-white dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 rounded-xl p-2.5 text-slate-900 dark:text-white font-bold"
+                    />
+                  </div>
 
-              <div>
-                <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
-                  Upload GCash QR Code Image
-                </label>
-                <div className="flex items-center gap-3">
-                  <label className="cursor-pointer px-4 py-2.5 bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 text-slate-800 dark:text-zinc-200 font-bold rounded-2xl border border-slate-300 dark:border-zinc-700 flex items-center gap-2">
-                    <Upload className="w-4 h-4 text-blue-600" />
-                    <span>Upload QR Image</span>
-                    <input type="file" accept="image/*" className="hidden" onChange={handleQrUpload} />
+                  <div>
+                    <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
+                      GCash Mobile / Account #
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={gcashNumber}
+                      onChange={(e) => setGcashNumber(e.target.value)}
+                      placeholder="e.g. 0917-882-1923"
+                      className="w-full bg-white dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 rounded-xl p-2.5 text-slate-900 dark:text-white font-bold"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
+                    Upload GCash QR Code Image
                   </label>
-                  <span className="text-[11px] text-slate-400">PNG, JPG or Screenshot</span>
+                  <div className="flex items-center gap-3">
+                    <label className="cursor-pointer px-4 py-2 bg-white dark:bg-zinc-800 hover:bg-slate-100 text-slate-800 dark:text-zinc-200 font-bold rounded-xl border border-slate-300 dark:border-zinc-700 flex items-center gap-2 shadow-sm">
+                      <Upload className="w-4 h-4 text-blue-600" />
+                      <span>Upload GCash QR</span>
+                      <input type="file" accept="image/*" className="hidden" onChange={handleQrUpload} />
+                    </label>
+                    <span className="text-[11px] text-slate-400">PNG, JPG, or Screenshot</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* BANK QR CONFIG SECTION */}
+              <div className="p-4 bg-emerald-50/50 dark:bg-emerald-950/20 rounded-2xl border border-emerald-200 dark:border-emerald-900/40 space-y-3">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                  <span className="font-black text-emerald-900 dark:text-emerald-300 uppercase tracking-wider text-[11px]">
+                    2. Bank Transfer / QR Ph Settings
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
+                      Bank Name (e.g. BDO, BPI, Landbank)
+                    </label>
+                    <input
+                      type="text"
+                      value={bankName}
+                      onChange={(e) => setBankName(e.target.value)}
+                      placeholder="e.g. BPI / BDO / Landbank / UnionBank"
+                      className="w-full bg-white dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 rounded-xl p-2.5 text-slate-900 dark:text-white font-bold"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
+                      Bank Account Name
+                    </label>
+                    <input
+                      type="text"
+                      value={bankAccountName}
+                      onChange={(e) => setBankAccountName(e.target.value)}
+                      placeholder="e.g. DELIVERY EXPRESS BALAMBAN"
+                      className="w-full bg-white dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 rounded-xl p-2.5 text-slate-900 dark:text-white font-bold"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
+                    Bank Account Number / IBAN
+                  </label>
+                  <input
+                    type="text"
+                    value={bankAccountNumber}
+                    onChange={(e) => setBankAccountNumber(e.target.value)}
+                    placeholder="e.g. 1234-5678-9012"
+                    className="w-full bg-white dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 rounded-xl p-2.5 text-slate-900 dark:text-white font-bold font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
+                    Upload Bank QR / QR Ph Image
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <label className="cursor-pointer px-4 py-2 bg-white dark:bg-zinc-800 hover:bg-slate-100 text-slate-800 dark:text-zinc-200 font-bold rounded-xl border border-slate-300 dark:border-zinc-700 flex items-center gap-2 shadow-sm">
+                      <Upload className="w-4 h-4 text-emerald-600" />
+                      <span>Upload Bank QR</span>
+                      <input type="file" accept="image/*" className="hidden" onChange={handleBankQrUpload} />
+                    </label>
+                    <span className="text-[11px] text-slate-400">InstaPay / QR Ph / Bank QR</span>
+                  </div>
                 </div>
               </div>
 
               <button
                 type="submit"
-                className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black rounded-2xl text-xs sm:text-sm shadow-md"
+                className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-emerald-600 hover:from-blue-500 hover:to-emerald-500 text-white font-black rounded-2xl text-xs sm:text-sm shadow-md transition-transform active:scale-[0.99]"
               >
-                Save Payment Settings
+                Save Payment Settings (GCash & Bank)
               </button>
             </form>
           </div>
 
-          {/* Customer Live Preview of QR */}
-          <div className="md:col-span-5 bg-gradient-to-br from-blue-900 via-indigo-950 to-zinc-900 text-white p-6 rounded-3xl shadow-xl flex flex-col items-center justify-center text-center space-y-3">
-            <span className="text-[10px] bg-white/20 uppercase font-extrabold px-3 py-1 rounded-full">
-              Customer GCash Scan Preview
-            </span>
-            <div className="p-3 bg-white rounded-2xl shadow-lg">
-              <img
-                src={gcashQrUrl || 'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=DELIVERY_EXPRESS_GCASH'}
-                alt="GCash QR Code"
-                className="w-44 h-44 object-contain"
-              />
+          {/* Customer Live Preview of QR (Dual Selector: GCash vs Bank) */}
+          <div className="lg:col-span-5 bg-gradient-to-br from-slate-900 via-indigo-950 to-zinc-900 text-white p-6 rounded-3xl shadow-xl flex flex-col items-center justify-between text-center space-y-4">
+            <div className="flex items-center gap-2 bg-white/10 p-1 rounded-2xl">
+              <button
+                type="button"
+                onClick={() => setPaymentPreviewTab('gcash')}
+                className={`px-3.5 py-1.5 rounded-xl font-bold text-xs transition-all ${
+                  paymentPreviewTab === 'gcash' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-300 hover:text-white'
+                }`}
+              >
+                GCash QR Preview
+              </button>
+              <button
+                type="button"
+                onClick={() => setPaymentPreviewTab('bank')}
+                className={`px-3.5 py-1.5 rounded-xl font-bold text-xs transition-all ${
+                  paymentPreviewTab === 'bank' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-300 hover:text-white'
+                }`}
+              >
+                Bank QR / Ph Preview
+              </button>
             </div>
-            <div>
-              <p className="text-sm font-extrabold text-amber-300">{gcashName}</p>
-              <p className="text-xs text-blue-200 font-mono mt-0.5">{gcashNumber}</p>
-            </div>
-            <p className="text-[11px] text-slate-300 leading-relaxed max-w-xs">
-              Customers will see this QR Code on their phone screen when they choose GCash payment upon booking.
-            </p>
+
+            {paymentPreviewTab === 'gcash' ? (
+              <div className="space-y-3 flex flex-col items-center">
+                <span className="text-[10px] bg-blue-500/20 text-blue-300 uppercase font-extrabold px-3 py-1 rounded-full border border-blue-500/30">
+                  Customer GCash View
+                </span>
+                <div className="p-3 bg-white rounded-2xl shadow-lg">
+                  <img
+                    src={gcashQrUrl || 'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=DELIVERY_EXPRESS_GCASH'}
+                    alt="GCash QR Code"
+                    className="w-40 h-40 object-contain"
+                  />
+                </div>
+                <div>
+                  <p className="text-sm font-extrabold text-amber-300">{gcashName}</p>
+                  <p className="text-xs text-blue-200 font-mono mt-0.5">{gcashNumber}</p>
+                </div>
+                <p className="text-[11px] text-slate-300 leading-relaxed max-w-xs">
+                  Customers scan this when choosing GCash upon booking.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3 flex flex-col items-center">
+                <span className="text-[10px] bg-emerald-500/20 text-emerald-300 uppercase font-extrabold px-3 py-1 rounded-full border border-emerald-500/30">
+                  Customer Bank Transfer View
+                </span>
+                <div className="p-3 bg-white rounded-2xl shadow-lg">
+                  <img
+                    src={bankQrUrl || 'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=DELIVERY_EXPRESS_BANK'}
+                    alt="Bank QR Code"
+                    className="w-40 h-40 object-contain"
+                  />
+                </div>
+                <div>
+                  <p className="text-sm font-extrabold text-emerald-400">{bankName}</p>
+                  <p className="text-xs text-white font-bold">{bankAccountName}</p>
+                  <p className="text-xs text-amber-300 font-mono mt-0.5">{bankAccountNumber}</p>
+                </div>
+                <p className="text-[11px] text-slate-300 leading-relaxed max-w-xs">
+                  Customers scan or transfer to this account when selecting Bank Transfer.
+                </p>
+              </div>
+            )}
           </div>
 
         </div>

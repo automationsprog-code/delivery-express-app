@@ -360,22 +360,24 @@ export default function BookingModal({ service, initialData = null, onClose, onB
                 <span>4. Payment Method</span>
               </h4>
 
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 {[
                   { id: 'Cash on Delivery', label: 'Cash on Delivery (COD)' },
-                  { id: 'GCash', label: 'GCash / Scan QR Code' }
+                  { id: 'GCash', label: 'GCash QR' },
+                  { id: 'Bank Transfer', label: 'Bank QR / Transfer' }
                 ].map(pm => (
                   <button
                     key={pm.id}
                     type="button"
                     onClick={() => setPaymentMethod(pm.id)}
-                    className={`py-3 px-3 rounded-2xl text-xs font-bold border transition-all text-center flex items-center justify-center gap-2 ${
+                    className={`py-2.5 px-3 rounded-2xl text-xs font-bold border transition-all text-center flex items-center justify-center gap-1.5 ${
                       paymentMethod === pm.id
                         ? 'bg-rose-50 dark:bg-rose-950/60 border-rose-500 text-rose-700 dark:text-rose-300 shadow-sm font-extrabold'
                         : 'bg-slate-50 dark:bg-zinc-950 border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-400'
                     }`}
                   >
-                    {pm.id === 'GCash' && <QrCode className="w-4 h-4 text-blue-500" />}
+                    {pm.id === 'GCash' && <QrCode className="w-3.5 h-3.5 text-blue-500" />}
+                    {pm.id === 'Bank Transfer' && <Building className="w-3.5 h-3.5 text-emerald-500" />}
                     <span>{pm.label}</span>
                   </button>
                 ))}
@@ -398,7 +400,31 @@ export default function BookingModal({ service, initialData = null, onClose, onB
                     <p className="text-sm font-black text-white">{paymentSettings.gcashName}</p>
                     <p className="text-xs font-mono font-bold text-amber-300">{paymentSettings.gcashNumber}</p>
                     <p className="text-[11px] text-blue-200">
-                      Scan with your GCash app or send to the number above.
+                      Scan with your GCash app or send money to the account above.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* If Bank Transfer is selected: Show Official Bank QR Code & Details */}
+              {paymentMethod === 'Bank Transfer' && (
+                <div className="p-4 bg-gradient-to-br from-emerald-950/90 via-slate-900 to-zinc-950 text-white rounded-3xl border border-emerald-500/30 flex flex-col sm:flex-row items-center gap-4 shadow-lg animate-fadeIn">
+                  <div className="p-2 bg-white rounded-2xl shrink-0 shadow-md">
+                    <img
+                      src={paymentSettings.bankQrUrl || 'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=DELIVERY_EXPRESS_BANK'}
+                      alt="Bank QR Code"
+                      className="w-28 h-28 object-contain"
+                    />
+                  </div>
+                  <div className="space-y-1 text-center sm:text-left">
+                    <span className="text-[10px] bg-emerald-500/30 text-emerald-300 font-bold px-2 py-0.5 rounded-full uppercase">
+                      Official Bank QR / Transfer
+                    </span>
+                    <p className="text-sm font-black text-emerald-400">{paymentSettings.bankName || 'BPI / BDO / Landbank'}</p>
+                    <p className="text-xs font-bold text-white">{paymentSettings.bankAccountName || 'DELIVERY EXPRESS BALAMBAN'}</p>
+                    <p className="text-xs font-mono font-bold text-amber-300">{paymentSettings.bankAccountNumber || '1234-5678-9012'}</p>
+                    <p className="text-[11px] text-emerald-200">
+                      Scan with your Mobile Banking App or InstaPay / QR Ph.
                     </p>
                   </div>
                 </div>

@@ -84,11 +84,15 @@ export function OrderProvider({ children }) {
       gcashQrUrl: "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=DELIVERY_EXPRESS_GCASH_09178821923",
       mayaName: "DELIVERY EXPRESS",
       mayaNumber: "0928-441-9012",
-      mayaQrUrl: ""
+      mayaQrUrl: "",
+      bankName: "BDO / BPI / UnionBank / Landbank",
+      bankAccountName: "DELIVERY EXPRESS BALAMBAN",
+      bankAccountNumber: "1234-5678-9012",
+      bankQrUrl: ""
     };
     try {
       const saved = localStorage.getItem('delivery_express_payment_settings');
-      return saved ? JSON.parse(saved) : defaultSettings;
+      return saved ? { ...defaultSettings, ...JSON.parse(saved) } : defaultSettings;
     } catch (_) {
       return defaultSettings;
     }
