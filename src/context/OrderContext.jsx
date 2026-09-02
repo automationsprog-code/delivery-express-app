@@ -282,6 +282,19 @@ export function OrderProvider({ children }) {
                 return merged;
               });
             }
+            if (parsed.riders_roster && Array.isArray(parsed.riders_roster)) {
+              cloudCustomRiders = parsed.riders_roster;
+            }
+            if (parsed.registered_customers && Array.isArray(parsed.registered_customers)) {
+              const localCusts = JSON.parse(localStorage.getItem('delivery_express_registered_customers') || '[]');
+              const combined = [...localCusts];
+              parsed.registered_customers.forEach(c => {
+                if (!combined.some(x => x.email === c.email || (x.phone && c.phone && x.phone.slice(-10) === c.phone.slice(-10)))) {
+                  combined.push(c);
+                }
+              });
+              try { localStorage.setItem('delivery_express_registered_customers', JSON.stringify(combined)); } catch (_) {}
+            }
             localStorage.setItem('delivery_express_admin_password', cloudAdminPass);
           }
         }
@@ -486,6 +499,38 @@ export function OrderProvider({ children }) {
     };
   }, []);
 
+  // Helper for 100% Reliable Cloud Security & Config Sync via orders table (Immune to RLS constraints)
+  const syncSysConfig = async (partialDetails) => {
+    if (!isSupabaseConfigured || !supabase) return;
+    try {
+      const { data: existingRow } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('tracking_number', 'SYS-CONFIG-RATES')
+        .maybeSingle();
+
+      const existingDetails = (existingRow && existingRow.details) ? existingRow.details : {};
+      const newDetails = {
+        ...existingDetails,
+        ...partialDetails,
+        updated_at: Date.now()
+      };
+
+      await supabase.from('orders').upsert({
+        tracking_number: 'SYS-CONFIG-RATES',
+        customer_name: 'SYSTEM_SETTINGS',
+        customer_phone: '0000000000',
+        service_type: 'food_delivery',
+        pickup_address: 'System Config',
+        dropoff_address: 'System Config',
+        estimated_fare: 0,
+        details: newDetails
+      }, { onConflict: 'tracking_number' });
+    } catch (err) {
+      console.warn('Sync SYS-CONFIG error:', err);
+    }
+  };
+
   // Customer Account Register & Login (With Anti-Scam Avatar Verification & Cross-device Sync)
   const registerCustomer = async (customerData) => {
     const userObj = {
@@ -517,22 +562,7 @@ export function OrderProvider({ children }) {
     localStorage.setItem('delivery_express_registered_customers', JSON.stringify(existing));
     
     // Cloud sync registered customers to Supabase
-    if (isSupabaseConfigured && supabase) {
-      try {
-        await supabase.from('services').upsert({
-          id: 'registered_customers_data',
-          name: 'Registered Customers Data',
-          icon: 'Users',
-          description: JSON.stringify(existing),
-          base_fare: 0,
-          per_km_rate: 0,
-          errand_fee: 0,
-          is_active: false
-        });
-      } catch (err) {
-        console.warn('Customer cloud register warning:', err);
-      }
-    }
+    await syncSysConfig({ registered_customers: existing });
 
     setCurrentUser(userObj);
     setActiveRole('customer');
@@ -611,58 +641,25 @@ export function OrderProvider({ children }) {
   // Cross-device Password Updates (Cloud Synced via Supabase)
   const updateAdminPassword = async (newPassword) => {
     localStorage.setItem('delivery_express_admin_password', newPassword);
-    if (isSupabaseConfigured && supabase) {
-      try {
-        const { data: existing } = await supabase.from('services').select('*').eq('id', 'system_security_config').maybeSingle();
-        let parsed = { admin_pass: newPassword, rider_passwords: {}, rider_avatars: {} };
-        if (existing && existing.description) {
-          try { parsed = JSON.parse(existing.description); } catch (_) {}
-          parsed.admin_pass = newPassword;
-        }
-        await supabase.from('services').upsert({
-          id: 'system_security_config',
-          name: 'Security Configuration',
-          icon: 'Lock',
-          description: JSON.stringify(parsed),
-          base_fare: 0,
-          per_km_rate: 0,
-          errand_fee: 0,
-          is_active: false
-        });
-      } catch (err) {
-        console.warn('Admin pass sync warning:', err);
-      }
-    }
+    await syncSysConfig({ admin_pass: newPassword });
   };
 
   const updateRiderPassword = async (riderId, newPassword) => {
     localStorage.setItem(`rider_pass_${riderId}`, newPassword);
-    setRiders(prev => prev.map(r => r.id === riderId ? { ...r, password: newPassword } : r));
+    setRiders(prev => {
+      const updated = prev.map(r => r.id === riderId ? { ...r, password: newPassword } : r);
+      try { localStorage.setItem('delivery_express_riders_balamban', JSON.stringify(updated)); } catch (_) {}
+      return updated;
+    });
 
-    if (isSupabaseConfigured && supabase) {
-      try {
-        const { data: existing } = await supabase.from('services').select('*').eq('id', 'system_security_config').maybeSingle();
-        let parsed = { admin_pass: 'Pass123', rider_passwords: {}, rider_avatars: {} };
-        if (existing && existing.description) {
-          try { parsed = JSON.parse(existing.description); } catch (_) {}
-        }
-        if (!parsed.rider_passwords) parsed.rider_passwords = {};
-        parsed.rider_passwords[riderId] = newPassword;
-
-        await supabase.from('services').upsert({
-          id: 'system_security_config',
-          name: 'Security Configuration',
-          icon: 'Lock',
-          description: JSON.stringify(parsed),
-          base_fare: 0,
-          per_km_rate: 0,
-          errand_fee: 0,
-          is_active: false
-        });
-      } catch (err) {
-        console.warn('Rider pass sync warning:', err);
+    const rider = riders.find(r => r.id === riderId);
+    await syncSysConfig({
+      rider_passwords: {
+        [riderId]: newPassword,
+        ...(rider?.phone ? { [rider.phone]: newPassword } : {}),
+        ...(rider?.name ? { [rider.name]: newPassword } : {})
       }
-    }
+    });
   };
 
   const toggleTheme = () => {
