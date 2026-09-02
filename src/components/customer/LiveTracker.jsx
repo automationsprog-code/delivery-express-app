@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { useOrder } from '../../context/OrderContext';
 import { BRAND, ORDER_STATUSES } from '../../lib/constants';
 import DeliveryMap from '../map/DeliveryMap';
@@ -44,7 +44,12 @@ export default function LiveTracker() {
     return ORDER_STATUSES[status] || { label: status, color: 'bg-zinc-800 text-zinc-300' };
   };
 
-  const messengerUrl = `https://m.me/${BRAND.messengerUsername}?text=${encodeURIComponent(`Hi Delivery Express! Inquiring on my Order #${activeOrder?.trackingNumber || ''}`)}`;
+  const messengerUrl = `https://m.me/${BRAND.messengerUsername}?text=${encodeURIComponent(`Hi Delivery Express! Inquiring on my Balamban Order #${activeOrder?.trackingNumber || ''}`)}`;
+
+  // Dynamic coordinates
+  const pickupCoords = activeOrder?.pickupCoords || [10.5015, 123.7150];
+  const dropoffCoords = activeOrder?.dropoffCoords || [10.4720, 123.7060];
+  const riderCoords = activeOrder?.riderCoords || [10.4850, 123.7110];
 
   return (
     <div className="space-y-6">
@@ -56,8 +61,8 @@ export default function LiveTracker() {
             <Search className="w-4 h-4" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-white">Live Tracking Center</h3>
-            <p className="text-xs text-zinc-400">Track any Delivery Express order status in real time</p>
+            <h3 className="text-sm font-bold text-white">Live Tracking Center (Balamban, Cebu)</h3>
+            <p className="text-xs text-zinc-400">Real-time GPS tracking for active Delivery Express orders</p>
           </div>
         </div>
 
@@ -82,7 +87,7 @@ export default function LiveTracker() {
         <div className="p-12 text-center text-zinc-400 bg-zinc-900 rounded-3xl border border-zinc-800">
           <Package className="w-12 h-12 mx-auto mb-3 text-zinc-600" />
           <p className="text-sm font-semibold">No active orders yet.</p>
-          <p className="text-xs text-zinc-500">Book a service to track your courier live!</p>
+          <p className="text-xs text-zinc-500">Book a service to track your courier live in Balamban!</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -90,16 +95,22 @@ export default function LiveTracker() {
           {/* Left Column: Interactive Map & Rider Status */}
           <div className="lg:col-span-7 space-y-6">
             
-            {/* Live Map Preview */}
+            {/* Live Map Preview with Dynamic Balamban Coordinates */}
             <div className="space-y-2">
               <div className="flex items-center justify-between text-xs">
                 <span className="font-semibold text-zinc-300 flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping inline-block"></span>
-                  Live Courier GPS & Route
+                  Live Courier GPS & Route (Balamban)
                 </span>
                 <span className="text-zinc-500">{activeOrder.distanceKm} km trip</span>
               </div>
-              <DeliveryMap height="360px" />
+              
+              <DeliveryMap 
+                pickupCoords={pickupCoords}
+                dropoffCoords={dropoffCoords}
+                riderCoords={activeOrder.riderName ? riderCoords : null}
+                height="360px" 
+              />
             </div>
 
             {/* Assigned Rider Card */}
@@ -110,7 +121,7 @@ export default function LiveTracker() {
                     <img
                       src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80"
                       alt="Rider Avatar"
-                      className="w-12 h-12 rounded-full object-cover border-2 border-rose-500"
+                      className="w-12 h-12 rounded-full object-cover border-2 border-amber-500"
                     />
                     <div className="absolute -bottom-1 -right-1 bg-emerald-500 text-zinc-950 p-0.5 rounded-full">
                       <ShieldCheck className="w-3 h-3 text-white" />
@@ -120,7 +131,7 @@ export default function LiveTracker() {
                   <div>
                     <div className="flex items-center gap-2">
                       <h4 className="text-sm font-bold text-white">
-                        {activeOrder.riderName || 'Assigning nearest rider...'}
+                        {activeOrder.riderName || 'Assigning nearest Balamban rider...'}
                       </h4>
                       {activeOrder.riderName && (
                         <span className="bg-amber-500/10 text-amber-400 text-[10px] font-bold px-1.5 py-0.5 rounded border border-amber-500/20">
@@ -129,7 +140,7 @@ export default function LiveTracker() {
                       )}
                     </div>
                     <p className="text-xs text-zinc-400">
-                      {activeOrder.riderName ? 'Motorcycle Courier • Honda Click 150i' : 'Estimated dispatch time: < 3 mins'}
+                      {activeOrder.riderName ? 'Balamban Delivery Express Rider • Honda Click' : 'Estimated dispatch time: < 3 mins'}
                     </p>
                   </div>
                 </div>
@@ -163,7 +174,7 @@ export default function LiveTracker() {
                 className="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-md shadow-blue-600/20"
               >
                 <Send className="w-3.5 h-3.5" />
-                <span>Chat with Delivery Express on Facebook Messenger</span>
+                <span>Chat with Delivery Express Balamban on Messenger</span>
               </a>
             </div>
 
@@ -182,7 +193,7 @@ export default function LiveTracker() {
                   />
                 ) : (
                   <div className="p-3 bg-zinc-900 rounded-xl text-xs text-zinc-400">
-                    Handed over directly to customer. Signed and verified by Delivery Express rider.
+                    Handed over directly to customer in Balamban. Verified by Delivery Express courier.
                   </div>
                 )}
                 {activeOrder.deliveryNotes && (
@@ -249,7 +260,7 @@ export default function LiveTracker() {
                 <div className="flex items-start gap-2">
                   <div className="mt-1 w-2.5 h-2.5 rounded-full bg-blue-500 shrink-0" />
                   <div>
-                    <span className="text-zinc-500 block text-[10px] uppercase font-semibold">Pickup / Store</span>
+                    <span className="text-zinc-500 block text-[10px] uppercase font-semibold">1. Pickup / Store (Balamban)</span>
                     <p className="text-zinc-200 font-medium">{activeOrder.pickupAddress}</p>
                     {activeOrder.pickupLandmark && (
                       <span className="text-zinc-400 text-[11px]">Landmark: {activeOrder.pickupLandmark}</span>
@@ -260,7 +271,7 @@ export default function LiveTracker() {
                 <div className="flex items-start gap-2">
                   <div className="mt-1 w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" />
                   <div>
-                    <span className="text-zinc-500 block text-[10px] uppercase font-semibold">Drop-off Destination</span>
+                    <span className="text-zinc-500 block text-[10px] uppercase font-semibold">2. Drop-off Destination (Balamban)</span>
                     <p className="text-zinc-200 font-medium">{activeOrder.dropoffAddress}</p>
                     {activeOrder.dropoffLandmark && (
                       <span className="text-zinc-400 text-[11px]">Landmark: {activeOrder.dropoffLandmark}</span>
@@ -269,7 +280,7 @@ export default function LiveTracker() {
                 </div>
               </div>
 
-              {/* Errand Specific Details (e.g. Shopping List or Bill details) */}
+              {/* Errand Specific Details */}
               {activeOrder.details && Object.keys(activeOrder.details).length > 0 && (
                 <div className="p-3 bg-zinc-950 rounded-xl border border-zinc-800 space-y-1.5 text-xs">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400 block">

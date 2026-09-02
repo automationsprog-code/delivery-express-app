@@ -1,4 +1,4 @@
-﻿import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { INITIAL_ORDERS, MOCK_RIDERS, SERVICES, BRAND } from '../lib/constants';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import confetti from 'canvas-confetti';
@@ -7,12 +7,12 @@ const OrderContext = createContext();
 
 export function OrderProvider({ children }) {
   const [orders, setOrders] = useState(() => {
-    const saved = localStorage.getItem('delivery_express_orders');
+    const saved = localStorage.getItem('delivery_express_orders_balamban');
     return saved ? JSON.parse(saved) : INITIAL_ORDERS;
   });
 
   const [riders, setRiders] = useState(() => {
-    const saved = localStorage.getItem('delivery_express_riders');
+    const saved = localStorage.getItem('delivery_express_riders_balamban');
     return saved ? JSON.parse(saved) : MOCK_RIDERS;
   });
 
@@ -21,20 +21,19 @@ export function OrderProvider({ children }) {
   const [activeTrackingId, setActiveTrackingId] = useState('DE-2026-001');
   const [notification, setNotification] = useState(null);
 
-  // Save to localStorage for instant offline demo / state persistence
+  // Save to localStorage
   useEffect(() => {
-    localStorage.setItem('delivery_express_orders', JSON.stringify(orders));
+    localStorage.setItem('delivery_express_orders_balamban', JSON.stringify(orders));
   }, [orders]);
 
   useEffect(() => {
-    localStorage.setItem('delivery_express_riders', JSON.stringify(riders));
+    localStorage.setItem('delivery_express_riders_balamban', JSON.stringify(riders));
   }, [riders]);
 
-  // Supabase Real-time Listeners if enabled
+  // Supabase Realtime Listener
   useEffect(() => {
     if (!isSupabaseConfigured || !supabase) return;
 
-    // Fetch initial data from Supabase
     const fetchSupabaseOrders = async () => {
       try {
         const { data, error } = await supabase
@@ -42,7 +41,6 @@ export function OrderProvider({ children }) {
           .select('*')
           .order('created_at', { ascending: false });
         if (!error && data && data.length > 0) {
-          // Format orders if needed
           setOrders(data);
         }
       } catch (err) {
@@ -52,13 +50,12 @@ export function OrderProvider({ children }) {
 
     fetchSupabaseOrders();
 
-    // Subscribe to realtime changes
     const channel = supabase
       .channel('schema-db-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload) => {
         if (payload.eventType === 'INSERT') {
           setOrders(prev => [payload.new, ...prev]);
-          showNotification(`New Order: ${payload.new.tracking_number}`);
+          showNotification(`New Order in Balamban: ${payload.new.tracking_number}`);
         } else if (payload.eventType === 'UPDATE') {
           setOrders(prev => prev.map(o => o.id === payload.new.id ? { ...o, ...payload.new } : o));
         }
@@ -77,15 +74,13 @@ export function OrderProvider({ children }) {
     }, 4500);
   };
 
-  // Check if currently within operating hours (8:00 AM - 2:00 AM)
   const isWithinOperatingHours = () => {
     const now = new Date();
-    const hour = now.getHours(); // 0 to 23
-    // 8 AM to 23:59 (8 to 23) OR 0:00 to 1:59 (0, 1)
+    const hour = now.getHours();
     return hour >= 8 || hour < 2;
   };
 
-  // Create new order
+  // Create new order with Balamban Coordinates
   const createOrder = async (orderInput) => {
     const service = SERVICES.find(s => s.id === orderInput.serviceId) || SERVICES[0];
     const trackingNumber = `DE-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -99,30 +94,32 @@ export function OrderProvider({ children }) {
       customerPhone: orderInput.customerPhone,
       pickupAddress: orderInput.pickupAddress,
       pickupLandmark: orderInput.pickupLandmark || '',
+      pickupCoords: orderInput.pickupCoords || [10.5015, 123.7150], // Balamban Market
       dropoffAddress: orderInput.dropoffAddress,
       dropoffLandmark: orderInput.dropoffLandmark || '',
+      dropoffCoords: orderInput.dropoffCoords || [10.4720, 123.7060], // Buanoy
       distanceKm: parseFloat(orderInput.distanceKm || 3.5),
       estimatedFare: parseFloat(orderInput.estimatedFare),
       itemCost: parseFloat(orderInput.itemCost || 0),
       paymentMethod: orderInput.paymentMethod || 'Cash on Delivery',
       status: 'pending',
-      statusText: 'Waiting for Courier Assignment',
+      statusText: 'Waiting for Balamban Courier Assignment',
       riderId: null,
       riderName: null,
       riderPhone: null,
+      riderCoords: null,
       details: orderInput.details || {},
       customerNotes: orderInput.customerNotes || '',
       createdAt: new Date().toISOString(),
       logs: [
-        { step: 'Booking Submitted', time: 'Just now', done: true },
-        { step: 'Rider Assignment', time: 'Searching nearby...', done: false },
+        { step: 'Booking Submitted (Balamban)', time: 'Just now', done: true },
+        { step: 'Rider Assignment', time: 'Searching nearby Balamban riders...', done: false },
         { step: 'Purchased / Picked up', time: 'Pending', done: false },
         { step: 'Out for Delivery', time: 'Pending', done: false },
         { step: 'Delivered', time: 'Pending', done: false }
       ]
     };
 
-    // If Supabase configured, insert row
     if (isSupabaseConfigured && supabase) {
       try {
         await supabase.from('orders').insert({
@@ -133,8 +130,12 @@ export function OrderProvider({ children }) {
           customer_phone: newOrder.customerPhone,
           pickup_address: newOrder.pickupAddress,
           pickup_landmark: newOrder.pickupLandmark,
+          pickup_lat: newOrder.pickupCoords[0],
+          pickup_lng: newOrder.pickupCoords[1],
           dropoff_address: newOrder.dropoffAddress,
           dropoff_landmark: newOrder.dropoffLandmark,
+          dropoff_lat: newOrder.dropoffCoords[0],
+          dropoff_lng: newOrder.dropoffCoords[1],
           distance_km: newOrder.distanceKm,
           estimated_fare: newOrder.estimatedFare,
           item_estimated_cost: newOrder.itemCost,
@@ -144,27 +145,22 @@ export function OrderProvider({ children }) {
           status: 'pending'
         });
       } catch (err) {
-        console.warn('Supabase insert failed, saving to local state:', err);
+        console.warn('Supabase insert failed, saving locally:', err);
       }
     }
 
     setOrders(prev => [newOrder, ...prev]);
     setActiveTrackingId(trackingNumber);
-    showNotification(`Booking ${trackingNumber} created successfully!`, 'success');
+    showNotification(`Booking ${trackingNumber} created in Balamban!`, 'success');
     
-    // Auto trigger confetti celebration
     try {
-      confetti({
-        particleCount: 80,
-        spread: 70,
-        origin: { y: 0.6 }
-      });
+      confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
     } catch (_) {}
 
     return newOrder;
   };
 
-  // Assign Rider to order
+  // Assign Rider & set rider GPS coordinates
   const assignRider = (orderId, riderId) => {
     const rider = riders.find(r => r.id === riderId);
     if (!rider) return;
@@ -181,6 +177,7 @@ export function OrderProvider({ children }) {
           riderId: rider.id,
           riderName: rider.name,
           riderPhone: rider.phone,
+          riderCoords: [rider.lat, rider.lng],
           status: 'assigned',
           statusText: `Rider Assigned: ${rider.name}`,
           logs: updatedLogs
@@ -189,7 +186,22 @@ export function OrderProvider({ children }) {
       return order;
     }));
 
-    showNotification(`Rider ${rider.name} assigned to order!`, 'success');
+    showNotification(`Courier ${rider.name} assigned in Balamban!`, 'success');
+  };
+
+  // Update Rider Live GPS Location
+  const updateRiderLocation = (riderId, newLat, newLng) => {
+    setRiders(prev => prev.map(r => r.id === riderId ? { ...r, lat: newLat, lng: newLng } : r));
+    
+    // Also update all active orders assigned to this rider
+    setOrders(prev => prev.map(o => {
+      if (o.riderId === riderId && o.status !== 'delivered' && o.status !== 'cancelled') {
+        return { ...o, riderCoords: [newLat, newLng] };
+      }
+      return o;
+    }));
+
+    showNotification(`Rider GPS synced: ${newLat.toFixed(4)}, ${newLng.toFixed(4)}`, 'info');
   };
 
   // Update order status workflow
@@ -200,13 +212,13 @@ export function OrderProvider({ children }) {
         let logs = [...order.logs];
 
         if (newStatus === 'purchasing') {
-          statusText = 'At Pickup / Purchasing Items';
+          statusText = 'At Pickup / Purchasing in Balamban';
           logs[2] = { step: 'Items Purchased / Picked Up', time: 'Just now', done: true };
         } else if (newStatus === 'in_transit') {
-          statusText = 'Rider Out for Delivery';
+          statusText = 'Courier Out for Delivery in Balamban';
           logs[3] = { step: 'Out for Delivery', time: 'Just now', done: true };
         } else if (newStatus === 'delivered') {
-          statusText = 'Order Delivered Successfully';
+          statusText = 'Delivered Successfully in Balamban';
           logs[4] = { step: 'Delivered & Completed', time: 'Just now', done: true };
           try {
             confetti({ particleCount: 100, spread: 80, origin: { y: 0.5 } });
@@ -226,7 +238,7 @@ export function OrderProvider({ children }) {
       return order;
     }));
 
-    showNotification(`Order status updated to: ${newStatus}`, 'info');
+    showNotification(`Order status updated: ${newStatus}`, 'info');
   };
 
   // Proof of delivery uploader
@@ -253,12 +265,12 @@ export function OrderProvider({ children }) {
     } catch (_) {}
   };
 
-  // Reset to sample data
+  // Reset to sample Balamban data
   const resetSampleData = () => {
     setOrders(INITIAL_ORDERS);
     setRiders(MOCK_RIDERS);
     setActiveTrackingId('DE-2026-001');
-    showNotification('Sample data reset successfully!', 'info');
+    showNotification('Balamban, Cebu sample data refreshed!', 'info');
   };
 
   return (
@@ -277,6 +289,7 @@ export function OrderProvider({ children }) {
         isWithinOperatingHours,
         createOrder,
         assignRider,
+        updateRiderLocation,
         updateOrderStatus,
         uploadProofOfDelivery,
         resetSampleData

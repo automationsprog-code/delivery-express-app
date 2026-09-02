@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { useOrder } from '../../context/OrderContext';
 import { ORDER_STATUSES } from '../../lib/constants';
 import { 
@@ -15,7 +15,9 @@ import {
   ExternalLink,
   ChevronRight,
   Sparkles,
-  Clock
+  Clock,
+  LocateFixed,
+  Radio
 } from 'lucide-react';
 
 export default function RiderPortal() {
@@ -26,12 +28,14 @@ export default function RiderPortal() {
     setSelectedRiderId, 
     assignRider, 
     updateOrderStatus,
+    updateRiderLocation,
     uploadProofOfDelivery
   } = useOrder();
 
   const [selectedOrderForPod, setSelectedOrderForPod] = useState(null);
   const [podPhotoUrl, setPodPhotoUrl] = useState('');
   const [podNotes, setPodNotes] = useState('');
+  const [isSimulatingMove, setIsSimulatingMove] = useState(false);
 
   const currentRider = riders.find(r => r.id === selectedRiderId) || riders[0];
 
@@ -51,11 +55,57 @@ export default function RiderPortal() {
   const totalEarningsToday = myCompletedOrders.reduce((acc, curr) => acc + (curr.estimatedFare || 80), 0);
 
   const handleOpenMaps = (address) => {
-    window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`, '_blank');
+    window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address + ', Balamban, Cebu')}`, '_blank');
   };
 
   const handleOpenWaze = (address) => {
-    window.open(`https://waze.com/ul?q=${encodeURIComponent(address)}`, '_blank');
+    window.open(`https://waze.com/ul?q=${encodeURIComponent(address + ', Balamban, Cebu')}`, '_blank');
+  };
+
+  // Broadcast real device GPS
+  const handleBroadcastGPS = () => {
+    if (!navigator.geolocation) {
+      alert('Geolocation is not supported on this device.');
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        updateRiderLocation(currentRider.id, latitude, longitude);
+        alert(`Your Live GPS Location (${latitude.toFixed(4)}, ${longitude.toFixed(4)}) is now broadcasted to customers!`);
+      },
+      (err) => {
+        console.warn(err);
+        alert('Could not get GPS. Using Balamban center.');
+      },
+      { enableHighAccuracy: true }
+    );
+  };
+
+  // Simulate rider moving along Balamban highway
+  const handleSimulateMovement = () => {
+    setIsSimulatingMove(true);
+    let step = 0;
+    // Route from Balamban Gaisano (10.4990, 123.7175) to Buanoy (10.4720, 123.7060)
+    const points = [
+      [10.5015, 123.7150],
+      [10.4960, 123.7155],
+      [10.4900, 123.7130],
+      [10.4820, 123.7100],
+      [10.4750, 123.7070],
+      [10.4720, 123.7060]
+    ];
+
+    const interval = setInterval(() => {
+      if (step < points.length) {
+        const [lat, lng] = points[step];
+        updateRiderLocation(currentRider.id, lat, lng);
+        step++;
+      } else {
+        clearInterval(interval);
+        setIsSimulatingMove(false);
+      }
+    }, 1200);
   };
 
   const handlePodSubmit = (e) => {
@@ -64,7 +114,7 @@ export default function RiderPortal() {
     uploadProofOfDelivery(
       selectedOrderForPod.id, 
       podPhotoUrl || 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=500&auto=format&fit=crop&q=80', 
-      podNotes || 'Delivered safely to recipient.'
+      podNotes || 'Delivered safely to recipient in Balamban.'
     );
     setSelectedOrderForPod(null);
     setPodPhotoUrl('');
@@ -98,12 +148,12 @@ export default function RiderPortal() {
               </span>
             </div>
             <p className="text-xs text-zinc-400 mt-0.5">
-              Plate: <strong className="text-zinc-200">{currentRider.plate}</strong>
+              Plate: <strong className="text-zinc-200">{currentRider.plate}</strong> • <span className="text-emerald-400 font-semibold">Balamban Hub</span>
             </p>
 
             {/* Switch Rider for testing */}
             <div className="flex items-center gap-1.5 mt-2">
-              <span className="text-[10px] text-zinc-500">Switch profile:</span>
+              <span className="text-[10px] text-zinc-500">Switch courier:</span>
               {riders.map(r => (
                 <button
                   key={r.id}
@@ -121,7 +171,28 @@ export default function RiderPortal() {
           </div>
         </div>
 
-        {/* Quick Earnings / Shift Summary */}
+        {/* GPS Broadcast & Simulation Buttons */}
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={handleBroadcastGPS}
+            className="px-3 py-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-200 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm"
+            title="Use your phone's real GPS"
+          >
+            <LocateFixed className="w-3.5 h-3.5 text-emerald-400" />
+            <span>Broadcast My Phone GPS</span>
+          </button>
+
+          <button
+            onClick={handleSimulateMovement}
+            disabled={isSimulatingMove}
+            className="px-3 py-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-zinc-950 rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md disabled:opacity-50"
+          >
+            <Radio className={`w-3.5 h-3.5 ${isSimulatingMove ? 'animate-spin' : ''}`} />
+            <span>{isSimulatingMove ? 'Rider Moving...' : 'Simulate Ride in Balamban'}</span>
+          </button>
+        </div>
+
+        {/* Quick Earnings Summary */}
         <div className="flex items-center gap-4 bg-zinc-950/80 p-3 rounded-2xl border border-zinc-800 w-full md:w-auto justify-around">
           <div className="text-center px-3">
             <span className="text-[10px] text-zinc-500 block uppercase font-bold">Today's Payout</span>
@@ -144,12 +215,12 @@ export default function RiderPortal() {
       {/* Main Grid: My Active Jobs vs Available Unassigned Orders */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
-        {/* Left Column: My Current Active Deliveries (7 Cols) */}
+        {/* Left Column: My Current Active Deliveries */}
         <div className="lg:col-span-7 space-y-4">
           <div className="flex items-center justify-between">
             <h4 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
               <Bike className="w-4 h-4 text-amber-400" />
-              <span>My Active Deliveries ({myActiveOrders.length})</span>
+              <span>My Active Balamban Deliveries ({myActiveOrders.length})</span>
             </h4>
           </div>
 
@@ -186,13 +257,13 @@ export default function RiderPortal() {
                   </div>
                 </div>
 
-                {/* Pickup & Dropoff */}
+                {/* Pickup & Dropoff in Balamban */}
                 <div className="p-3 bg-zinc-950 rounded-xl border border-zinc-800/80 space-y-2 text-xs">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-start gap-2">
                       <span className="w-2 h-2 rounded-full bg-blue-500 mt-1 shrink-0" />
                       <div>
-                        <span className="text-zinc-500 text-[10px] block">1. PICKUP</span>
+                        <span className="text-zinc-500 text-[10px] block">1. PICKUP (BALAMBAN)</span>
                         <p className="text-zinc-200 font-medium">{order.pickupAddress}</p>
                         {order.pickupLandmark && <span className="text-zinc-400 text-[11px]">{order.pickupLandmark}</span>}
                       </div>
@@ -217,7 +288,7 @@ export default function RiderPortal() {
                     <div className="flex items-start gap-2">
                       <span className="w-2 h-2 rounded-full bg-emerald-500 mt-1 shrink-0" />
                       <div>
-                        <span className="text-zinc-500 text-[10px] block">2. DROPOFF</span>
+                        <span className="text-zinc-500 text-[10px] block">2. DROPOFF (BALAMBAN)</span>
                         <p className="text-zinc-200 font-medium">{order.dropoffAddress}</p>
                         {order.dropoffLandmark && <span className="text-zinc-400 text-[11px]">{order.dropoffLandmark}</span>}
                       </div>
@@ -258,7 +329,7 @@ export default function RiderPortal() {
                       onClick={() => updateOrderStatus(order.id, 'purchasing')}
                       className="flex-1 py-2.5 px-3 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-bold transition-all shadow-md"
                     >
-                      ✓ Arrived at Pickup / Purchasing
+                      ✓ Arrived at Store / Purchasing
                     </button>
                   )}
 
@@ -294,19 +365,19 @@ export default function RiderPortal() {
           )}
         </div>
 
-        {/* Right Column: Available Unassigned Errand Feed (5 Cols) */}
+        {/* Right Column: Available Unassigned Errand Feed */}
         <div className="lg:col-span-5 space-y-4">
           <div className="flex items-center justify-between">
             <h4 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
               <Clock className="w-4 h-4 text-rose-400" />
-              <span>Available Jobs Feed ({unassignedOrders.length})</span>
+              <span>Available Balamban Jobs ({unassignedOrders.length})</span>
             </h4>
           </div>
 
           {unassignedOrders.length === 0 ? (
             <div className="p-8 text-center bg-zinc-900/60 border border-zinc-800 rounded-2xl text-zinc-400">
               <CheckCircle2 className="w-10 h-10 mx-auto text-emerald-500 mb-2" />
-              <p className="text-sm font-semibold">All orders are currently assigned!</p>
+              <p className="text-sm font-semibold">All Balamban orders are assigned!</p>
               <p className="text-xs text-zinc-500">New customer bookings will appear here instantly.</p>
             </div>
           ) : (
@@ -380,7 +451,7 @@ export default function RiderPortal() {
                   rows={2}
                   value={podNotes}
                   onChange={(e) => setPodNotes(e.target.value)}
-                  placeholder="e.g. Received by Maria Clara at front door. Payment collected via GCash."
+                  placeholder="e.g. Received by customer in Balamban, Cebu. Payment collected."
                   className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500 resize-none"
                 />
               </div>
