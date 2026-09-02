@@ -544,11 +544,17 @@ export default function AdminDashboard() {
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-3">
                       <div className="relative group">
-                        <img
-                          src={rider.avatar || '/rider-nigel.jpg'}
-                          alt={rider.name}
-                          className="w-16 h-16 rounded-2xl object-cover border-2 border-amber-500 shadow-md bg-white dark:bg-zinc-800"
-                        />
+                        {rider.avatar && (rider.avatar.startsWith('data:') || rider.avatar.startsWith('http') || (rider.name && rider.name.toLowerCase().includes('nigel') && rider.avatar === '/rider-nigel.jpg')) ? (
+                          <img
+                            src={rider.avatar}
+                            alt={rider.name}
+                            className="w-16 h-16 rounded-2xl object-cover border-2 border-amber-500 shadow-md bg-white dark:bg-zinc-800"
+                          />
+                        ) : (
+                          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-500 via-orange-500 to-amber-600 text-zinc-950 flex items-center justify-center font-black text-lg border-2 border-amber-500 shadow-md uppercase tracking-tight">
+                            {(rider.name || 'R').split(' ').map(n => n[0]).slice(0, 2).join('')}
+                          </div>
+                        )}
                         <span className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white dark:border-zinc-900 ${currentStatus === 'active' ? 'bg-emerald-500' : currentStatus === 'break' ? 'bg-amber-500' : 'bg-slate-400'}`} />
                         
                         {/* Facebook-style 1-tap Camera Upload on Avatar */}
@@ -1484,11 +1490,17 @@ export default function AdminDashboard() {
                 </label>
                 <div className="flex items-center gap-4">
                   <div className="relative">
-                    <img
-                      src={editingRider.avatar || '/rider-nigel.jpg'}
-                      alt="Preview"
-                      className="w-16 h-16 rounded-2xl object-cover border-2 border-amber-500 shadow-md bg-white dark:bg-zinc-800"
-                    />
+                    {editingRider.avatar && (editingRider.avatar.startsWith('data:') || editingRider.avatar.startsWith('http') || (editingRider.name && editingRider.name.toLowerCase().includes('nigel') && editingRider.avatar === '/rider-nigel.jpg')) ? (
+                      <img
+                        src={editingRider.avatar}
+                        alt="Preview"
+                        className="w-16 h-16 rounded-2xl object-cover border-2 border-amber-500 shadow-md bg-white dark:bg-zinc-800"
+                      />
+                    ) : (
+                      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-500 via-orange-500 to-amber-600 text-zinc-950 flex items-center justify-center font-black text-lg border-2 border-amber-500 shadow-md uppercase tracking-tight">
+                        {(editingRider.name || 'R').split(' ').map(n => n[0]).slice(0, 2).join('')}
+                      </div>
+                    )}
                     {uploadingRiderId && (
                       <div className="absolute inset-0 bg-black/60 rounded-2xl flex items-center justify-center">
                         <Loader2 className="w-5 h-5 text-white animate-spin" />
@@ -1508,10 +1520,10 @@ export default function AdminDashboard() {
                     </label>
                     <button
                       type="button"
-                      onClick={() => setEditingRider({ ...editingRider, avatar: '/rider-nigel.jpg' })}
+                      onClick={() => setEditingRider({ ...editingRider, avatar: null })}
                       className="px-3 py-1.5 bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 text-slate-700 dark:text-zinc-300 rounded-xl font-bold text-[11px] text-center"
                     >
-                      Reset to Nigel Default Photo
+                      Remove Photo (Use Initials)
                     </button>
                   </div>
                 </div>

@@ -581,7 +581,13 @@ export default function AuthModal({ onClose, defaultTab = 'customer' }) {
                       }`}
                     >
                       <div className="flex items-center gap-2.5">
-                        <img src={r.avatar} alt={r.name} className="w-8 h-8 rounded-full object-cover border border-amber-500" />
+                        {r.avatar && (r.avatar.startsWith('data:') || r.avatar.startsWith('http') || (r.name && r.name.toLowerCase().includes('nigel') && r.avatar === '/rider-nigel.jpg')) ? (
+                          <img src={r.avatar} alt={r.name} className="w-8 h-8 rounded-full object-cover border border-amber-500" />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 text-zinc-950 flex items-center justify-center font-black text-xs border border-amber-500 uppercase">
+                            {(r.name || 'R').split(' ').map(n => n[0]).slice(0, 2).join('')}
+                          </div>
+                        )}
                         <div>
                           <p className="font-extrabold text-slate-900 dark:text-white">{r.name}</p>
                           <span className="text-[10px] text-slate-400 dark:text-zinc-500">{r.plate}</span>
