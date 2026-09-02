@@ -146,11 +146,12 @@ export function OrderProvider({ children }) {
         if (!riderErr && riderData) {
           currentRiderList = (riderData || []).map(r => {
             const savedAvatar = localStorage.getItem(`rider_avatar_${r.id}`);
+            const cleanPlate = r.motorcycle_plate?.split('(')[0]?.trim() || r.motorcycle_plate || 'Motorcycle';
             return {
               id: r.id,
               name: r.full_name || 'Courier',
               phone: r.phone || '0917-000-0000',
-              plate: r.motorcycle_plate || 'Motorcycle',
+              plate: cleanPlate,
               zone: r.motorcycle_plate?.includes('(') ? r.motorcycle_plate.split('(')[1].replace(')', '') : 'Balamban Proper',
               municipality: 'Balamban',
               avatar: savedAvatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
@@ -182,7 +183,6 @@ export function OrderProvider({ children }) {
             const riderName = o.details?.rider_name || assignedRiderObj?.name || (o.rider_id ? 'Nigel' : null);
             const riderPhone = o.details?.rider_phone || assignedRiderObj?.phone || (o.rider_id ? '0917-882-1923' : null);
 
-            // Dynamic Step Calculation based on live status
             const st = o.status || 'pending';
             const isAssigned = st !== 'pending' && (!!o.rider_id || !!riderName);
             const isPurchased = st === 'at_pickup_purchasing' || st === 'purchasing' || st === 'out_for_delivery' || st === 'in_transit' || st === 'delivered';
@@ -619,7 +619,6 @@ export function OrderProvider({ children }) {
 
   // Update order status workflow (Maps accurately to Supabase order_status ENUM)
   const updateOrderStatus = async (orderId, newStatus) => {
-    // Map JS status to PostgreSQL enum order_status
     let dbStatus = newStatus;
     if (newStatus === 'purchasing') dbStatus = 'at_pickup_purchasing';
     if (newStatus === 'in_transit') dbStatus = 'out_for_delivery';
@@ -807,16 +806,25 @@ export function OrderProvider({ children }) {
     showNotification(`Rider ${rider?.name || ''} deleted`, 'info');
   };
 
+  // Robust Cloud Order Deletion
   const deleteOrder = async (orderId) => {
-    setOrders(prev => prev.filter(o => o.id !== orderId && o.trackingNumber !== orderId));
+    const target = orders.find(o => o.id === orderId || o.trackingNumber === orderId);
+    const tracking = target?.trackingNumber || orderId;
+
+    setOrders(prev => prev.filter(o => o.id !== orderId && o.trackingNumber !== orderId && o.trackingNumber !== tracking));
+    if (activeTrackingId === tracking || activeTrackingId === orderId) {
+      setActiveTrackingId('');
+    }
 
     if (isSupabaseConfigured && supabase) {
       try {
-        await supabase.from('orders').delete().eq('tracking_number', orderId);
-      } catch (_) {}
+        await supabase.from('orders').delete().or(`tracking_number.eq.${tracking},id.eq.${orderId}`);
+      } catch (err) {
+        console.warn('Supabase delete order warning:', err);
+      }
     }
 
-    showNotification('Order removed', 'info');
+    showNotification('Order removed from all screens', 'info');
   };
 
   const broadcastAdminAnnouncement = (msg) => {
