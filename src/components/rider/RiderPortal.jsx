@@ -23,7 +23,10 @@ import {
   MessageSquare,
   Power,
   ToggleLeft,
-  ToggleRight
+  ToggleRight,
+  Upload,
+  Image as ImageIcon,
+  Check
 } from 'lucide-react';
 
 export default function RiderPortal() {
@@ -38,7 +41,8 @@ export default function RiderPortal() {
     setRiderOnlineStatus,
     toggleRiderDuty,
     uploadProofOfDelivery,
-    currentUser
+    currentUser,
+    showNotification
   } = useOrder();
 
   const [selectedOrderForPod, setSelectedOrderForPod] = useState(null);
@@ -46,6 +50,7 @@ export default function RiderPortal() {
   const [podPhotoUrl, setPodPhotoUrl] = useState('');
   const [podNotes, setPodNotes] = useState('');
   const [isSimulatingMove, setIsSimulatingMove] = useState(false);
+  const [podError, setPodError] = useState('');
 
   const currentRider = riders.find(r => r.id === selectedRiderId || r.id === currentUser?.id || r.name === currentUser?.name) || riders[0] || {
     id: 'b2c77a52-42ae-4f07-a8fa-540722d74fae',
@@ -129,17 +134,63 @@ export default function RiderPortal() {
     }, 1200);
   };
 
+  // Camera & Photo Upload Capture for Proof of Delivery
+  const handlePodPhotoCapture = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setPodError('');
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const maxDim = 600;
+          let width = img.width;
+          let height = img.height;
+          if (width > height) {
+            if (width > maxDim) {
+              height *= maxDim / width;
+              width = maxDim;
+            }
+          } else {
+            if (height > maxDim) {
+              width *= maxDim / height;
+              height = maxDim;
+            }
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          const compressed = canvas.toDataURL('image/jpeg', 0.85);
+          setPodPhotoUrl(compressed);
+        };
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handlePodSubmit = (e) => {
     e.preventDefault();
     if (!selectedOrderForPod) return;
+
+    // STRICT REQUIREMENT: Photo is mandatory
+    if (!podPhotoUrl) {
+      setPodError('Proof of Delivery Photo is REQUIRED before completing this order.');
+      return;
+    }
+
     uploadProofOfDelivery(
       selectedOrderForPod.id, 
-      podPhotoUrl || 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=500&auto=format&fit=crop&q=80', 
-      podNotes || 'Delivered safely to recipient in Balamban.'
+      podPhotoUrl, 
+      podNotes.trim() || 'Handed over directly to customer. Payment collected in Balamban.'
     );
+
     setSelectedOrderForPod(null);
     setPodPhotoUrl('');
     setPodNotes('');
+    setPodError('');
   };
 
   return (
@@ -360,7 +411,7 @@ export default function RiderPortal() {
                     </div>
                   )}
 
-                  {/* Status Advancement Action Buttons (FOOLPROOF ENUM MAPPING) */}
+                  {/* Status Advancement Action Buttons */}
                   <div className="pt-2 flex flex-wrap items-center gap-2">
                     {isAssigned && (
                       <button
@@ -383,11 +434,16 @@ export default function RiderPortal() {
 
                     {isOutForDelivery && (
                       <button
-                        onClick={() => setSelectedOrderForPod(order)}
+                        onClick={() => {
+                          setSelectedOrderForPod(order);
+                          setPodPhotoUrl('');
+                          setPodNotes('');
+                          setPodError('');
+                        }}
                         className="flex-1 py-3.5 px-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-2xl text-xs font-black transition-all shadow-lg flex items-center justify-center gap-2"
                       >
                         <Camera className="w-4 h-4" />
-                        <span>Upload Proof & Complete Delivery</span>
+                        <span>📸 Take Proof Photo & Complete</span>
                       </button>
                     )}
 
@@ -478,39 +534,95 @@ export default function RiderPortal() {
         />
       )}
 
-      {/* Proof of Delivery (POD) Modal */}
+      {/* STRICT MANDATORY PROOF OF DELIVERY (POD) CAMERA MODAL */}
       {selectedOrderForPod && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn">
           <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4">
-            <h4 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-              <Camera className="w-5 h-5 text-emerald-500" />
-              <span>Complete Delivery #{selectedOrderForPod.trackingNumber}</span>
-            </h4>
+            <div className="flex items-center justify-between">
+              <h4 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
+                <Camera className="w-5 h-5 text-emerald-500" />
+                <span>Proof of Delivery (Required)</span>
+              </h4>
+              <span className="text-[10px] font-bold bg-rose-100 dark:bg-rose-950/80 text-rose-700 dark:text-rose-400 px-2.5 py-0.5 rounded-full uppercase border border-rose-300 dark:border-rose-800">
+                Mandatory Photo
+              </span>
+            </div>
+
+            <p className="text-xs text-slate-500 dark:text-zinc-400">
+              Palihug og kuha og litrato sa gi-deliver nga item o sa pagdawat sa kustomer sa Balamban.
+            </p>
+
+            {podError && (
+              <div className="p-3 bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 rounded-2xl text-xs font-bold flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+                <span>{podError}</span>
+              </div>
+            )}
 
             <form onSubmit={handlePodSubmit} className="space-y-4 text-xs">
+              
+              {/* Photo Shutter & Live Preview */}
               <div>
-                <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
-                  Proof of Delivery Photo URL (or simulated photo)
+                <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1.5">
+                  1. Snapshot Proof of Delivery Photo *
                 </label>
-                <input
-                  type="text"
-                  value={podPhotoUrl}
-                  onChange={(e) => setPodPhotoUrl(e.target.value)}
-                  placeholder="https://... (Leave blank for sample photo)"
-                  className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-2xl px-3.5 py-2.5 text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
-                />
+
+                {podPhotoUrl ? (
+                  <div className="relative rounded-2xl overflow-hidden border-2 border-emerald-500 shadow-md">
+                    <img
+                      src={podPhotoUrl}
+                      alt="Proof Preview"
+                      className="w-full h-48 object-cover bg-slate-100 dark:bg-zinc-950"
+                    />
+                    <div className="absolute top-2 right-2 bg-emerald-600 text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-md flex items-center gap-1">
+                      <Check className="w-3 h-3" />
+                      <span>Photo Captured</span>
+                    </div>
+                    <label className="absolute bottom-2 left-2 right-2 cursor-pointer py-2 bg-black/70 hover:bg-black/80 backdrop-blur-md text-white font-bold text-center rounded-xl flex items-center justify-center gap-2 text-xs transition-colors">
+                      <Camera className="w-4 h-4 text-emerald-400" />
+                      <span>Retake Photo / Choose Another</span>
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        capture="environment" 
+                        className="hidden" 
+                        onChange={handlePodPhotoCapture} 
+                      />
+                    </label>
+                  </div>
+                ) : (
+                  <label className="cursor-pointer border-2 border-dashed border-emerald-500/60 hover:border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 rounded-2xl p-6 flex flex-col items-center justify-center text-center transition-all shadow-sm group">
+                    <div className="w-14 h-14 rounded-2xl bg-emerald-500 text-white flex items-center justify-center mb-2 shadow-lg shadow-emerald-500/30 group-hover:scale-110 transition-transform">
+                      <Camera className="w-7 h-7" />
+                    </div>
+                    <span className="text-sm font-black text-emerald-700 dark:text-emerald-300 block">
+                      📷 Open Camera to Snap Photo
+                    </span>
+                    <span className="text-[11px] text-slate-500 dark:text-zinc-400 mt-0.5">
+                      Tap to open phone camera or upload from gallery
+                    </span>
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      capture="environment" 
+                      className="hidden" 
+                      onChange={handlePodPhotoCapture} 
+                    />
+                  </label>
+                )}
               </div>
 
+              {/* Delivery Notes */}
               <div>
                 <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
-                  Recipient Name / Delivery Notes
+                  2. Recipient Name / Delivery Notes (Optional)
                 </label>
                 <textarea
                   rows={2}
                   value={podNotes}
                   onChange={(e) => setPodNotes(e.target.value)}
-                  placeholder="e.g. Received by customer in Balamban. Payment collected."
-                  className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-2xl p-3 text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500 resize-none"
+                  placeholder="e.g. Received by customer. Payment collected."
+                  className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-2xl p-3 text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500 resize-none font-medium"
                 />
               </div>
 
@@ -518,15 +630,17 @@ export default function RiderPortal() {
                 <button
                   type="button"
                   onClick={() => setSelectedOrderForPod(null)}
-                  className="flex-1 py-3 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 rounded-2xl font-bold"
+                  className="flex-1 py-3 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 rounded-2xl font-bold transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl font-extrabold shadow-lg"
+                  disabled={!podPhotoUrl}
+                  className="flex-1 py-3.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:hover:bg-emerald-600 text-white rounded-2xl font-black shadow-lg shadow-emerald-600/20 transition-all flex items-center justify-center gap-1.5"
                 >
-                  Submit POD & Finish
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Submit Proof & Finish</span>
                 </button>
               </div>
             </form>
