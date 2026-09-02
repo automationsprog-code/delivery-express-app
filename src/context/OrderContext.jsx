@@ -1,11 +1,19 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { INITIAL_ORDERS, MOCK_RIDERS, SERVICES, BRAND } from '../lib/constants';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { soundService } from '../lib/soundUtils';
 import confetti from 'canvas-confetti';
 
 const OrderContext = createContext();
 
 export function OrderProvider({ children }) {
+  const [theme, setTheme] = useState(() => {
+    return localStorage.getItem('delivery_express_theme') || 'light';
+  });
+
+  const [soundActive, setSoundActive] = useState(true);
+  const [vibrationActive, setVibrationActive] = useState(true);
+
   const [orders, setOrders] = useState(() => {
     const saved = localStorage.getItem('delivery_express_orders_balamban');
     return saved ? JSON.parse(saved) : INITIAL_ORDERS;
@@ -20,6 +28,17 @@ export function OrderProvider({ children }) {
   const [selectedRiderId, setSelectedRiderId] = useState('rider-1');
   const [activeTrackingId, setActiveTrackingId] = useState('DE-2026-001');
   const [notification, setNotification] = useState(null);
+  const [announcement, setAnnouncement] = useState(null);
+
+  // Apply theme class to document root
+  useEffect(() => {
+    localStorage.setItem('delivery_express_theme', theme);
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [theme]);
 
   // Save to localStorage
   useEffect(() => {
@@ -55,7 +74,8 @@ export function OrderProvider({ children }) {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload) => {
         if (payload.eventType === 'INSERT') {
           setOrders(prev => [payload.new, ...prev]);
-          showNotification(`New Order in Balamban: ${payload.new.tracking_number}`);
+          soundService.playOrderChime();
+          showNotification(`New Live Booking: ${payload.new.tracking_number}`);
         } else if (payload.eventType === 'UPDATE') {
           setOrders(prev => prev.map(o => o.id === payload.new.id ? { ...o, ...payload.new } : o));
         }
@@ -66,6 +86,22 @@ export function OrderProvider({ children }) {
       supabase.removeChannel(channel);
     };
   }, []);
+
+  const toggleTheme = () => {
+    setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
+  };
+
+  const toggleSound = () => {
+    const newState = soundService.toggleSound();
+    setSoundActive(newState);
+    showNotification(newState ? 'Sound Chimes Enabled 🔔' : 'Sound Muted 🔕', 'info');
+  };
+
+  const toggleVibration = () => {
+    const newState = soundService.toggleVibration();
+    setVibrationActive(newState);
+    showNotification(newState ? 'Haptic Vibration Enabled 📳' : 'Vibration Disabled', 'info');
+  };
 
   const showNotification = (msg, type = 'info') => {
     setNotification({ msg, type, id: Date.now() });
@@ -80,7 +116,7 @@ export function OrderProvider({ children }) {
     return hour >= 8 || hour < 2;
   };
 
-  // Create new order with Balamban Coordinates
+  // Create new order with Sound and Vibration
   const createOrder = async (orderInput) => {
     const service = SERVICES.find(s => s.id === orderInput.serviceId) || SERVICES[0];
     const trackingNumber = `DE-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -94,10 +130,10 @@ export function OrderProvider({ children }) {
       customerPhone: orderInput.customerPhone,
       pickupAddress: orderInput.pickupAddress,
       pickupLandmark: orderInput.pickupLandmark || '',
-      pickupCoords: orderInput.pickupCoords || [10.5015, 123.7150], // Balamban Market
+      pickupCoords: orderInput.pickupCoords || [10.5015, 123.7150],
       dropoffAddress: orderInput.dropoffAddress,
       dropoffLandmark: orderInput.dropoffLandmark || '',
-      dropoffCoords: orderInput.dropoffCoords || [10.4720, 123.7060], // Buanoy
+      dropoffCoords: orderInput.dropoffCoords || [10.4720, 123.7060],
       distanceKm: parseFloat(orderInput.distanceKm || 3.5),
       estimatedFare: parseFloat(orderInput.estimatedFare),
       itemCost: parseFloat(orderInput.itemCost || 0),
@@ -151,7 +187,10 @@ export function OrderProvider({ children }) {
 
     setOrders(prev => [newOrder, ...prev]);
     setActiveTrackingId(trackingNumber);
-    showNotification(`Booking ${trackingNumber} created in Balamban!`, 'success');
+    
+    // Play pleasant order chime and vibrate
+    soundService.playOrderChime();
+    showNotification(`Booking ${trackingNumber} dispatched in Balamban!`, 'success');
     
     try {
       confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
@@ -160,7 +199,7 @@ export function OrderProvider({ children }) {
     return newOrder;
   };
 
-  // Assign Rider & set rider GPS coordinates
+  // Assign Rider
   const assignRider = (orderId, riderId) => {
     const rider = riders.find(r => r.id === riderId);
     if (!rider) return;
@@ -186,6 +225,7 @@ export function OrderProvider({ children }) {
       return order;
     }));
 
+    soundService.playOrderChime();
     showNotification(`Courier ${rider.name} assigned in Balamban!`, 'success');
   };
 
@@ -193,7 +233,6 @@ export function OrderProvider({ children }) {
   const updateRiderLocation = (riderId, newLat, newLng) => {
     setRiders(prev => prev.map(r => r.id === riderId ? { ...r, lat: newLat, lng: newLng } : r));
     
-    // Also update all active orders assigned to this rider
     setOrders(prev => prev.map(o => {
       if (o.riderId === riderId && o.status !== 'delivered' && o.status !== 'cancelled') {
         return { ...o, riderCoords: [newLat, newLng] };
@@ -201,7 +240,7 @@ export function OrderProvider({ children }) {
       return o;
     }));
 
-    showNotification(`Rider GPS synced: ${newLat.toFixed(4)}, ${newLng.toFixed(4)}`, 'info');
+    soundService.triggerVibrate([50]);
   };
 
   // Update order status workflow
@@ -214,17 +253,21 @@ export function OrderProvider({ children }) {
         if (newStatus === 'purchasing') {
           statusText = 'At Pickup / Purchasing in Balamban';
           logs[2] = { step: 'Items Purchased / Picked Up', time: 'Just now', done: true };
+          soundService.playOrderChime();
         } else if (newStatus === 'in_transit') {
           statusText = 'Courier Out for Delivery in Balamban';
           logs[3] = { step: 'Out for Delivery', time: 'Just now', done: true };
+          soundService.playOrderChime();
         } else if (newStatus === 'delivered') {
           statusText = 'Delivered Successfully in Balamban';
           logs[4] = { step: 'Delivered & Completed', time: 'Just now', done: true };
+          soundService.playSuccessFanfare();
           try {
-            confetti({ particleCount: 100, spread: 80, origin: { y: 0.5 } });
+            confetti({ particleCount: 120, spread: 80, origin: { y: 0.5 } });
           } catch (_) {}
         } else if (newStatus === 'cancelled') {
           statusText = 'Order Cancelled';
+          soundService.triggerVibrate([300]);
         }
 
         return {
@@ -259,10 +302,62 @@ export function OrderProvider({ children }) {
       return order;
     }));
 
+    soundService.playSuccessFanfare();
     showNotification('Proof of Delivery submitted!', 'success');
     try {
-      confetti({ particleCount: 120, spread: 90 });
+      confetti({ particleCount: 140, spread: 90 });
     } catch (_) {}
+  };
+
+  // ================= ADMIN ACTIONS FOR STAFF & RIDERS =================
+  const addRider = (newRiderData) => {
+    const newRider = {
+      id: `rider-${Date.now()}`,
+      name: newRiderData.name,
+      phone: newRiderData.phone,
+      plate: newRiderData.plate,
+      zone: newRiderData.zone || 'Balamban Proper',
+      rating: 5.0,
+      trips: 0,
+      isOnline: true,
+      isBusy: false,
+      status: 'active', // 'active' | 'break' | 'suspended'
+      lat: 10.5015,
+      lng: 123.7150,
+      avatar: newRiderData.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'
+    };
+
+    setRiders(prev => [newRider, ...prev]);
+    showNotification(`New Staff/Rider "${newRider.name}" added successfully!`, 'success');
+    soundService.playOrderChime();
+  };
+
+  const updateRider = (riderId, updatedFields) => {
+    setRiders(prev => prev.map(r => r.id === riderId ? { ...r, ...updatedFields } : r));
+    showNotification('Rider profile updated!', 'info');
+  };
+
+  const toggleRiderDuty = (riderId) => {
+    setRiders(prev => prev.map(r => {
+      if (r.id === riderId) {
+        const nextStatus = r.status === 'active' ? 'break' : r.status === 'break' ? 'offline' : 'active';
+        showNotification(`${r.name} status set to: ${nextStatus.toUpperCase()}`, 'info');
+        return { ...r, status: nextStatus, isOnline: nextStatus === 'active' };
+      }
+      return r;
+    }));
+  };
+
+  const deleteRider = (riderId) => {
+    const rider = riders.find(r => r.id === riderId);
+    setRiders(prev => prev.filter(r => r.id !== riderId));
+    showNotification(`Rider ${rider?.name || ''} removed from roster`, 'info');
+  };
+
+  const broadcastAdminAnnouncement = (msg) => {
+    setAnnouncement({ msg, time: new Date().toLocaleTimeString() });
+    soundService.playBroadcastAlert();
+    showNotification(`Radio Broadcast Sent: "${msg}"`, 'success');
   };
 
   // Reset to sample Balamban data
@@ -270,12 +365,18 @@ export function OrderProvider({ children }) {
     setOrders(INITIAL_ORDERS);
     setRiders(MOCK_RIDERS);
     setActiveTrackingId('DE-2026-001');
-    showNotification('Balamban, Cebu sample data refreshed!', 'info');
+    showNotification('Balamban sample data refreshed!', 'info');
   };
 
   return (
     <OrderContext.Provider
       value={{
+        theme,
+        toggleTheme,
+        soundActive,
+        toggleSound,
+        vibrationActive,
+        toggleVibration,
         orders,
         riders,
         activeRole,
@@ -286,12 +387,18 @@ export function OrderProvider({ children }) {
         setActiveTrackingId,
         notification,
         showNotification,
+        announcement,
+        broadcastAdminAnnouncement,
         isWithinOperatingHours,
         createOrder,
         assignRider,
         updateRiderLocation,
         updateOrderStatus,
         uploadProofOfDelivery,
+        addRider,
+        updateRider,
+        toggleRiderDuty,
+        deleteRider,
         resetSampleData
       }}
     >
