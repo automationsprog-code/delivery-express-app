@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 
 export default function LiveTracker() {
-  const { orders, activeTrackingId, setActiveTrackingId } = useOrder();
+  const { orders, riders, activeTrackingId, setActiveTrackingId } = useOrder();
   const [searchInput, setSearchInput] = useState('');
   const [showChatModal, setShowChatModal] = useState(false);
 
@@ -45,6 +45,9 @@ export default function LiveTracker() {
   const getStatusBadge = (status) => {
     return ORDER_STATUSES[status] || { label: status, color: 'bg-slate-100 text-slate-700 dark:bg-zinc-800 dark:text-zinc-300' };
   };
+
+  const assignedRider = riders.find(r => r.id === activeOrder?.riderId || r.name === activeOrder?.riderName) || riders[0];
+  const riderAvatar = assignedRider?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80';
 
   const pickupCoords = activeOrder?.pickupCoords || [10.5015, 123.7150];
   const dropoffCoords = activeOrder?.dropoffCoords || [10.4720, 123.7060];
@@ -112,14 +115,14 @@ export default function LiveTracker() {
               />
             </div>
 
-            {/* Assigned Rider Card */}
+            {/* Assigned Rider Card with Real Photo */}
             <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl p-5 shadow-sm space-y-4 card-float">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="relative">
                     <img
-                      src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80"
-                      alt="Rider Avatar"
+                      src={riderAvatar}
+                      alt={activeOrder.riderName || 'Rider Avatar'}
                       className="w-14 h-14 rounded-2xl object-cover border-2 border-amber-500 shadow-md"
                     />
                     <div className="absolute -bottom-1 -right-1 bg-emerald-500 text-white p-0.5 rounded-full">
@@ -134,12 +137,12 @@ export default function LiveTracker() {
                       </h4>
                       {activeOrder.riderName && (
                         <span className="bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 text-[10px] font-bold px-2 py-0.5 rounded-md border border-amber-200 dark:border-amber-500/20">
-                          ⭐ 4.9
+                          ⭐ 5.0
                         </span>
                       )}
                     </div>
                     <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5 font-medium">
-                      {activeOrder.riderName ? 'Balamban Delivery Express Rider • Motorcycle' : 'Estimated dispatch time: < 3 mins'}
+                      {activeOrder.riderName ? 'Balamban Delivery Express Courier • On Duty' : 'Estimated dispatch time: < 3 mins'}
                     </p>
                   </div>
                 </div>
@@ -281,12 +284,14 @@ export default function LiveTracker() {
                   <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 block">
                     Order / Item Specifications:
                   </span>
-                  {Object.entries(activeOrder.details).map(([key, val]) => (
-                    <div key={key} className="text-slate-700 dark:text-zinc-300">
-                      <span className="text-slate-400 dark:text-zinc-500 capitalize">{key.replace(/([A-Z])/g, ' $1')}: </span>
-                      <span className="font-bold whitespace-pre-line">{String(val)}</span>
-                    </div>
-                  ))}
+                  {Object.entries(activeOrder.details)
+                    .filter(([k]) => k !== 'chat_messages' && k !== 'rider_name' && k !== 'rider_phone' && k !== 'rider_plate')
+                    .map(([key, val]) => (
+                      <div key={key} className="text-slate-700 dark:text-zinc-300">
+                        <span className="text-slate-400 dark:text-zinc-500 capitalize">{key.replace(/([A-Z])/g, ' $1')}: </span>
+                        <span className="font-bold whitespace-pre-line">{String(val)}</span>
+                      </div>
+                    ))}
                 </div>
               )}
 
