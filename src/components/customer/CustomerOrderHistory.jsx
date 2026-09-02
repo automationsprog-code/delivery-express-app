@@ -56,23 +56,28 @@ export default function CustomerOrderHistory({ onSelectService, onTrackOrder }) 
       return Array.isArray(localMyOrders) && (localMyOrders.includes(o.trackingNumber) || localMyOrders.includes(o.id));
     }
 
-    const custPhone = currentUser.phone ? String(currentUser.phone).replace(/\D/g, '') : '';
-    const orderPhone = o.customerPhone ? String(o.customerPhone).replace(/\D/g, '') : '';
-    const phoneMatch = custPhone.length >= 7 && orderPhone.length >= 7 && custPhone.slice(-10) === orderPhone.slice(-10);
-
+    // Logged in Customer: Strictly match their own credentials with conflict protection
     const custEmail = currentUser.email ? String(currentUser.email).trim().toLowerCase() : '';
     const orderEmail = (o.details?.customer_email || o.customerEmail || '')?.trim().toLowerCase();
-    const emailMatch = Boolean(custEmail && orderEmail && custEmail === orderEmail);
+    if (custEmail && orderEmail && custEmail !== orderEmail) return false;
+
+    const custName = currentUser.name ? String(currentUser.name).trim().toLowerCase() : '';
+    const orderName = o.customerName ? String(o.customerName).trim().toLowerCase() : '';
+    if (custName && orderName && custName !== orderName && !custName.includes(orderName) && !orderName.includes(custName)) return false;
 
     const custId = currentUser.id ? String(currentUser.id) : '';
     const orderCustId = (o.details?.customer_id || o.customerId || '')?.trim();
     const idMatch = Boolean(custId && orderCustId && custId === orderCustId);
 
-    const custName = currentUser.name ? String(currentUser.name).trim().toLowerCase() : '';
-    const orderName = o.customerName ? String(o.customerName).trim().toLowerCase() : '';
+    const emailMatch = Boolean(custEmail && orderEmail && custEmail === orderEmail);
+
+    const custPhone = currentUser.phone ? String(currentUser.phone).replace(/\D/g, '') : '';
+    const orderPhone = o.customerPhone ? String(o.customerPhone).replace(/\D/g, '') : '';
+    const phoneMatch = custPhone.length >= 7 && orderPhone.length >= 7 && custPhone.slice(-10) === orderPhone.slice(-10);
+
     const nameMatch = Boolean(custName && orderName && custName.length >= 3 && custName === orderName);
 
-    return phoneMatch || emailMatch || idMatch || nameMatch;
+    return idMatch || emailMatch || (phoneMatch && (!orderEmail || orderEmail === custEmail)) || nameMatch;
   });
 
   // Filtered orders

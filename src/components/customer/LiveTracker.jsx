@@ -59,30 +59,40 @@ export default function LiveTracker() {
       return localMatch || (activeTrackingId && (o.trackingNumber === activeTrackingId || o.id === activeTrackingId));
     }
 
-    // Logged in Customer: Strictly match their own credentials (No cross-user contamination)
-    const custPhone = currentUser.phone ? String(currentUser.phone).replace(/\D/g, '') : '';
-    const orderPhone = o.customerPhone ? String(o.customerPhone).replace(/\D/g, '') : '';
-    const phoneMatch = custPhone.length >= 7 && orderPhone.length >= 7 && custPhone.slice(-10) === orderPhone.slice(-10);
-
+    // Logged in Customer: Strictly match their own credentials with conflict protection
     const custEmail = currentUser.email ? String(currentUser.email).trim().toLowerCase() : '';
     const orderEmail = (o.details?.customer_email || o.customerEmail || '')?.trim().toLowerCase();
-    const emailMatch = Boolean(custEmail && orderEmail && custEmail === orderEmail);
+    if (custEmail && orderEmail && custEmail !== orderEmail) return false;
+
+    const custName = currentUser.name ? String(currentUser.name).trim().toLowerCase() : '';
+    const orderName = o.customerName ? String(o.customerName).trim().toLowerCase() : '';
+    if (custName && orderName && custName !== orderName && !custName.includes(orderName) && !orderName.includes(custName)) return false;
 
     const custId = currentUser.id ? String(currentUser.id) : '';
     const orderCustId = (o.details?.customer_id || o.customerId || '')?.trim();
     const idMatch = Boolean(custId && orderCustId && custId === orderCustId);
 
-    const custName = currentUser.name ? String(currentUser.name).trim().toLowerCase() : '';
-    const orderName = o.customerName ? String(o.customerName).trim().toLowerCase() : '';
+    const emailMatch = Boolean(custEmail && orderEmail && custEmail === orderEmail);
+
+    const custPhone = currentUser.phone ? String(currentUser.phone).replace(/\D/g, '') : '';
+    const orderPhone = o.customerPhone ? String(o.customerPhone).replace(/\D/g, '') : '';
+    const phoneMatch = custPhone.length >= 7 && orderPhone.length >= 7 && custPhone.slice(-10) === orderPhone.slice(-10);
+
     const nameMatch = Boolean(custName && orderName && custName.length >= 3 && custName === orderName);
 
-    return phoneMatch || emailMatch || idMatch || nameMatch;
+    return idMatch || emailMatch || (phoneMatch && (!orderEmail || orderEmail === custEmail)) || nameMatch;
   });
 
-  // Selected Active Order (Strictly from myOrders or explicit search input)
-  const activeOrder = myOrders.find(o => o.trackingNumber === activeTrackingId || o.id === activeTrackingId)
+  // Active in-progress orders (pending, assigned, picked_up, out_for_delivery)
+  const activeMyOrders = myOrders.filter(o => o.status !== 'delivered' && o.status !== 'cancelled');
+
+  // Selected Active Order:
+  // 1. Explicitly selected active order
+  // 2. Or first active in-progress order
+  // 3. Or explicitly searched tracking number (even if completed)
+  const activeOrder = (activeTrackingId ? myOrders.find(o => o.trackingNumber === activeTrackingId || o.id === activeTrackingId) : null)
+    || activeMyOrders[0]
     || (searchInput ? myOrders.find(o => o.trackingNumber?.toLowerCase() === searchInput.trim().toLowerCase() || o.id?.toLowerCase() === searchInput.trim().toLowerCase()) : null)
-    || myOrders[0]
     || null;
 
   const handleSearch = (e) => {
@@ -184,14 +194,14 @@ export default function LiveTracker() {
         </form>
       </div>
 
-      {/* MULTIPLE ACTIVE BOOKINGS SELECTOR TABS (STRICTLY FOR CURRENT CUSTOMER) */}
-      {myOrders.length > 1 && (
+      {/* MULTIPLE ACTIVE IN-PROGRESS BOOKINGS SELECTOR TABS */}
+      {activeMyOrders.length > 1 && (
         <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
           <div className="flex items-center gap-1.5 text-slate-500 dark:text-zinc-400 font-bold px-1 shrink-0">
             <Layers className="w-4 h-4 text-rose-500" />
-            <span>Your Active Bookings ({myOrders.length}):</span>
+            <span>Your Active Bookings ({activeMyOrders.length}):</span>
           </div>
-          {myOrders.map((o) => {
+          {activeMyOrders.map((o) => {
             const isSelected = (activeOrder?.trackingNumber === o.trackingNumber) || (activeOrder?.id === o.id);
             return (
               <button
@@ -208,7 +218,7 @@ export default function LiveTracker() {
               >
                 <span className="font-mono text-[11px]">{o.trackingNumber}</span>
                 <span className="text-[10px] opacity-90">• {o.serviceName}</span>
-                <span className={`w-2 h-2 rounded-full ${o.status === 'delivered' ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+                <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
               </button>
             );
           })}
@@ -216,11 +226,37 @@ export default function LiveTracker() {
       )}
 
       {!activeOrder ? (
-        <div className="p-12 text-center text-slate-500 dark:text-zinc-400 bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200 dark:border-zinc-800 shadow-sm space-y-3">
-          <Package className="w-12 h-12 mx-auto text-slate-400 dark:text-zinc-600" />
-          <div>
-            <p className="text-base font-extrabold text-slate-800 dark:text-zinc-200">No active bookings for your account.</p>
-            <p className="text-xs text-slate-400 dark:text-zinc-500 mt-0.5">Book a delivery service to track your courier live in Balamban!</p>
+        <div className="space-y-4">
+          <div className="p-6 text-center text-slate-500 dark:text-zinc-400 bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200 dark:border-zinc-800 shadow-sm space-y-2">
+            <div className="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 mx-auto flex items-center justify-center">
+              <Bike className="w-5 h-5 animate-pulse" />
+            </div>
+            <div>
+              <p className="text-base font-extrabold text-slate-800 dark:text-zinc-200">No active delivery in progress.</p>
+              <p className="text-xs text-slate-400 dark:text-zinc-500 mt-0.5">
+                Viewing active & on-duty couriers available in West Cebu below. Book a service to dispatch a rider!
+              </p>
+            </div>
+          </div>
+
+          {/* Interactive Available Fleet Map */}
+          <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl overflow-hidden shadow-sm">
+            <div className="p-4 border-b border-slate-100 dark:border-zinc-800 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
+                <span className="text-xs font-bold text-slate-800 dark:text-zinc-200">Available On-Duty Couriers (West Cebu)</span>
+              </div>
+              <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                {riders.filter(r => r.isOnline !== false && r.status !== 'offline').length} Couriers Online
+              </span>
+            </div>
+
+            <div className="h-72 sm:h-96 w-full">
+              <DeliveryMap
+                availableRiders={riders}
+                showRider={false}
+              />
+            </div>
           </div>
         </div>
       ) : (

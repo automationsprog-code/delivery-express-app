@@ -93,6 +93,7 @@ export default function DeliveryMap({
   dropoffCoords = [10.4720, 123.7060],
   riderCoords = null,
   showRider = true,
+  availableRiders = [],
   height = "380px",
   zoom = 14,
   pickupLabel = "Pickup Location",
@@ -103,11 +104,22 @@ export default function DeliveryMap({
   const [selectedTown, setSelectedTown] = useState('Balamban');
 
   // Safely normalize all coordinates
-  const safePickup = useMemo(() => safeCoord(pickupCoords, [10.5015, 123.7150]), [pickupCoords]);
-  const safeDropoff = useMemo(() => safeCoord(dropoffCoords, [10.4720, 123.7060]), [dropoffCoords]);
+  const safePickup = useMemo(() => pickupCoords ? safeCoord(pickupCoords, [10.5015, 123.7150]) : null, [pickupCoords]);
+  const safeDropoff = useMemo(() => dropoffCoords ? safeCoord(dropoffCoords, [10.4720, 123.7060]) : null, [dropoffCoords]);
   const safeRider = useMemo(() => riderCoords ? safeCoord(riderCoords, null) : null, [riderCoords]);
 
-  const defaultCenter = safeRider || safePickup || [10.5015, 123.7150];
+  // Filter available riders who are active, online, and have valid lat/lng
+  const activeAvailableRiders = useMemo(() => {
+    if (safeRider) return []; // If tracking an assigned order, hide generic riders
+    return (availableRiders || []).filter(r => 
+      r.isOnline !== false && 
+      r.status !== 'offline' && 
+      !isNaN(parseFloat(r.lat)) && 
+      !isNaN(parseFloat(r.lng))
+    );
+  }, [availableRiders, safeRider]);
+
+  const defaultCenter = safeRider || safePickup || (activeAvailableRiders[0] ? [parseFloat(activeAvailableRiders[0].lat), parseFloat(activeAvailableRiders[0].lng)] : [10.5015, 123.7150]);
   const [mapCenter, setMapCenter] = useState(defaultCenter);
 
   useEffect(() => {
@@ -120,13 +132,15 @@ export default function DeliveryMap({
   const pickupIcon = useMemo(() => createSafeIcon('#2563EB', '📦', 36), []);
   const dropoffIcon = useMemo(() => createSafeIcon('#10B981', '📍', 36), []);
   const riderIcon = useMemo(() => createSafeIcon('#E11D48', '🏍️', 38), []);
+  const availableRiderIcon = useMemo(() => createSafeIcon('#059669', '🏍️', 34), []);
 
   const polylinePositions = useMemo(() => {
+    if (!safeRider) return [];
     return [safePickup, safeRider, safeDropoff].filter(Boolean);
   }, [safePickup, safeRider, safeDropoff]);
 
   const handleRecenter = () => {
-    const center = safeRider || safePickup || [10.5015, 123.7150];
+    const center = safeRider || safePickup || (activeAvailableRiders[0] ? [parseFloat(activeAvailableRiders[0].lat), parseFloat(activeAvailableRiders[0].lng)] : [10.5015, 123.7150]);
     setMapCenter([...center]);
     setCurrentZoom(14);
   };
@@ -211,8 +225,8 @@ export default function DeliveryMap({
             />
           )}
 
-          {/* 1. Pickup Pin */}
-          {safePickup && (
+          {/* 1. Pickup Pin (Only if assigned order exists) */}
+          {safePickup && safeRider && (
             <Marker position={safePickup} icon={pickupIcon}>
               <Popup>
                 <div className="p-1 font-sans text-xs space-y-1">
@@ -226,8 +240,8 @@ export default function DeliveryMap({
             </Marker>
           )}
 
-          {/* 2. Dropoff Pin */}
-          {safeDropoff && (
+          {/* 2. Dropoff Pin (Only if assigned order exists) */}
+          {safeDropoff && safeRider && (
             <Marker position={safeDropoff} icon={dropoffIcon}>
               <Popup>
                 <div className="p-1 font-sans text-xs space-y-1">
@@ -241,13 +255,13 @@ export default function DeliveryMap({
             </Marker>
           )}
 
-          {/* 3. Live Courier Pin */}
+          {/* 3. Assigned Live Courier Pin */}
           {showRider && safeRider && (
             <Marker position={safeRider} icon={riderIcon}>
               <Popup>
                 <div className="p-1 font-sans text-xs space-y-1">
                   <span className="bg-rose-100 text-rose-800 text-[10px] font-black px-2 py-0.5 rounded-md uppercase block w-fit">
-                    Live Courier GPS
+                    Live Assigned Courier GPS
                   </span>
                   <strong className="text-rose-600 block font-extrabold text-xs">Delivery Express Courier</strong>
                   <p className="text-[11px] text-slate-600">On the way across West Cebu</p>
@@ -255,6 +269,33 @@ export default function DeliveryMap({
               </Popup>
             </Marker>
           )}
+
+          {/* 4. Available Online Couriers (Visible for Customer Browsing when no order is assigned) */}
+          {!safeRider && activeAvailableRiders.map((rider) => (
+            <Marker 
+              key={rider.id} 
+              position={[parseFloat(rider.lat || 10.5015), parseFloat(rider.lng || 123.7150)]} 
+              icon={availableRiderIcon}
+            >
+              <Popup>
+                <div className="p-1.5 font-sans text-xs space-y-1 min-w-[160px]">
+                  <span className="bg-emerald-100 text-emerald-800 text-[10px] font-black px-2 py-0.5 rounded-full uppercase inline-block">
+                    🟢 Active On Duty
+                  </span>
+                  <strong className="text-slate-900 block font-extrabold text-sm">{rider.name}</strong>
+                  <p className="text-[11px] text-slate-600">
+                    Plate: <span className="font-mono font-bold text-slate-900">{rider.plate}</span>
+                  </p>
+                  <p className="text-[11px] text-slate-500">
+                    Zone: <strong className="text-rose-600">{rider.zone || 'Balamban Proper'}</strong>
+                  </p>
+                  <span className="text-[10px] font-bold text-amber-600 block">
+                    ⭐ {rider.rating || 5.0} Rating
+                  </span>
+                </div>
+              </Popup>
+            </Marker>
+          ))}
 
           {/* Route Polyline Line */}
           {polylinePositions.length >= 2 && (
@@ -289,7 +330,7 @@ export default function DeliveryMap({
           <button
             onClick={handleRecenter}
             className="w-8 h-8 rounded-xl bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md border border-slate-200 dark:border-zinc-700 text-rose-600 dark:text-rose-400 flex items-center justify-center hover:bg-rose-50 dark:hover:bg-zinc-800 transition-colors shadow-sm"
-            title="Re-center on Route"
+            title="Re-center Map"
           >
             <RotateCcw className="w-3.5 h-3.5" />
           </button>
@@ -297,18 +338,27 @@ export default function DeliveryMap({
 
         {/* Floating Bottom Legend */}
         <div className="absolute bottom-3 left-3 bg-zinc-950/85 backdrop-blur-md px-3.5 py-1.5 rounded-2xl border border-zinc-800 text-[11px] text-zinc-300 flex items-center gap-3 z-[1000] shadow-md">
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block"></span>
-            <span>Pickup</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block"></span>
-            <span>Courier</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span>
-            <span>Drop-off</span>
-          </div>
+          {safeRider ? (
+            <>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block"></span>
+                <span>Pickup</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block"></span>
+                <span>Assigned Courier</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span>
+                <span>Drop-off</span>
+              </div>
+            </>
+          ) : (
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
+              <span>Available Couriers in Balamban ({activeAvailableRiders.length})</span>
+            </div>
+          )}
         </div>
 
       </div>

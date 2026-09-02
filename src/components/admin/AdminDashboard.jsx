@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useOrder } from '../../context/OrderContext';
 import { SERVICES, BRAND, ORDER_STATUSES } from '../../lib/constants';
-import { uploadAvatarToStorage } from '../../lib/supabase';
+import DeliveryMap from '../map/DeliveryMap';
 import { 
   Users, 
   Bike, 
@@ -42,9 +42,11 @@ import {
   Key,
   UserCheck,
   Phone,
+  PhoneCall,
   Mail,
   MapPin,
-  Search
+  Search,
+  Navigation
 } from 'lucide-react';
 import { fetchPanahonWeather, MUNICIPALITY_COORDS } from '../../services/weatherService';
 
@@ -158,30 +160,52 @@ export default function AdminDashboard() {
     return curr.status === 'delivered' ? acc + (curr.estimatedFare || 80) : acc;
   }, 0);
 
-  // Facebook-Style HD Photo Upload directly to Supabase Storage CDN
-  const handlePhotoUpload = async (e, targetSetter, riderId = 'avatar') => {
+  // High-Speed Lightweight Photo Compression & Direct Cloud Sync
+  const handlePhotoUpload = (e, targetSetter, riderId = 'avatar') => {
     const file = e.target.files[0];
     if (!file) return;
 
-    // 1. Instant local high-definition preview
-    const localPreview = URL.createObjectURL(file);
-    targetSetter(localPreview);
-
-    // 2. High-speed upload to Supabase Storage 'rider-avatars'
     setUploadingRiderId(riderId);
-    try {
-      const publicUrl = await uploadAvatarToStorage(file, riderId);
-      if (publicUrl) {
-        targetSetter(publicUrl);
-        if (riderId && riderId !== 'avatar' && riderId !== 'new') {
-          updateRider(riderId, { avatar: publicUrl });
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const maxDim = 400;
+        let width = img.width;
+        let height = img.height;
+        if (width > height) {
+          if (width > maxDim) {
+            height *= maxDim / width;
+            width = maxDim;
+          }
+        } else {
+          if (height > maxDim) {
+            width *= maxDim / height;
+            height = maxDim;
+          }
         }
-      }
-    } catch (err) {
-      console.warn('Storage upload error:', err);
-    } finally {
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        const compressed = canvas.toDataURL('image/jpeg', 0.85);
+
+        targetSetter(compressed);
+        if (riderId && riderId !== 'avatar' && riderId !== 'new' && riderId !== 'store' && riderId !== 'dish') {
+          updateRider(riderId, { avatar: compressed });
+        }
+        setUploadingRiderId(null);
+      };
+      img.onerror = () => {
+        setUploadingRiderId(null);
+      };
+      img.src = reader.result;
+    };
+    reader.onerror = () => {
       setUploadingRiderId(null);
-    }
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleQrUpload = (e) => {
@@ -331,6 +355,7 @@ export default function AdminDashboard() {
         <div className="flex flex-wrap items-center gap-2">
           {[
             { id: 'dispatch', label: 'Live Dispatch Board', icon: LayoutDashboard },
+            { id: 'fleet', label: `🗺️ Live Courier GPS (${riders.filter(r => r.isOnline !== false && r.status !== 'offline').length})`, icon: Navigation },
             { id: 'staff', label: `Staff & Riders (${riders.length})`, icon: Users },
             { id: 'customers', label: `Registered Customers (${(registeredCustomers || []).length})`, icon: UserCheck },
             { id: 'menus', label: `Food & Menus (${storesList.length})`, icon: UtensilsCrossed },
@@ -509,6 +534,88 @@ export default function AdminDashboard() {
                   )}
                 </tbody>
               </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 1.5: LIVE COURIER GPS FLEET TRACKING MODULE */}
+      {activeTab === 'fleet' && (
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 p-4 sm:p-5 rounded-3xl shadow-sm">
+            <div>
+              <h4 className="font-extrabold text-slate-900 dark:text-white text-base flex items-center gap-2">
+                <Navigation className="w-5 h-5 text-rose-600" />
+                <span>Live Courier GPS Fleet Tracking Module</span>
+              </h4>
+              <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
+                Real-time tracking of on-duty delivery couriers across West Cebu (Balamban, Asturias, Toledo, Tuburan). Couriers set to "Off Duty" are automatically hidden.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 rounded-full text-xs font-black">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                <span>{riders.filter(r => r.isOnline !== false && r.status !== 'offline').length} Couriers Online & Active</span>
+              </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
+            {/* Map Column */}
+            <div className="lg:col-span-8 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl overflow-hidden p-3 shadow-sm space-y-3">
+              <div className="h-80 sm:h-[480px] w-full rounded-2xl overflow-hidden border border-slate-200 dark:border-zinc-800">
+                <DeliveryMap
+                  availableRiders={riders.filter(r => r.isOnline !== false && r.status !== 'offline')}
+                  showRider={false}
+                  height="100%"
+                />
+              </div>
+            </div>
+
+            {/* Active Fleet List Column */}
+            <div className="lg:col-span-4 space-y-3">
+              <h5 className="text-xs font-extrabold text-slate-900 dark:text-white uppercase tracking-wider">
+                Active Fleet Roster ({riders.filter(r => r.isOnline !== false && r.status !== 'offline').length})
+              </h5>
+
+              {riders.filter(r => r.isOnline !== false && r.status !== 'offline').length === 0 ? (
+                <div className="p-8 text-center bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl text-slate-400 dark:text-zinc-500 shadow-sm space-y-2">
+                  <Bike className="w-10 h-10 mx-auto text-slate-300 dark:text-zinc-700" />
+                  <p className="text-xs font-bold text-slate-700 dark:text-zinc-300">No couriers currently on active duty.</p>
+                  <p className="text-[11px] text-slate-400 dark:text-zinc-500">Couriers will appear here automatically when they toggle Active in their app.</p>
+                </div>
+              ) : (
+                riders.filter(r => r.isOnline !== false && r.status !== 'offline').map(rider => (
+                  <div key={rider.id} className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl p-3.5 shadow-sm space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        {rider.avatar ? (
+                          <img src={rider.avatar} alt={rider.name} className="w-9 h-9 rounded-xl object-cover border border-emerald-400" />
+                        ) : (
+                          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center font-bold text-xs">
+                            {(rider.name || 'R').charAt(0)}
+                          </div>
+                        )}
+                        <div>
+                          <h6 className="font-extrabold text-xs text-slate-900 dark:text-white">{rider.name}</h6>
+                          <span className="text-[10px] text-slate-400 font-mono">{rider.plate}</span>
+                        </div>
+                      </div>
+                      <span className="bg-emerald-100 text-emerald-800 text-[10px] font-black px-2 py-0.5 rounded-full">
+                        🟢 ON DUTY
+                      </span>
+                    </div>
+
+                    <div className="text-[11px] text-slate-600 dark:text-zinc-300 flex items-center justify-between pt-1 border-t border-slate-100 dark:border-zinc-800">
+                      <span>Zone: <strong className="text-slate-900 dark:text-white">{rider.zone || 'Balamban'}</strong></span>
+                      <a href={`tel:${rider.phone}`} className="text-emerald-600 hover:text-emerald-500 font-bold flex items-center gap-1">
+                        <PhoneCall className="w-3 h-3" />
+                        <span>{rider.phone}</span>
+                      </a>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>

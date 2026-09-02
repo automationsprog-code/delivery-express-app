@@ -136,24 +136,49 @@ export function OrderProvider({ children }) {
     }
   });
 
-  const [riders, setRiders] = useState([
-    {
-      id: 'b2c77a52-42ae-4f07-a8fa-540722d74fae',
-      name: 'Nigel',
-      phone: '09458819427',
-      plate: 'MIO GEAR - G629MC',
-      zone: 'Balamban Proper',
-      municipality: 'Balamban',
-      avatar: '/rider-nigel.jpg',
-      rating: 5.0,
-      trips: 1,
-      isOnline: true,
-      status: 'active',
-      password: 'Pass123',
-      lat: 10.5015,
-      lng: 123.7150
-    }
-  ]);
+  const [riders, setRiders] = useState(() => {
+    try {
+      const saved = localStorage.getItem('delivery_express_riders_balamban');
+      const parsed = saved ? JSON.parse(saved) : null;
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+    } catch (_) {}
+    return [
+      {
+        id: 'b2c77a52-42ae-4f07-a8fa-540722d74fae',
+        name: 'Nigel',
+        phone: '09458819427',
+        plate: 'MIO GEAR - G629MC',
+        zone: 'Balamban Proper',
+        municipality: 'Balamban',
+        avatar: '/rider-nigel.jpg',
+        rating: 5.0,
+        trips: 0,
+        isOnline: true,
+        status: 'active',
+        password: 'Pass123',
+        lat: 10.5015,
+        lng: 123.7150
+      },
+      {
+        id: 'rider-kuya-louie-1',
+        name: 'Kuya Louie Richard',
+        phone: '09172587841',
+        plate: 'HONDA CLICK - Y676M',
+        zone: 'Toledo City',
+        municipality: 'Toledo City',
+        avatar: null,
+        rating: 5.0,
+        trips: 0,
+        isOnline: true,
+        status: 'active',
+        password: 'Pass123',
+        lat: 10.3750,
+        lng: 123.6390
+      }
+    ];
+  });
 
   const [selectedRiderId, setSelectedRiderId] = useState(() => {
     const savedUser = localStorage.getItem('delivery_express_current_user');
@@ -1232,38 +1257,60 @@ export function OrderProvider({ children }) {
     showNotification(`Courier ${rider.name} assigned!`, 'success');
   };
 
-  // Update Rider GPS
+  // Update Rider GPS Coordinates (Realtime Live Fleet Tracking)
   const updateRiderLocation = async (riderId, newLat, newLng) => {
-    setRiders(prev => prev.map(r => r.id === riderId ? { ...r, lat: newLat, lng: newLng } : r));
+    let updatedRoster = [];
+    setRiders(prev => {
+      updatedRoster = prev.map(r => r.id === riderId ? { ...r, lat: newLat, lng: newLng } : r);
+      try {
+        localStorage.setItem('delivery_express_riders_balamban', JSON.stringify(updatedRoster));
+      } catch (_) {}
+      return updatedRoster;
+    });
 
     if (isSupabaseConfigured && supabase) {
       try {
-        await supabase.from('riders').update({
-          current_lat: newLat,
-          current_lng: newLng
-        }).eq('id', riderId);
+        if (isUuid(riderId)) {
+          await supabase.from('riders').update({
+            current_lat: newLat,
+            current_lng: newLng
+          }).eq('id', riderId);
+        }
       } catch (_) {}
     }
 
     soundService.triggerVibrate([50]);
   };
 
-  // Toggle Rider Active / Inactive Duty Status
+  // Toggle Rider Active / Inactive Duty Status (100% Persistent across all devices)
   const setRiderOnlineStatus = async (riderId, isOnline) => {
     const nextStatus = isOnline ? 'active' : 'offline';
-    setRiders(prev => prev.map(r => {
-      if (r.id === riderId) {
-        return { ...r, isOnline, status: nextStatus };
-      }
-      return r;
-    }));
+    let updatedRoster = [];
+
+    setRiders(prev => {
+      updatedRoster = prev.map(r => {
+        if (r.id === riderId) {
+          return { ...r, isOnline, status: nextStatus };
+        }
+        return r;
+      });
+      try {
+        localStorage.setItem('delivery_express_riders_balamban', JSON.stringify(updatedRoster));
+      } catch (_) {}
+      return updatedRoster;
+    });
 
     if (isSupabaseConfigured && supabase) {
       try {
-        await supabase.from('riders').update({
-          is_online: isOnline
-        }).eq('id', riderId);
+        if (isUuid(riderId)) {
+          await supabase.from('riders').update({
+            is_online: isOnline
+          }).eq('id', riderId);
+        }
       } catch (_) {}
+
+      // Guarantee cloud sync of online duty status in SYS-CONFIG-RATES
+      await syncSysConfig({ riders_roster: updatedRoster });
     }
 
     showNotification(isOnline ? 'You are now ON DUTY (Active) 🟢' : 'You are now OFF DUTY (Inactive) ⚪', 'info');
@@ -1272,10 +1319,10 @@ export function OrderProvider({ children }) {
   const toggleRiderDuty = async (riderId) => {
     const rider = riders.find(r => r.id === riderId);
     const newIsOnline = !(rider?.isOnline);
-    setRiderOnlineStatus(riderId, newIsOnline);
+    await setRiderOnlineStatus(riderId, newIsOnline);
   };
 
-  // Update order status workflow (Maps accurately to Supabase order_status ENUM)
+  // Update order status workflow (Maps accurately to Supabase order_status ENUM & Preserves Rider assignment)
   const updateOrderStatus = async (orderId, newStatus) => {
     let dbStatus = newStatus;
     if (newStatus === 'purchasing') dbStatus = 'at_pickup_purchasing';
@@ -1286,6 +1333,12 @@ export function OrderProvider({ children }) {
     if (dbStatus === 'out_for_delivery') statusText = 'Out for Delivery';
     if (dbStatus === 'delivered') statusText = 'Delivered & Completed';
 
+    const targetOrder = orders.find(o => o.id === orderId || o.trackingNumber === orderId);
+    const currentRiderId = targetOrder?.riderId;
+    const currentRiderName = targetOrder?.riderName;
+    const currentRiderPhone = targetOrder?.riderPhone;
+    const currentDetails = targetOrder?.details || {};
+
     setOrders(prev => prev.map(order => {
       if (order.id === orderId || order.trackingNumber === orderId) {
         const isAssigned = dbStatus !== 'pending';
@@ -1295,7 +1348,7 @@ export function OrderProvider({ children }) {
 
         const updatedLogs = [
           { step: 'Booking Confirmed (Balamban)', time: 'Received', done: true },
-          { step: `Rider Assigned (${order.riderName || 'Nigel'})`, time: 'Done', done: isAssigned },
+          { step: `Rider Assigned (${order.riderName || currentRiderName || 'Nigel'})`, time: 'Done', done: isAssigned },
           { step: 'Purchased / Picked Up', time: isPurchased ? 'Done' : 'Pending', done: isPurchased },
           { step: 'Out for Delivery', time: isOut ? 'On the way' : 'Pending', done: isOut },
           { step: 'Delivered & Completed', time: isDeliv ? 'Delivered' : 'Pending', done: isDeliv }
@@ -1313,12 +1366,23 @@ export function OrderProvider({ children }) {
 
     if (isSupabaseConfigured && supabase) {
       try {
-        const targetOrder = orders.find(o => o.id === orderId || o.trackingNumber === orderId);
         const tracking = targetOrder?.trackingNumber || orderId;
 
-        let statusQuery = supabase.from('orders').update({
-          status: dbStatus
-        });
+        const updatedDetails = {
+          ...currentDetails,
+          ...(currentRiderName ? { rider_name: currentRiderName } : {}),
+          ...(currentRiderPhone ? { rider_phone: currentRiderPhone } : {})
+        };
+
+        const updatePayload = {
+          status: dbStatus,
+          details: updatedDetails
+        };
+        if (currentRiderId && isUuid(currentRiderId)) {
+          updatePayload.rider_id = currentRiderId;
+        }
+
+        let statusQuery = supabase.from('orders').update(updatePayload);
 
         if (isUuid(orderId)) {
           await statusQuery.eq('id', orderId);
@@ -1448,7 +1512,7 @@ export function OrderProvider({ children }) {
   // Staff Management (Preserves Profile Picture & Syncs across all devices)
   const addRider = async (newRiderData) => {
     let finalId = `rider-${Date.now()}`;
-    const avatarToSave = newRiderData.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80';
+    const avatarToSave = (newRiderData.avatar && !newRiderData.avatar.includes('unsplash')) ? newRiderData.avatar : null;
     
     let newRider = {
       id: finalId,
@@ -1467,7 +1531,10 @@ export function OrderProvider({ children }) {
       avatar: avatarToSave
     };
 
-    localStorage.setItem(`rider_avatar_${finalId}`, avatarToSave);
+    if (avatarToSave) {
+      localStorage.setItem(`rider_avatar_${finalId}`, avatarToSave);
+      localStorage.setItem(`rider_avatar_${newRider.phone}`, avatarToSave);
+    }
     localStorage.setItem(`rider_pass_${finalId}`, newRider.password);
     localStorage.setItem(`rider_pass_${newRider.phone}`, newRider.password);
     localStorage.setItem(`rider_pass_${newRider.name}`, newRider.password);
@@ -1487,10 +1554,10 @@ export function OrderProvider({ children }) {
         [newRider.phone]: newRider.password,
         [newRider.name]: newRider.password
       },
-      rider_avatars: {
+      rider_avatars: avatarToSave ? {
         [finalId]: avatarToSave,
         [newRider.phone]: avatarToSave
-      }
+      } : {}
     });
 
     showNotification(`Courier "${newRider.name}" added & cloud-synced!`, 'success');
@@ -1510,8 +1577,12 @@ export function OrderProvider({ children }) {
       return updatedRoster;
     });
 
-    if (updatedFields.avatar) {
-      localStorage.setItem(`rider_avatar_${riderId}`, updatedFields.avatar);
+    if (updatedFields.avatar !== undefined) {
+      if (updatedFields.avatar && !updatedFields.avatar.includes('unsplash')) {
+        localStorage.setItem(`rider_avatar_${riderId}`, updatedFields.avatar);
+      } else {
+        localStorage.removeItem(`rider_avatar_${riderId}`);
+      }
     }
     if (updatedFields.password) {
       localStorage.setItem(`rider_pass_${riderId}`, updatedFields.password);
