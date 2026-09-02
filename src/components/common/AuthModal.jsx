@@ -350,6 +350,7 @@ export default function AuthModal({ onClose, defaultTab = 'customer' }) {
                       <input
                         type="text"
                         required
+                        autoComplete="off"
                         value={firstName}
                         onChange={(e) => setFirstName(e.target.value)}
                         placeholder="e.g. Maria"
@@ -364,6 +365,7 @@ export default function AuthModal({ onClose, defaultTab = 'customer' }) {
                       <input
                         type="text"
                         required
+                        autoComplete="off"
                         value={lastName}
                         onChange={(e) => setLastName(e.target.value)}
                         placeholder="e.g. Clara"
@@ -380,6 +382,7 @@ export default function AuthModal({ onClose, defaultTab = 'customer' }) {
                       <input
                         type="tel"
                         required
+                        autoComplete="off"
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
                         placeholder="0917-123-4567"
@@ -392,6 +395,7 @@ export default function AuthModal({ onClose, defaultTab = 'customer' }) {
                       </label>
                       <input
                         type="email"
+                        autoComplete="off"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="gmail@example.com"
@@ -408,6 +412,7 @@ export default function AuthModal({ onClose, defaultTab = 'customer' }) {
                       <input
                         type={showCustomerPassword ? 'text' : 'password'}
                         required
+                        autoComplete="new-password"
                         value={customerPassword}
                         onChange={(e) => setCustomerPassword(e.target.value)}
                         placeholder="Enter a secure password"
