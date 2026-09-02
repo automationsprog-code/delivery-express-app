@@ -20,7 +20,8 @@ import {
   AlertCircle,
   MessagesSquare,
   XCircle,
-  X
+  X,
+  Layers
 } from 'lucide-react';
 
 export default function LiveTracker() {
@@ -36,8 +37,8 @@ export default function LiveTracker() {
     e.preventDefault();
     if (!searchInput.trim()) return;
     const found = orders.find(o => 
-      o.trackingNumber.toLowerCase() === searchInput.trim().toLowerCase() ||
-      o.id.toLowerCase() === searchInput.trim().toLowerCase()
+      o.trackingNumber?.toLowerCase() === searchInput.trim().toLowerCase() ||
+      o.id?.toLowerCase() === searchInput.trim().toLowerCase()
     );
     if (found) {
       setActiveTrackingId(found.trackingNumber);
@@ -96,6 +97,34 @@ export default function LiveTracker() {
           </button>
         </form>
       </div>
+
+      {/* MULTIPLE ACTIVE BOOKINGS SELECTOR TABS */}
+      {orders.length > 1 && (
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
+          <div className="flex items-center gap-1.5 text-slate-500 dark:text-zinc-400 font-bold px-1 shrink-0">
+            <Layers className="w-4 h-4 text-rose-500" />
+            <span>Your Active Bookings ({orders.length}):</span>
+          </div>
+          {orders.map((o) => {
+            const isSelected = (activeOrder?.trackingNumber === o.trackingNumber) || (activeOrder?.id === o.id);
+            return (
+              <button
+                key={o.id || o.trackingNumber}
+                onClick={() => setActiveTrackingId(o.trackingNumber)}
+                className={`px-3.5 py-2 rounded-2xl font-bold flex items-center gap-2 shrink-0 transition-all shadow-sm ${
+                  isSelected
+                    ? 'bg-rose-600 text-white shadow-rose-600/30'
+                    : 'bg-white dark:bg-zinc-900 text-slate-700 dark:text-zinc-300 border border-slate-200 dark:border-zinc-800 hover:border-rose-300'
+                }`}
+              >
+                <span className="font-mono text-[11px]">{o.trackingNumber}</span>
+                <span className="text-[10px] opacity-90">• {o.serviceName}</span>
+                <span className={`w-2 h-2 rounded-full ${o.status === 'delivered' ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {!activeOrder ? (
         <div className="p-12 text-center text-slate-500 dark:text-zinc-400 bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200 dark:border-zinc-800 shadow-sm">
