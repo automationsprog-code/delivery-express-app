@@ -1,95 +1,144 @@
 import React, { useState } from 'react';
 import { useOrder } from '../../context/OrderContext';
-import { BRAND, ORDER_STATUSES, MUNICIPALITIES_AND_ZONES } from '../../lib/constants';
-import { isSupabaseConfigured } from '../../lib/supabase';
+import { SERVICES, BRAND, ORDER_STATUSES } from '../../lib/constants';
 import { 
-  LayoutDashboard, 
   Users, 
   Bike, 
   DollarSign, 
-  TrendingUp, 
-  Clock, 
   Sliders, 
-  Database, 
+  QrCode, 
+  Radio, 
+  Plus, 
+  Edit2, 
+  Trash2, 
+  Save, 
+  Send, 
   CheckCircle2, 
-  AlertTriangle,
-  Send,
-  Eye,
-  Settings,
-  Plus,
-  Radio,
-  UserPlus,
-  Trash2,
-  Edit2,
-  Phone,
+  UserPlus, 
+  X, 
+  Upload, 
+  LayoutDashboard,
   ShieldCheck,
-  X,
-  MapPin,
-  QrCode,
-  Upload,
-  Save,
-  Check
+  Power
 } from 'lucide-react';
+
+const MUNICIPALITIES_AND_ZONES = [
+  {
+    municipality: 'Balamban',
+    zones: [
+      'Balamban Proper / Public Palengke',
+      'Gaisano Grand Mall & Town Center',
+      'Aliwanay & Buanoy Industrial (Tsuneishi)',
+      'Pondol & Cantuod Coastal Area',
+      'Arpili & Mataliao',
+      'Gaas & Cantipla (Transcentral Highway)'
+    ]
+  },
+  {
+    municipality: 'Asturias',
+    zones: ['Poblacion Asturias', 'Tubigagmanok', 'Owac', 'Bago']
+  },
+  {
+    municipality: 'Toledo City',
+    zones: ['Toledo Poblacion / Port', 'Lutopan / DAS', 'Ibo & Matab-ang', 'Poog']
+  },
+  {
+    municipality: 'Tuburan',
+    zones: ['Tuburan Proper', 'Colonia', 'Caridad', 'Fortuna']
+  },
+  {
+    municipality: 'Pinamungajan',
+    zones: ['Pinamungajan Poblacion', 'Pandacan', 'Lut-od', 'Tajao']
+  }
+];
 
 export default function AdminDashboard() {
   const { 
     orders, 
     riders, 
-    assignRider, 
-    updateOrderStatus,
+    servicesList, 
+    updateServiceRates, 
+    paymentSettings, 
+    updatePaymentSettings,
     addRider,
     updateRider,
-    toggleRiderDuty,
     deleteRider,
     deleteOrder,
-    servicesList,
-    updateServiceRates,
-    paymentSettings,
-    updatePaymentSettings,
+    assignRider,
+    updateOrderStatus,
     broadcastAdminAnnouncement,
-    isWithinOperatingHours,
-    showNotification
+    toggleRiderDuty
   } = useOrder();
 
-  const [activeTab, setActiveTab] = useState('dispatch'); // 'dispatch' | 'staff' | 'payments' | 'rates' | 'broadcast'
+  const [activeTab, setActiveTab] = useState('dispatch'); // 'dispatch' | 'staff' | 'rates' | 'payments' | 'broadcast'
   const [selectedStatusFilter, setSelectedStatusFilter] = useState('all');
-  
-  // Modals
-  const [showAddRiderModal, setShowAddRiderModal] = useState(false);
-  const [editingRider, setEditingRider] = useState(null);
-  const [broadcastText, setBroadcastText] = useState('');
 
-  // Add Rider Form State
-  const [newRiderName, setNewRiderName] = useState('');
-  const [newRiderPhone, setNewRiderPhone] = useState('');
-  const [newRiderPlate, setNewRiderPlate] = useState('');
-  const [newRiderZone, setNewRiderZone] = useState('Balamban Proper / Public Palengke');
-  const [newRiderAvatar, setNewRiderAvatar] = useState('');
+  // Rates editing state
+  const [editingRates, setEditingRates] = useState({});
 
-  // Payment Settings Form State
+  // Payment settings state
   const [gcashName, setGcashName] = useState(paymentSettings.gcashName || 'DELIVERY EXPRESS BALAMBAN');
   const [gcashNumber, setGcashNumber] = useState(paymentSettings.gcashNumber || '0917-882-1923');
   const [gcashQrUrl, setGcashQrUrl] = useState(paymentSettings.gcashQrUrl || '');
 
-  // Rate Editing State
-  const [editingRates, setEditingRates] = useState({});
+  // Announcement state
+  const [broadcastText, setBroadcastText] = useState('');
 
-  const totalRevenue = orders.reduce((sum, o) => sum + (o.estimatedFare || 0), 0);
+  // Add / Edit Rider Modal State
+  const [showAddRiderModal, setShowAddRiderModal] = useState(false);
+  const [editingRider, setEditingRider] = useState(null);
+  
+  const [newRiderName, setNewRiderName] = useState('');
+  const [newRiderPhone, setNewRiderPhone] = useState('');
+  const [newRiderPlate, setNewRiderPlate] = useState('');
+  const [newRiderZone, setNewRiderZone] = useState('Balamban Proper / Public Palengke');
+  const [newRiderAvatar, setNewRiderAvatar] = useState('/rider-nigel.jpg');
+
+  // Filtered orders
+  const filteredOrders = orders.filter(order => {
+    if (selectedStatusFilter === 'all') return true;
+    return order.status === selectedStatusFilter;
+  });
+
+  // Calculate Operational Metrics
   const activeOrdersCount = orders.filter(o => o.status !== 'delivered' && o.status !== 'cancelled').length;
   const completedOrdersCount = orders.filter(o => o.status === 'delivered').length;
   const pendingOrdersCount = orders.filter(o => o.status === 'pending').length;
+  const totalRevenue = orders.reduce((acc, curr) => {
+    return curr.status === 'delivered' ? acc + (curr.estimatedFare || 80) : acc;
+  }, 0);
 
-  const filteredOrders = orders.filter(o => {
-    if (selectedStatusFilter === 'all') return true;
-    return o.status === selectedStatusFilter;
-  });
-
+  // Compress and process photos cleanly so they render instantly on PC & mobile
   const handlePhotoUpload = (e, targetSetter) => {
     const file = e.target.files[0];
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        targetSetter(reader.result);
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const maxDim = 350;
+          let width = img.width;
+          let height = img.height;
+          if (width > height) {
+            if (width > maxDim) {
+              height *= maxDim / width;
+              width = maxDim;
+            }
+          } else {
+            if (height > maxDim) {
+              width *= maxDim / height;
+              height = maxDim;
+            }
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          const compressed = canvas.toDataURL('image/jpeg', 0.85);
+          targetSetter(compressed);
+        };
+        img.src = reader.result;
       };
       reader.readAsDataURL(file);
     }
@@ -117,12 +166,12 @@ export default function AdminDashboard() {
       phone: newRiderPhone,
       plate: newRiderPlate,
       zone: newRiderZone,
-      avatar: newRiderAvatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'
+      avatar: newRiderAvatar || '/rider-nigel.jpg'
     });
     setNewRiderName('');
     setNewRiderPhone('');
     setNewRiderPlate('');
-    setNewRiderAvatar('');
+    setNewRiderAvatar('/rider-nigel.jpg');
     setShowAddRiderModal(false);
   };
 
@@ -134,7 +183,7 @@ export default function AdminDashboard() {
       phone: editingRider.phone,
       plate: editingRider.plate,
       zone: editingRider.zone,
-      avatar: editingRider.avatar
+      avatar: editingRider.avatar || '/rider-nigel.jpg'
     });
     setEditingRider(null);
   };
@@ -415,7 +464,7 @@ export default function AdminDashboard() {
                         <img
                           src={rider.avatar}
                           alt={rider.name}
-                          className="w-14 h-14 rounded-2xl object-cover border-2 border-amber-500 shadow-sm"
+                          className="w-14 h-14 rounded-2xl object-cover border-2 border-amber-500 shadow-sm bg-white dark:bg-zinc-800"
                         />
                         <span className={`absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border-2 border-white dark:border-zinc-900 ${currentStatus === 'active' ? 'bg-emerald-500' : currentStatus === 'break' ? 'bg-amber-500' : 'bg-slate-400'}`} />
                       </div>
@@ -720,9 +769,9 @@ export default function AdminDashboard() {
                 </label>
                 <div className="flex items-center gap-3">
                   <img
-                    src={newRiderAvatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'}
+                    src={newRiderAvatar || '/rider-nigel.jpg'}
                     alt="Preview"
-                    className="w-14 h-14 rounded-2xl object-cover border-2 border-amber-500 shadow-sm"
+                    className="w-14 h-14 rounded-2xl object-cover border-2 border-amber-500 shadow-sm bg-white dark:bg-zinc-800"
                   />
                   <label className="cursor-pointer px-3.5 py-2 bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 text-slate-800 dark:text-zinc-200 font-bold rounded-xl border border-slate-300 dark:border-zinc-700 flex items-center gap-1.5">
                     <Upload className="w-3.5 h-3.5 text-rose-500" />
@@ -829,9 +878,9 @@ export default function AdminDashboard() {
                 </label>
                 <div className="flex items-center gap-3">
                   <img
-                    src={editingRider.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'}
+                    src={editingRider.avatar || '/rider-nigel.jpg'}
                     alt="Preview"
-                    className="w-14 h-14 rounded-2xl object-cover border-2 border-amber-500 shadow-sm"
+                    className="w-14 h-14 rounded-2xl object-cover border-2 border-amber-500 shadow-sm bg-white dark:bg-zinc-800"
                   />
                   <label className="cursor-pointer px-3.5 py-2 bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 text-slate-800 dark:text-zinc-200 font-bold rounded-xl border border-slate-300 dark:border-zinc-700 flex items-center gap-1.5">
                     <Upload className="w-3.5 h-3.5 text-rose-500" />
