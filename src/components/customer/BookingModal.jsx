@@ -323,37 +323,6 @@ export default function BookingModal({ service, initialData = null, onClose, onB
               </div>
             )}
 
-            {/* Universal Estimated Items / Goods Cost for ALL 9 Services */}
-            <div className="p-4 bg-amber-500/10 dark:bg-amber-500/5 rounded-3xl border border-amber-500/20 space-y-2">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-black text-slate-800 dark:text-zinc-200 flex items-center gap-1.5">
-                  <DollarSign className="w-4 h-4 text-amber-500" />
-                  <span>Estimated Total Items / Budget Cost (₱)</span>
-                </label>
-                <span className="text-[10px] text-amber-600 dark:text-amber-400 font-extrabold uppercase">
-                  (0 if delivery only)
-                </span>
-              </div>
-              <input
-                type="number"
-                min="0"
-                value={itemCostInput || ''}
-                onChange={(e) => {
-                  const val = parseFloat(e.target.value) || 0;
-                  setItemCostInput(val);
-                  setDynamicFields(prev => ({ 
-                    ...prev, 
-                    estimatedCost: val, 
-                    budgetLimit: val, 
-                    amountDue: val, 
-                    maxBudget: val 
-                  }));
-                }}
-                placeholder="e.g. 500 (Estimated budget for food, goods, medicines, or bills)"
-                className="w-full bg-white dark:bg-zinc-950 border border-amber-300 dark:border-amber-700/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 dark:text-white font-bold placeholder-slate-400 focus:outline-none focus:border-amber-500 shadow-sm"
-              />
-            </div>
-
             {/* Section 4: Payment Method & GCash QR Code */}
             <div className="space-y-3 pt-2 border-t border-slate-100 dark:border-zinc-800">
               <h4 className="text-xs font-extrabold uppercase tracking-wider text-rose-600 dark:text-rose-400 flex items-center gap-1.5">

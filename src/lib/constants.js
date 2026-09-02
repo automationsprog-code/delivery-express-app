@@ -125,7 +125,7 @@ export const SERVICES = [
     fields: [
       { name: "storeName", label: "Target Store / Convenience Shop", type: "text", required: true, placeholder: "e.g. 7-Eleven Balamban, Julie's Bakeshop, 360 Pharmacy, Hardware" },
       { name: "shoppingList", label: "Items to Purchase (Item, Brand, Quantity)", type: "textarea", required: true, placeholder: "1. Loaf Bread\n2. 2x 1L Fresh Milk\n3. 1 Bag of Ice" },
-      { name: "budgetLimit", label: "Max Budget Limit (₱)", type: "number", required: true, placeholder: "e.g. 500" }
+      { name: "estimatedCost", label: "Estimated Total Pasabuy Cost (₱)", type: "number", required: true, placeholder: "e.g. 500" }
     ]
   },
   {
@@ -142,6 +142,7 @@ export const SERVICES = [
       { name: "bakeshopName", label: "Bakery / Florist Name & Branch", type: "text", required: true, placeholder: "e.g. Red Ribbon Gaisano Balamban, Goldilocks, Local Florist" },
       { name: "orderNumber", label: "Store Pre-order / Invoice # (if already paid)", type: "text", required: false, placeholder: "e.g. INV-98421" },
       { name: "itemSpecs", label: "Item Description & Dimensions", type: "textarea", required: true, placeholder: "e.g. 8-inch Birthday Cake with candles and greeting card" },
+      { name: "estimatedCost", label: "Estimated Total Cake & Flower Cost (₱)", type: "number", required: false, placeholder: "e.g. 850 (0 if already paid at store)" },
       { name: "isSurprise", label: "Is this a surprise delivery?", type: "checkbox" }
     ]
   },
@@ -158,6 +159,7 @@ export const SERVICES = [
     fields: [
       { name: "pharmacyName", label: "Preferred Pharmacy", type: "text", required: true, placeholder: "e.g. Mercury Drug Balamban, Rose Pharmacy, 360 Pharmacy" },
       { name: "medicineList", label: "Medicines & Dosages Needed", type: "textarea", required: true, placeholder: "1. Biogesic 500mg (10 tablets)\n2. Neozep Forte (5 tablets)\n3. Betadine 60ml" },
+      { name: "estimatedCost", label: "Estimated Total Medicine Cost (₱)", type: "number", required: true, placeholder: "e.g. 400" },
       { name: "hasPrescription", label: "Requires Prescription (Rider will ask / show rx)", type: "checkbox" },
       { name: "hasSeniorDiscount", label: "Apply Senior Citizen / PWD Booklet discount", type: "checkbox" }
     ]
@@ -175,6 +177,7 @@ export const SERVICES = [
     fields: [
       { name: "itemDescription", label: "Package Contents", type: "text", required: true, placeholder: "e.g. Clothes, Shoes in box, Electronics, Documents, Keys" },
       { name: "packageWeight", label: "Estimated Weight (kg)", type: "number", required: false, placeholder: "e.g. 2 kg (Max 20kg for motorcycle)" },
+      { name: "estimatedCost", label: "Estimated Item / Parcel Value (₱)", type: "number", required: false, placeholder: "e.g. 500 (0 if personal item transport)" },
       { name: "isFragile", label: "Handle with Extra Care (Fragile)", type: "checkbox" }
     ]
   },
@@ -191,7 +194,7 @@ export const SERVICES = [
     fields: [
       { name: "billerName", label: "Biller / Payment Center", type: "text", required: true, placeholder: "e.g. CEBECO III, Balamban / Toledo Water District, PLDT, Bayad Center" },
       { name: "accountNumber", label: "Account / Reference Number", type: "text", required: true, placeholder: "e.g. 1234-5678-9012" },
-      { name: "amountDue", label: "Bill Amount (₱)", type: "number", required: true, placeholder: "e.g. 1850.00" },
+      { name: "estimatedCost", label: "Estimated Total Bill Amount (₱)", type: "number", required: true, placeholder: "e.g. 1850.00" },
       { name: "dueDate", label: "Due Date", type: "date", required: false }
     ]
   },
@@ -207,7 +210,8 @@ export const SERVICES = [
     errandFee: 25,
     fields: [
       { name: "taskTitle", label: "Task Overview", type: "text", required: true, placeholder: "e.g. Pick up laundry, Town Hall errand, Line queueing, Government permit" },
-      { name: "taskInstructions", label: "Detailed Instructions", type: "textarea", required: true, placeholder: "Step-by-step what the rider needs to accomplish..." }
+      { name: "taskInstructions", label: "Detailed Instructions", type: "textarea", required: true, placeholder: "Step-by-step what the rider needs to accomplish..." },
+      { name: "estimatedCost", label: "Estimated Total Errand Budget (₱)", type: "number", required: false, placeholder: "e.g. 500 (0 if service only)" }
     ]
   },
   {
@@ -223,7 +227,7 @@ export const SERVICES = [
     fields: [
       { name: "marketName", label: "Target Market / Supermarket", type: "text", required: true, placeholder: "e.g. Balamban Public Palengke, Gaisano Grand Supermarket, Toledo Market" },
       { name: "kumpraList", label: "Itemized Kumpra List (Pork, Fish, Veggies, etc.)", type: "textarea", required: true, placeholder: "1. 1kg Baboy Kasim\n2. 1kg Isda (Tulingan/Bangus)\n3. 1/2kg Ahos & Sibuyas\n4. 1 tray Itlog" },
-      { name: "maxBudget", label: "Estimated Grocery Budget (₱)", type: "number", required: true, placeholder: "e.g. 1500" }
+      { name: "estimatedCost", label: "Estimated Total Market Budget (₱)", type: "number", required: true, placeholder: "e.g. 1500" }
     ]
   },
   {
@@ -239,6 +243,7 @@ export const SERVICES = [
     fields: [
       { name: "documentType", label: "Document Type", type: "text", required: true, placeholder: "e.g. Notarized Contract, Municipal Permit, School Transcript, Bank Forms" },
       { name: "recipientName", label: "Authorized Receiver Name", type: "text", required: true, placeholder: "Full Name of receiver" },
+      { name: "estimatedCost", label: "Estimated Processing / Doc Fee (₱)", type: "number", required: false, placeholder: "e.g. 200 (0 if transport only)" },
       { name: "requiresSignature", label: "Requires Receiver Signature / Proof Photo", type: "checkbox" }
     ]
   }

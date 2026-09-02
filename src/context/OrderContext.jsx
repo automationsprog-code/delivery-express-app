@@ -56,7 +56,21 @@ export function OrderProvider({ children }) {
     try {
       const saved = localStorage.getItem('delivery_express_services_rates');
       const parsed = saved ? JSON.parse(saved) : null;
-      return Array.isArray(parsed) ? parsed : SERVICES;
+      if (Array.isArray(parsed)) {
+        return SERVICES.map(def => {
+          const matched = parsed.find(p => p.id === def.id);
+          if (matched) {
+            return {
+              ...def,
+              baseFare: matched.baseFare !== undefined && !isNaN(matched.baseFare) ? parseFloat(matched.baseFare) : def.baseFare,
+              perKmRate: matched.perKmRate !== undefined && !isNaN(matched.perKmRate) ? parseFloat(matched.perKmRate) : def.perKmRate,
+              errandFee: matched.errandFee !== undefined && !isNaN(matched.errandFee) ? parseFloat(matched.errandFee) : def.errandFee
+            };
+          }
+          return def;
+        });
+      }
+      return SERVICES;
     } catch (_) {
       return SERVICES;
     }
