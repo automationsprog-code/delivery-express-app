@@ -71,7 +71,7 @@ export function OrderProvider({ children }) {
         trips: 1,
         isOnline: true,
         status: 'active',
-        password: '1234',
+        password: localStorage.getItem('rider_pass_b2c77a52-42ae-4f07-a8fa-540722d74fae') || 'Pass123',
         lat: 10.5015,
         lng: 123.7150
       }
@@ -136,7 +136,25 @@ export function OrderProvider({ children }) {
 
     const fetchSupabaseData = async () => {
       try {
-        // 1. Fetch live riders first so we can map names
+        // 1. Fetch Cloud Security Credentials Config (Cross-device synced passwords)
+        let cloudRiderPasswords = {};
+        let cloudAdminPass = 'Pass123';
+        try {
+          const { data: secConfig } = await supabase
+            .from('services')
+            .select('*')
+            .eq('id', 'system_security_config')
+            .maybeSingle();
+
+          if (secConfig && secConfig.description) {
+            const parsed = JSON.parse(secConfig.description);
+            cloudRiderPasswords = parsed.rider_passwords || {};
+            cloudAdminPass = parsed.admin_pass || 'Pass123';
+            localStorage.setItem('delivery_express_admin_password', cloudAdminPass);
+          }
+        } catch (_) {}
+
+        // 2. Fetch live riders first so we can map names and passwords
         const { data: riderData, error: riderErr } = await supabase
           .from('riders')
           .select('*')
@@ -147,6 +165,9 @@ export function OrderProvider({ children }) {
           currentRiderList = (riderData || []).map(r => {
             const savedAvatar = localStorage.getItem(`rider_avatar_${r.id}`);
             const cleanPlate = r.motorcycle_plate?.split('(')[0]?.trim() || r.motorcycle_plate || 'Motorcycle';
+            const riderPass = cloudRiderPasswords[r.id] || localStorage.getItem(`rider_pass_${r.id}`) || 'Pass123';
+            localStorage.setItem(`rider_pass_${r.id}`, riderPass);
+
             return {
               id: r.id,
               name: r.full_name || 'Courier',
@@ -159,7 +180,7 @@ export function OrderProvider({ children }) {
               trips: r.total_completed_trips || 0,
               isOnline: r.is_online !== false,
               status: r.is_online ? 'active' : 'offline',
-              password: localStorage.getItem(`rider_pass_${r.id}`) || '1234',
+              password: riderPass,
               lat: parseFloat(r.current_lat || 10.5015),
               lng: parseFloat(r.current_lng || 123.7150)
             };
@@ -170,7 +191,7 @@ export function OrderProvider({ children }) {
           }
         }
 
-        // 2. Fetch live orders
+        // 3. Fetch live orders
         const { data: orderData, error: orderErr } = await supabase
           .from('orders')
           .select('*')
@@ -264,9 +285,17 @@ export function OrderProvider({ children }) {
       })
       .subscribe();
 
+    const servicesChannel = supabase
+      .channel('public:services:realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'services' }, () => {
+        fetchSupabaseData();
+      })
+      .subscribe();
+
     return () => {
       supabase.removeChannel(orderChannel);
       supabase.removeChannel(riderChannel);
+      supabase.removeChannel(servicesChannel);
     };
   }, []);
 
@@ -340,14 +369,61 @@ export function OrderProvider({ children }) {
     showNotification('Logged out', 'info');
   };
 
-  // Password Security Updates
-  const updateAdminPassword = (newPassword) => {
+  // Cross-device Password Updates (Cloud Synced via Supabase)
+  const updateAdminPassword = async (newPassword) => {
     localStorage.setItem('delivery_express_admin_password', newPassword);
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data: existing } = await supabase.from('services').select('*').eq('id', 'system_security_config').maybeSingle();
+        let parsed = { admin_pass: newPassword, rider_passwords: {} };
+        if (existing && existing.description) {
+          try { parsed = JSON.parse(existing.description); } catch (_) {}
+          parsed.admin_pass = newPassword;
+        }
+        await supabase.from('services').upsert({
+          id: 'system_security_config',
+          name: 'Security Configuration',
+          icon: 'Lock',
+          description: JSON.stringify(parsed),
+          base_fare: 0,
+          per_km_rate: 0,
+          errand_fee: 0,
+          is_active: false
+        });
+      } catch (err) {
+        console.warn('Admin pass sync warning:', err);
+      }
+    }
   };
 
-  const updateRiderPassword = (riderId, newPassword) => {
+  const updateRiderPassword = async (riderId, newPassword) => {
     localStorage.setItem(`rider_pass_${riderId}`, newPassword);
     setRiders(prev => prev.map(r => r.id === riderId ? { ...r, password: newPassword } : r));
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data: existing } = await supabase.from('services').select('*').eq('id', 'system_security_config').maybeSingle();
+        let parsed = { admin_pass: 'Pass123', rider_passwords: {} };
+        if (existing && existing.description) {
+          try { parsed = JSON.parse(existing.description); } catch (_) {}
+        }
+        if (!parsed.rider_passwords) parsed.rider_passwords = {};
+        parsed.rider_passwords[riderId] = newPassword;
+
+        await supabase.from('services').upsert({
+          id: 'system_security_config',
+          name: 'Security Configuration',
+          icon: 'Lock',
+          description: JSON.stringify(parsed),
+          base_fare: 0,
+          per_km_rate: 0,
+          errand_fee: 0,
+          is_active: false
+        });
+      } catch (err) {
+        console.warn('Rider pass sync warning:', err);
+      }
+    }
   };
 
   const toggleTheme = () => {
@@ -786,7 +862,7 @@ export function OrderProvider({ children }) {
       trips: 0,
       isOnline: true,
       status: 'active',
-      password: newRiderData.password || '1234',
+      password: newRiderData.password || 'Pass123',
       lat: 10.5015,
       lng: 123.7150,
       avatar: avatarToSave
