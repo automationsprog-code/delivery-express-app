@@ -20,7 +20,10 @@ import {
   LocateFixed,
   Radio,
   Volume2,
-  MessageSquare
+  MessageSquare,
+  Power,
+  ToggleLeft,
+  ToggleRight
 } from 'lucide-react';
 
 export default function RiderPortal() {
@@ -32,6 +35,8 @@ export default function RiderPortal() {
     assignRider, 
     updateOrderStatus,
     updateRiderLocation,
+    setRiderOnlineStatus,
+    toggleRiderDuty,
     uploadProofOfDelivery
   } = useOrder();
 
@@ -41,7 +46,17 @@ export default function RiderPortal() {
   const [podNotes, setPodNotes] = useState('');
   const [isSimulatingMove, setIsSimulatingMove] = useState(false);
 
-  const currentRider = riders.find(r => r.id === selectedRiderId) || riders[0];
+  const currentRider = riders.find(r => r.id === selectedRiderId) || riders[0] || {
+    id: 'no-rider',
+    name: 'Courier',
+    isOnline: false,
+    rating: 5.0,
+    avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+    plate: 'Motorcycle',
+    zone: 'Balamban'
+  };
+
+  const isOnline = currentRider.isOnline !== false && currentRider.status !== 'offline';
 
   const myActiveOrders = orders.filter(o => 
     o.riderId === currentRider.id && o.status !== 'delivered' && o.status !== 'cancelled'
@@ -124,18 +139,20 @@ export default function RiderPortal() {
   return (
     <div className="space-y-6 pb-20 md:pb-6">
       
-      {/* Rider Header & Shift Stats */}
+      {/* Rider Header & Duty Shift Status Bar */}
       <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 p-5 rounded-3xl shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4 card-float">
         
-        {/* Rider Profile Selector */}
-        <div className="flex items-center gap-3">
+        {/* Rider Profile & Status Indicator */}
+        <div className="flex items-center gap-3.5">
           <div className="relative">
             <img
               src={currentRider.avatar}
               alt={currentRider.name}
               className="w-14 h-14 rounded-2xl object-cover border-2 border-amber-500 shadow-md"
             />
-            <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 border-2 border-white dark:border-zinc-900 rounded-full" />
+            <span className={`absolute -bottom-1 -right-1 w-4 h-4 border-2 border-white dark:border-zinc-900 rounded-full ${
+              isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'
+            }`} />
           </div>
 
           <div>
@@ -148,46 +165,54 @@ export default function RiderPortal() {
               </span>
             </div>
             <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
-              Plate: <strong className="text-slate-800 dark:text-zinc-200">{currentRider.plate}</strong> • <span className="text-rose-600 dark:text-rose-400 font-bold">{currentRider.zone || 'Balamban Hub'}</span>
+              Plate: <strong className="text-slate-800 dark:text-zinc-200">{currentRider.plate}</strong> • <span className="text-rose-600 dark:text-rose-400 font-bold">{currentRider.zone || 'Balamban'}</span>
             </p>
 
-            {/* Switch Rider */}
-            <div className="flex flex-wrap items-center gap-1.5 mt-2">
-              <span className="text-[10px] text-slate-400 font-semibold">Switch courier:</span>
-              {riders.map(r => (
-                <button
-                  key={r.id}
-                  onClick={() => setSelectedRiderId(r.id)}
-                  className={`text-[10px] px-2.5 py-0.5 rounded-lg font-bold transition-all ${
-                    r.id === currentRider.id 
-                      ? 'bg-amber-500 text-zinc-950 shadow-sm' 
-                      : 'bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 hover:text-slate-900'
-                  }`}
-                >
-                  {r.name.split(' ')[1] || r.name}
-                </button>
-              ))}
+            {/* Courier Duty Status Pill */}
+            <div className="mt-1.5 flex items-center gap-2">
+              <span className={`inline-flex items-center gap-1.5 text-[11px] font-black px-2.5 py-0.5 rounded-full ${
+                isOnline 
+                  ? 'bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700' 
+                  : 'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 border border-slate-300 dark:border-zinc-700'
+              }`}>
+                <span className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                <span>{isOnline ? 'ACTIVE & ON DUTY' : 'OFF DUTY / INACTIVE'}</span>
+              </span>
             </div>
           </div>
         </div>
 
-        {/* GPS Broadcast & Simulation Buttons */}
+        {/* DUTY TOGGLE SWITCH & GPS CONTROLS */}
         <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+          
+          {/* Main Duty Active / Inactive Toggle Button */}
+          <button
+            onClick={() => toggleRiderDuty(currentRider.id)}
+            className={`flex-1 sm:flex-none px-4 py-2.5 rounded-2xl text-xs font-black flex items-center justify-center gap-2 transition-all shadow-md ${
+              isOnline
+                ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/30'
+                : 'bg-slate-200 dark:bg-zinc-800 hover:bg-slate-300 text-slate-700 dark:text-zinc-300'
+            }`}
+          >
+            <Power className="w-4 h-4" />
+            <span>{isOnline ? 'Set OFF DUTY' : 'Set ACTIVE ON DUTY'}</span>
+          </button>
+
           <button
             onClick={handleBroadcastGPS}
-            className="flex-1 sm:flex-none px-3.5 py-2.5 bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 text-slate-800 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 rounded-2xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm"
+            className="px-3.5 py-2.5 bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 text-slate-800 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 rounded-2xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm"
           >
             <LocateFixed className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-            <span>Broadcast My GPS</span>
+            <span>Broadcast GPS</span>
           </button>
 
           <button
             onClick={handleSimulateMovement}
             disabled={isSimulatingMove}
-            className="flex-1 sm:flex-none px-3.5 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-zinc-950 rounded-2xl text-xs font-black flex items-center justify-center gap-1.5 shadow-md disabled:opacity-50"
+            className="px-3.5 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 text-zinc-950 rounded-2xl text-xs font-black flex items-center justify-center gap-1.5 shadow-md disabled:opacity-50"
           >
             <Radio className={`w-3.5 h-3.5 ${isSimulatingMove ? 'animate-spin' : ''}`} />
-            <span>{isSimulatingMove ? 'Rider Moving...' : 'Simulate Ride'}</span>
+            <span>{isSimulatingMove ? 'Moving...' : 'Simulate Ride'}</span>
           </button>
         </div>
 

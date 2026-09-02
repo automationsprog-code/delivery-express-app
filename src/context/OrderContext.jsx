@@ -142,8 +142,8 @@ export function OrderProvider({ children }) {
           .select('*')
           .order('created_at', { ascending: false });
 
-        if (!orderErr && orderData && orderData.length > 0) {
-          const formatted = orderData.map(o => ({
+        if (!orderErr) {
+          const formatted = (orderData || []).map(o => ({
             id: o.id || o.tracking_number,
             trackingNumber: o.tracking_number,
             serviceId: o.service_id,
@@ -180,6 +180,8 @@ export function OrderProvider({ children }) {
           setOrders(formatted);
           if (formatted.length > 0 && !activeTrackingId) {
             setActiveTrackingId(formatted[0].trackingNumber);
+          } else if (formatted.length === 0) {
+            setActiveTrackingId('');
           }
         }
 
@@ -189,8 +191,8 @@ export function OrderProvider({ children }) {
           .select('*')
           .order('created_at', { ascending: true });
 
-        if (!riderErr && riderData && riderData.length > 0) {
-          const formattedRiders = riderData.map(r => ({
+        if (!riderErr) {
+          const formattedRiders = (riderData || []).map(r => ({
             id: r.id,
             name: r.full_name || 'Courier',
             phone: r.phone || '0917-000-0000',
@@ -218,7 +220,7 @@ export function OrderProvider({ children }) {
 
     fetchSupabaseData();
 
-    // Subscribe to realtime orders and riders
+    // Realtime subscriptions
     const orderChannel = supabase
       .channel('public:orders')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
@@ -246,8 +248,7 @@ export function OrderProvider({ children }) {
       name: customerData.name,
       email: customerData.email,
       phone: customerData.phone,
-      password: customerData.password,
-      zone: customerData.zone || 'Balamban Proper'
+      password: customerData.password
     };
     const existing = JSON.parse(localStorage.getItem('delivery_express_registered_customers') || '[]');
     existing.push(userObj);
@@ -538,6 +539,33 @@ export function OrderProvider({ children }) {
     soundService.triggerVibrate([50]);
   };
 
+  // Toggle Rider Active / Inactive Duty Status (Rider chooses Active or Inactive)
+  const setRiderOnlineStatus = async (riderId, isOnline) => {
+    const nextStatus = isOnline ? 'active' : 'offline';
+    setRiders(prev => prev.map(r => {
+      if (r.id === riderId) {
+        return { ...r, isOnline, status: nextStatus };
+      }
+      return r;
+    }));
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('riders').update({
+          is_online: isOnline
+        }).eq('id', riderId);
+      } catch (_) {}
+    }
+
+    showNotification(isOnline ? 'You are now ON DUTY (Active) 🟢' : 'You are now OFF DUTY (Inactive) ⚪', 'info');
+  };
+
+  const toggleRiderDuty = async (riderId) => {
+    const rider = riders.find(r => r.id === riderId);
+    const newIsOnline = !(rider?.isOnline);
+    setRiderOnlineStatus(riderId, newIsOnline);
+  };
+
   // Update order status
   const updateOrderStatus = async (orderId, newStatus) => {
     setOrders(prev => prev.map(order => {
@@ -652,25 +680,6 @@ export function OrderProvider({ children }) {
     showNotification('Rider updated on all devices!', 'info');
   };
 
-  const toggleRiderDuty = async (riderId) => {
-    let nextStatus = 'active';
-    setRiders(prev => prev.map(r => {
-      if (r.id === riderId) {
-        nextStatus = r.status === 'active' ? 'break' : r.status === 'break' ? 'offline' : 'active';
-        return { ...r, status: nextStatus, isOnline: nextStatus === 'active' };
-      }
-      return r;
-    }));
-
-    if (isSupabaseConfigured && supabase) {
-      try {
-        await supabase.from('riders').update({
-          is_online: nextStatus === 'active'
-        }).eq('id', riderId);
-      } catch (_) {}
-    }
-  };
-
   const deleteRider = async (riderId) => {
     const rider = riders.find(r => r.id === riderId);
     setRiders(prev => prev.filter(r => r.id !== riderId));
@@ -718,26 +727,9 @@ export function OrderProvider({ children }) {
 
   const resetSampleData = () => {
     setOrders([]);
-    setRiders([
-      {
-        id: 'rider-nigel-1',
-        name: 'Nigel',
-        phone: '0917-882-1923',
-        plate: 'MIO GEAR - G629MC',
-        zone: 'Balamban Proper / Public Palengke',
-        municipality: 'Balamban',
-        avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
-        rating: 5.0,
-        trips: 1,
-        isOnline: true,
-        status: 'active',
-        password: '1234',
-        lat: 10.5015,
-        lng: 123.7150
-      }
-    ]);
+    setRiders([]);
     setActiveTrackingId('');
-    showNotification('Roster reset to Nigel!', 'info');
+    showNotification('Roster cleared!', 'info');
   };
 
   return (
@@ -779,11 +771,12 @@ export function OrderProvider({ children }) {
         assignRider,
         sendMessage,
         updateRiderLocation,
+        setRiderOnlineStatus,
+        toggleRiderDuty,
         updateOrderStatus,
         uploadProofOfDelivery,
         addRider,
         updateRider,
-        toggleRiderDuty,
         deleteRider,
         deleteOrder,
         resetSampleData
