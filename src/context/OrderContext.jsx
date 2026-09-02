@@ -537,6 +537,25 @@ export function OrderProvider({ children }) {
         updated_at: Date.now()
       };
 
+      // Guard: Never let riders_roster or registered_customers be lost on partial updates
+      if (!newDetails.riders_roster || !Array.isArray(newDetails.riders_roster) || newDetails.riders_roster.length === 0) {
+        try {
+          const localRiders = JSON.parse(localStorage.getItem('delivery_express_riders_balamban') || '[]');
+          if (Array.isArray(localRiders) && localRiders.length > 0) {
+            newDetails.riders_roster = localRiders;
+          }
+        } catch (_) {}
+      }
+
+      if (!newDetails.registered_customers || !Array.isArray(newDetails.registered_customers) || newDetails.registered_customers.length === 0) {
+        try {
+          const localCusts = JSON.parse(localStorage.getItem('delivery_express_registered_customers') || '[]');
+          if (Array.isArray(localCusts) && localCusts.length > 0) {
+            newDetails.registered_customers = localCusts;
+          }
+        } catch (_) {}
+      }
+
       await supabase.from('orders').upsert({
         tracking_number: 'SYS-CONFIG-RATES',
         customer_name: 'SYSTEM_SETTINGS',
@@ -762,38 +781,7 @@ export function OrderProvider({ children }) {
     showNotification('Payment Settings saved & synced!', 'success');
     soundService.playOrderChime();
 
-    if (isSupabaseConfigured && supabase) {
-      try {
-        const ratesPayload = servicesList.map(s => ({
-          id: s.id,
-          name: s.name,
-          baseFare: s.baseFare,
-          perKmRate: s.perKmRate,
-          errandFee: s.errandFee
-        }));
-
-        await supabase.from('orders').upsert({
-          tracking_number: 'SYS-CONFIG-RATES',
-          service_id: 'food_delivery',
-          service_type: 'food_delivery',
-          customer_name: 'SYSTEM_SETTINGS',
-          customer_phone: '0000000000',
-          pickup_address: 'System Config',
-          dropoff_address: 'System Config',
-          distance_km: 0,
-          estimated_fare: 0,
-          payment_method: 'cash_on_delivery',
-          details: {
-            services_rates: ratesPayload,
-            payment_settings: merged,
-            admin_pass: localStorage.getItem('delivery_express_admin_password') || 'Pass123'
-          },
-          status: 'pending'
-        }, { onConflict: 'tracking_number' });
-      } catch (err) {
-        console.warn('Payment cloud sync warning:', err);
-      }
-    }
+    await syncSysConfig({ payment_settings: merged });
   };
 
   const updateServiceRates = async (serviceId, updatedRates) => {
@@ -823,75 +811,19 @@ export function OrderProvider({ children }) {
     showNotification('Courier rates saved & synced to all devices!', 'success');
     soundService.playOrderChime();
 
-    if (isSupabaseConfigured && supabase) {
-      try {
-        const ratesPayload = updatedList.map(s => ({
-          id: s.id,
-          name: s.name,
-          baseFare: s.baseFare,
-          perKmRate: s.perKmRate,
-          errandFee: s.errandFee
-        }));
-
-        await supabase.from('orders').upsert({
-          tracking_number: 'SYS-CONFIG-RATES',
-          service_id: 'food_delivery',
-          service_type: 'food_delivery',
-          customer_name: 'SYSTEM_SETTINGS',
-          customer_phone: '0000000000',
-          pickup_address: 'System Config',
-          dropoff_address: 'System Config',
-          distance_km: 0,
-          estimated_fare: 0,
-          payment_method: 'cash_on_delivery',
-          details: {
-            services_rates: ratesPayload,
-            stores_list: storesList,
-            payment_settings: paymentSettings,
-            admin_pass: localStorage.getItem('delivery_express_admin_password') || 'Pass123'
-          },
-          status: 'pending'
-        }, { onConflict: 'tracking_number' });
-      } catch (err) {
-        console.warn('Supabase rate sync error:', err);
-      }
-    }
+    const ratesPayload = updatedList.map(s => ({
+      id: s.id,
+      name: s.name,
+      baseFare: s.baseFare,
+      perKmRate: s.perKmRate,
+      errandFee: s.errandFee
+    }));
+    await syncSysConfig({ services_rates: ratesPayload });
   };
 
   // Helper to persist Stores & Menus to Cloud
   const syncStoresToCloud = async (updatedStores) => {
-    if (!isSupabaseConfigured || !supabase) return;
-    try {
-      const ratesPayload = servicesList.map(s => ({
-        id: s.id,
-        name: s.name,
-        baseFare: s.baseFare,
-        perKmRate: s.perKmRate,
-        errandFee: s.errandFee
-      }));
-
-      await supabase.from('orders').upsert({
-        tracking_number: 'SYS-CONFIG-RATES',
-        service_id: 'food_delivery',
-        service_type: 'food_delivery',
-        customer_name: 'SYSTEM_SETTINGS',
-        customer_phone: '0000000000',
-        pickup_address: 'System Config',
-        dropoff_address: 'System Config',
-        distance_km: 0,
-        estimated_fare: 0,
-        payment_method: 'cash_on_delivery',
-        details: {
-          services_rates: ratesPayload,
-          stores_list: updatedStores,
-          payment_settings: paymentSettings,
-          admin_pass: localStorage.getItem('delivery_express_admin_password') || 'Pass123'
-        },
-        status: 'pending'
-      }, { onConflict: 'tracking_number' });
-    } catch (err) {
-      console.warn('Cloud stores sync error:', err);
-    }
+    await syncSysConfig({ stores_list: updatedStores });
   };
 
   // Add Partner Store
