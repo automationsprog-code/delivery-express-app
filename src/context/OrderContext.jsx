@@ -66,7 +66,7 @@ export function OrderProvider({ children }) {
         plate: 'MIO GEAR - G629MC',
         zone: 'Balamban Proper / Public Palengke',
         municipality: 'Balamban',
-        avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+        avatar: localStorage.getItem('rider_avatar_rider-nigel-1') || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
         rating: 5.0,
         trips: 1,
         isOnline: true,
@@ -143,40 +143,43 @@ export function OrderProvider({ children }) {
           .order('created_at', { ascending: false });
 
         if (!orderErr) {
-          const formatted = (orderData || []).map(o => ({
-            id: o.id || o.tracking_number,
-            trackingNumber: o.tracking_number,
-            serviceId: o.service_id,
-            serviceName: o.service_id ? (SERVICES.find(s => s.id === o.service_id)?.name || 'Delivery') : 'Food Delivery',
-            customerName: o.customer_name,
-            customerPhone: o.customer_phone,
-            pickupAddress: o.pickup_address,
-            pickupLandmark: o.pickup_landmark,
-            pickupCoords: [parseFloat(o.pickup_lat || 10.5015), parseFloat(o.pickup_lng || 123.7150)],
-            dropoffAddress: o.dropoff_address,
-            dropoffLandmark: o.dropoff_landmark,
-            dropoffCoords: [parseFloat(o.dropoff_lat || 10.4720), parseFloat(o.dropoff_lng || 123.7060)],
-            distanceKm: parseFloat(o.distance_km || 3.5),
-            estimatedFare: parseFloat(o.estimated_fare || 100),
-            itemCost: parseFloat(o.item_estimated_cost || 0),
-            paymentMethod: o.payment_method === 'cash_on_delivery' ? 'Cash on Delivery' : 'GCash',
-            status: o.status || 'pending',
-            statusText: o.status === 'pending' ? 'Waiting for Courier Assignment' : o.status,
-            riderId: o.rider_id,
-            riderName: o.rider_name || null,
-            riderPhone: o.rider_phone || null,
-            details: o.details || {},
-            messages: o.messages || [],
-            logs: [
-              { step: 'Booking Confirmed (Balamban)', time: 'Received', done: true },
-              { step: 'Rider Assigned', time: o.rider_name ? 'Assigned' : 'Searching...', done: !!o.rider_id },
-              { step: 'Purchased / Picked Up', time: o.status === 'purchasing' || o.status === 'in_transit' || o.status === 'delivered' ? 'Done' : 'Pending', done: o.status === 'purchasing' || o.status === 'in_transit' || o.status === 'delivered' },
-              { step: 'Out for Delivery', time: o.status === 'in_transit' || o.status === 'delivered' ? 'On the way' : 'Pending', done: o.status === 'in_transit' || o.status === 'delivered' },
-              { step: 'Delivered', time: o.status === 'delivered' ? 'Completed' : 'Pending', done: o.status === 'delivered' }
-            ],
-            proofOfDeliveryUrl: o.proof_of_delivery_url,
-            deliveryNotes: o.delivery_notes
-          }));
+          const formatted = (orderData || []).map(o => {
+            const rawMessages = (o.details && o.details.chat_messages) ? o.details.chat_messages : (o.messages || []);
+            return {
+              id: o.id || o.tracking_number,
+              trackingNumber: o.tracking_number,
+              serviceId: o.service_id,
+              serviceName: o.service_id ? (SERVICES.find(s => s.id === o.service_id)?.name || 'Delivery') : 'Food Delivery',
+              customerName: o.customer_name,
+              customerPhone: o.customer_phone,
+              pickupAddress: o.pickup_address,
+              pickupLandmark: o.pickup_landmark,
+              pickupCoords: [parseFloat(o.pickup_lat || 10.5015), parseFloat(o.pickup_lng || 123.7150)],
+              dropoffAddress: o.dropoff_address,
+              dropoffLandmark: o.dropoff_landmark,
+              dropoffCoords: [parseFloat(o.dropoff_lat || 10.4720), parseFloat(o.dropoff_lng || 123.7060)],
+              distanceKm: parseFloat(o.distance_km || 3.5),
+              estimatedFare: parseFloat(o.estimated_fare || 100),
+              itemCost: parseFloat(o.item_estimated_cost || 0),
+              paymentMethod: o.payment_method === 'cash_on_delivery' ? 'Cash on Delivery' : 'GCash',
+              status: o.status || 'pending',
+              statusText: o.status === 'pending' ? 'Waiting for Courier Assignment' : o.status,
+              riderId: o.rider_id,
+              riderName: o.rider_name || null,
+              riderPhone: o.rider_phone || null,
+              details: o.details || {},
+              messages: rawMessages,
+              logs: [
+                { step: 'Booking Confirmed (Balamban)', time: 'Received', done: true },
+                { step: 'Rider Assigned', time: o.rider_name ? 'Assigned' : 'Searching...', done: !!o.rider_id },
+                { step: 'Purchased / Picked Up', time: o.status === 'purchasing' || o.status === 'in_transit' || o.status === 'delivered' ? 'Done' : 'Pending', done: o.status === 'purchasing' || o.status === 'in_transit' || o.status === 'delivered' },
+                { step: 'Out for Delivery', time: o.status === 'in_transit' || o.status === 'delivered' ? 'On the way' : 'Pending', done: o.status === 'in_transit' || o.status === 'delivered' },
+                { step: 'Delivered', time: o.status === 'delivered' ? 'Completed' : 'Pending', done: o.status === 'delivered' }
+              ],
+              proofOfDeliveryUrl: o.proof_of_delivery_url,
+              deliveryNotes: o.delivery_notes
+            };
+          });
           setOrders(formatted);
           if (formatted.length > 0 && !activeTrackingId) {
             setActiveTrackingId(formatted[0].trackingNumber);
@@ -191,23 +194,26 @@ export function OrderProvider({ children }) {
           .select('*')
           .order('created_at', { ascending: true });
 
-        if (!riderErr) {
-          const formattedRiders = (riderData || []).map(r => ({
-            id: r.id,
-            name: r.full_name || 'Courier',
-            phone: r.phone || '0917-000-0000',
-            plate: r.motorcycle_plate || 'Motorcycle',
-            zone: r.motorcycle_plate?.includes('(') ? r.motorcycle_plate.split('(')[1].replace(')', '') : 'Balamban Proper',
-            municipality: 'Balamban',
-            avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
-            rating: parseFloat(r.rating || 5.0),
-            trips: r.total_completed_trips || 0,
-            isOnline: r.is_online !== false,
-            status: r.is_online ? 'active' : 'offline',
-            password: localStorage.getItem(`rider_pass_${r.id}`) || '1234',
-            lat: parseFloat(r.current_lat || 10.5015),
-            lng: parseFloat(r.current_lng || 123.7150)
-          }));
+        if (!riderErr && riderData) {
+          const formattedRiders = (riderData || []).map(r => {
+            const savedAvatar = localStorage.getItem(`rider_avatar_${r.id}`);
+            return {
+              id: r.id,
+              name: r.full_name || 'Courier',
+              phone: r.phone || '0917-000-0000',
+              plate: r.motorcycle_plate || 'Motorcycle',
+              zone: r.motorcycle_plate?.includes('(') ? r.motorcycle_plate.split('(')[1].replace(')', '') : 'Balamban Proper',
+              municipality: 'Balamban',
+              avatar: savedAvatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+              rating: parseFloat(r.rating || 5.0),
+              trips: r.total_completed_trips || 0,
+              isOnline: r.is_online !== false,
+              status: r.is_online ? 'active' : 'offline',
+              password: localStorage.getItem(`rider_pass_${r.id}`) || '1234',
+              lat: parseFloat(r.current_lat || 10.5015),
+              lng: parseFloat(r.current_lng || 123.7150)
+            };
+          });
           setRiders(formattedRiders);
           if (formattedRiders.length > 0 && !currentUser) {
             setSelectedRiderId(formattedRiders[0].id);
@@ -372,7 +378,7 @@ export function OrderProvider({ children }) {
     soundService.playOrderChime();
   };
 
-  // Create new order
+  // Create new order (Instant, Optimistic & Non-blocking)
   const createOrder = async (orderInput) => {
     const service = servicesList.find(s => s.id === orderInput.serviceId) || servicesList[0];
     const trackingNumber = `DE-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -406,13 +412,13 @@ export function OrderProvider({ children }) {
           id: 'msg-init',
           senderRole: 'system',
           senderName: 'Delivery Express',
-          text: `Order #${trackingNumber} created. A rider in Balamban will be assigned shortly.`,
-          time: 'Just now'
+          text: `Order #${trackingNumber} confirmed! Nearby Balamban couriers are notified.`,
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         }
       ],
       createdAt: new Date().toISOString(),
       logs: [
-        { step: 'Booking Submitted (Balamban)', time: 'Just now', done: true },
+        { step: 'Booking Confirmed (Balamban)', time: 'Just now', done: true },
         { step: 'Rider Assignment', time: 'Searching nearby Balamban riders...', done: false },
         { step: 'Purchased / Picked up', time: 'Pending', done: false },
         { step: 'Out for Delivery', time: 'Pending', done: false },
@@ -420,49 +426,52 @@ export function OrderProvider({ children }) {
       ]
     };
 
-    if (isSupabaseConfigured && supabase) {
-      try {
-        await supabase.from('orders').insert({
-          tracking_number: trackingNumber,
-          service_id: service.id,
-          service_type: service.id,
-          customer_name: newOrder.customerName,
-          customer_phone: newOrder.customerPhone,
-          pickup_address: newOrder.pickupAddress,
-          pickup_landmark: newOrder.pickupLandmark,
-          pickup_lat: newOrder.pickupCoords[0],
-          pickup_lng: newOrder.pickupCoords[1],
-          dropoff_address: newOrder.dropoffAddress,
-          dropoff_landmark: newOrder.dropoffLandmark,
-          dropoff_lat: newOrder.dropoffCoords[0],
-          dropoff_lng: newOrder.dropoffCoords[1],
-          distance_km: newOrder.distanceKm,
-          estimated_fare: newOrder.estimatedFare,
-          item_estimated_cost: newOrder.itemCost,
-          payment_method: newOrder.paymentMethod === 'GCash' ? 'gcash' : 'cash_on_delivery',
-          details: newOrder.details,
-          customer_notes: newOrder.customerNotes,
-          status: 'pending'
-        });
-      } catch (err) {
-        console.warn('Supabase insert warning:', err);
-      }
-    }
-
+    // 1. Instant local state update (Zero UI delay)
     setOrders(prev => [newOrder, ...prev]);
     setActiveTrackingId(trackingNumber);
-    soundService.playOrderChime();
-    showNotification(`Booking ${trackingNumber} placed in Balamban!`, 'success');
+    soundService.playSuccessFanfare();
+    showNotification(`Booking #${trackingNumber} Confirmed!`, 'success');
     
     try {
-      confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
+      confetti({ particleCount: 100, spread: 75, origin: { y: 0.6 } });
     } catch (_) {}
+
+    // 2. Asynchronous persist to Supabase in background
+    if (isSupabaseConfigured && supabase) {
+      supabase.from('orders').insert({
+        tracking_number: trackingNumber,
+        service_id: service.id,
+        service_type: service.id,
+        customer_name: newOrder.customerName,
+        customer_phone: newOrder.customerPhone,
+        pickup_address: newOrder.pickupAddress,
+        pickup_landmark: newOrder.pickupLandmark,
+        pickup_lat: newOrder.pickupCoords[0],
+        pickup_lng: newOrder.pickupCoords[1],
+        dropoff_address: newOrder.dropoffAddress,
+        dropoff_landmark: newOrder.dropoffLandmark,
+        dropoff_lat: newOrder.dropoffCoords[0],
+        dropoff_lng: newOrder.dropoffCoords[1],
+        distance_km: newOrder.distanceKm,
+        estimated_fare: newOrder.estimatedFare,
+        item_estimated_cost: newOrder.itemCost,
+        payment_method: newOrder.paymentMethod === 'GCash' ? 'gcash' : 'cash_on_delivery',
+        details: {
+          ...newOrder.details,
+          chat_messages: newOrder.messages
+        },
+        customer_notes: newOrder.customerNotes,
+        status: 'pending'
+      }).then(({ error }) => {
+        if (error) console.warn('Supabase order insert warning:', error);
+      });
+    }
 
     return newOrder;
   };
 
-  // In-App Chat
-  const sendMessage = (orderId, senderRole, senderName, text) => {
+  // In-App Realtime Chat Sync across all devices
+  const sendMessage = async (orderId, senderRole, senderName, text) => {
     const newMsg = {
       id: `msg-${Date.now()}`,
       senderRole,
@@ -471,18 +480,36 @@ export function OrderProvider({ children }) {
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
 
+    let updatedMessages = [];
+    let targetOrder = null;
+
     setOrders(prev => prev.map(o => {
       if (o.id === orderId || o.trackingNumber === orderId) {
-        return {
-          ...o,
-          messages: [...(o.messages || []), newMsg]
-        };
+        updatedMessages = [...(o.messages || []), newMsg];
+        targetOrder = { ...o, messages: updatedMessages };
+        return targetOrder;
       }
       return o;
     }));
 
     soundService.playOrderChime();
     soundService.triggerVibrate([80]);
+
+    // Push chat messages to Supabase details->chat_messages so Rider/Customer sees it instantly!
+    if (isSupabaseConfigured && supabase && updatedMessages.length > 0) {
+      try {
+        const orderIdentifier = targetOrder?.trackingNumber || orderId;
+        const currentDetails = targetOrder?.details || {};
+        await supabase.from('orders').update({
+          details: {
+            ...currentDetails,
+            chat_messages: updatedMessages
+          }
+        }).eq('tracking_number', orderIdentifier);
+      } catch (err) {
+        console.warn('Supabase chat sync error:', err);
+      }
+    }
   };
 
   // Assign Rider
@@ -539,7 +566,7 @@ export function OrderProvider({ children }) {
     soundService.triggerVibrate([50]);
   };
 
-  // Toggle Rider Active / Inactive Duty Status (Rider chooses Active or Inactive)
+  // Toggle Rider Active / Inactive Duty Status
   const setRiderOnlineStatus = async (riderId, isOnline) => {
     const nextStatus = isOnline ? 'active' : 'offline';
     setRiders(prev => prev.map(r => {
@@ -624,10 +651,16 @@ export function OrderProvider({ children }) {
     try { confetti({ particleCount: 140, spread: 90 }); } catch (_) {}
   };
 
-  // Staff Management
+  // Staff Management (Preserves Profile Picture & Syncs)
   const addRider = async (newRiderData) => {
+    const newId = `rider-${Date.now()}`;
+    const avatarToSave = newRiderData.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80';
+    
+    // Save avatar locally to persist through reloads
+    localStorage.setItem(`rider_avatar_${newId}`, avatarToSave);
+
     const newRider = {
-      id: `rider-${Date.now()}`,
+      id: newId,
       name: newRiderData.name,
       phone: newRiderData.phone,
       plate: newRiderData.plate,
@@ -640,7 +673,7 @@ export function OrderProvider({ children }) {
       password: newRiderData.password || '1234',
       lat: 10.5015,
       lng: 123.7150,
-      avatar: newRiderData.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'
+      avatar: avatarToSave
     };
 
     setRiders(prev => [...prev, newRider]);
@@ -665,6 +698,10 @@ export function OrderProvider({ children }) {
   };
 
   const updateRider = async (riderId, updatedFields) => {
+    if (updatedFields.avatar) {
+      localStorage.setItem(`rider_avatar_${riderId}`, updatedFields.avatar);
+    }
+
     setRiders(prev => prev.map(r => r.id === riderId ? { ...r, ...updatedFields } : r));
 
     if (isSupabaseConfigured && supabase) {
@@ -677,10 +714,13 @@ export function OrderProvider({ children }) {
       } catch (_) {}
     }
 
-    showNotification('Rider updated on all devices!', 'info');
+    showNotification('Rider profile & photo updated!', 'success');
   };
 
   const deleteRider = async (riderId) => {
+    localStorage.removeItem(`rider_avatar_${riderId}`);
+    localStorage.removeItem(`rider_pass_${riderId}`);
+
     const rider = riders.find(r => r.id === riderId);
     setRiders(prev => prev.filter(r => r.id !== riderId));
     
@@ -704,7 +744,7 @@ export function OrderProvider({ children }) {
       } catch (_) {}
     }
 
-    showNotification(`Rider ${rider?.name || ''} deleted from all devices`, 'info');
+    showNotification(`Rider ${rider?.name || ''} deleted`, 'info');
   };
 
   const deleteOrder = async (orderId) => {
