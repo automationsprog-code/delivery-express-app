@@ -177,23 +177,29 @@ export function OrderProvider({ children }) {
     const fetchSupabaseData = async () => {
       try {
         // 1. Fetch Cloud Security Credentials & Cloud Avatars (Cross-device synced)
-        // 1. Fetch Cloud Rates, Payment Settings and Security Config
-        try {
-          const { data: secConfig } = await supabase
-            .from('services')
-            .select('*')
-            .eq('id', 'system_security_config')
-            .maybeSingle();
+        let cloudRiderPasswords = {};
+        let cloudRiderAvatars = {};
+        let cloudAdminPass = localStorage.getItem('delivery_express_admin_password') || 'Pass123';
 
-          if (secConfig && secConfig.description) {
-            const parsed = JSON.parse(secConfig.description);
+        // 1. Fetch live orders (includes real-time cloud system configuration)
+        const { data: orderData, error: orderErr } = await supabase
+          .from('orders')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (orderData && orderData.length > 0) {
+          const sysConfigRow = orderData.find(o => o.tracking_number === 'SYS-CONFIG-RATES');
+          if (sysConfigRow && sysConfigRow.details) {
+            const parsed = sysConfigRow.details;
             cloudRiderPasswords = parsed.rider_passwords || {};
             cloudRiderAvatars = parsed.rider_avatars || {};
-            cloudAdminPass = parsed.admin_pass || 'Pass123';
+            cloudAdminPass = parsed.admin_pass || cloudAdminPass;
+
             if (parsed.payment_settings) {
               setPaymentSettings(parsed.payment_settings);
               try { localStorage.setItem('delivery_express_payment_settings', JSON.stringify(parsed.payment_settings)); } catch (_) {}
             }
+
             if (parsed.services_rates && Array.isArray(parsed.services_rates)) {
               const cloudRatesMap = {};
               parsed.services_rates.forEach(sr => {
@@ -220,7 +226,7 @@ export function OrderProvider({ children }) {
             }
             localStorage.setItem('delivery_express_admin_password', cloudAdminPass);
           }
-        } catch (_) {}
+        }
 
         // 2. Fetch live riders with cloud synced avatars and passwords
         const { data: riderData, error: riderErr } = await supabase
@@ -268,14 +274,11 @@ export function OrderProvider({ children }) {
           }
         }
 
-        // 3. Fetch live orders
-        const { data: orderData, error: orderErr } = await supabase
-          .from('orders')
-          .select('*')
-          .order('created_at', { ascending: false });
-
+        // 3. Format and filter live delivery orders (exclude system configuration row)
         if (!orderErr && orderData) {
-          const formatted = (orderData || []).map(o => {
+          const formatted = (orderData || [])
+            .filter(o => o.tracking_number !== 'SYS-CONFIG-RATES' && o.customer_name !== 'SYSTEM_SETTINGS')
+            .map(o => {
             const rawMessages = (o.details && o.details.chat_messages) ? o.details.chat_messages : (o.messages || []);
             const assignedRiderObj = currentRiderList.find(r => r.id === o.rider_id);
             const riderName = o.details?.rider_name || assignedRiderObj?.name || (o.rider_id ? 'Nigel' : null);
@@ -538,32 +541,43 @@ export function OrderProvider({ children }) {
   };
 
   const updatePaymentSettings = async (newSettings) => {
+    let merged = {};
     setPaymentSettings(prev => {
-      const merged = { ...prev, ...newSettings };
+      merged = { ...prev, ...newSettings };
       try { localStorage.setItem('delivery_express_payment_settings', JSON.stringify(merged)); } catch (_) {}
       return merged;
     });
-    showNotification('Payment Settings saved!', 'success');
+    showNotification('Payment Settings saved & synced!', 'success');
     soundService.playOrderChime();
 
     if (isSupabaseConfigured && supabase) {
       try {
-        const { data: existing } = await supabase.from('services').select('*').eq('id', 'system_security_config').maybeSingle();
-        let parsed = { admin_pass: 'Pass123', rider_passwords: {}, rider_avatars: {} };
-        if (existing && existing.description) {
-          try { parsed = JSON.parse(existing.description); } catch (_) {}
-        }
-        parsed.payment_settings = newSettings;
-        await supabase.from('services').upsert({
-          id: 'system_security_config',
-          name: 'Security Configuration',
-          icon: 'Lock',
-          description: JSON.stringify(parsed),
-          base_fare: 0,
-          per_km_rate: 0,
-          errand_fee: 0,
-          is_active: false
-        });
+        const ratesPayload = servicesList.map(s => ({
+          id: s.id,
+          name: s.name,
+          baseFare: s.baseFare,
+          perKmRate: s.perKmRate,
+          errandFee: s.errandFee
+        }));
+
+        await supabase.from('orders').upsert({
+          tracking_number: 'SYS-CONFIG-RATES',
+          service_id: 'food_delivery',
+          service_type: 'food_delivery',
+          customer_name: 'SYSTEM_SETTINGS',
+          customer_phone: '0000000000',
+          pickup_address: 'System Config',
+          dropoff_address: 'System Config',
+          distance_km: 0,
+          estimated_fare: 0,
+          payment_method: 'cash_on_delivery',
+          details: {
+            services_rates: ratesPayload,
+            payment_settings: merged,
+            admin_pass: localStorage.getItem('delivery_express_admin_password') || 'Pass123'
+          },
+          status: 'pending'
+        }, { onConflict: 'tracking_number' });
       } catch (err) {
         console.warn('Payment cloud sync warning:', err);
       }
@@ -594,19 +608,12 @@ export function OrderProvider({ children }) {
       return updatedList;
     });
 
-    showNotification('Courier rates updated across all devices!', 'success');
+    showNotification('Courier rates saved & synced to all devices!', 'success');
     soundService.playOrderChime();
 
     if (isSupabaseConfigured && supabase) {
       try {
-        // 1. Update system_security_config so all devices immediately fetch the synced rates
-        const { data: existing } = await supabase.from('services').select('*').eq('id', 'system_security_config').maybeSingle();
-        let parsed = { admin_pass: 'Pass123', rider_passwords: {}, rider_avatars: {} };
-        if (existing && existing.description) {
-          try { parsed = JSON.parse(existing.description); } catch (_) {}
-        }
-        
-        parsed.services_rates = updatedList.map(s => ({
+        const ratesPayload = updatedList.map(s => ({
           id: s.id,
           name: s.name,
           baseFare: s.baseFare,
@@ -614,26 +621,24 @@ export function OrderProvider({ children }) {
           errandFee: s.errandFee
         }));
 
-        await supabase.from('services').upsert({
-          id: 'system_security_config',
-          name: 'Security Configuration',
-          icon: 'Lock',
-          description: JSON.stringify(parsed),
-          base_fare: 0,
-          per_km_rate: 0,
-          errand_fee: 0,
-          is_active: false
-        });
-
-        // 2. Also upsert to individual service record
-        await supabase.from('services').upsert({
-          id: serviceId,
-          name: updatedRates.name || serviceId,
-          base_fare: newBase,
-          per_km_rate: newPerKm,
-          errand_fee: newErrand,
-          is_active: true
-        });
+        await supabase.from('orders').upsert({
+          tracking_number: 'SYS-CONFIG-RATES',
+          service_id: 'food_delivery',
+          service_type: 'food_delivery',
+          customer_name: 'SYSTEM_SETTINGS',
+          customer_phone: '0000000000',
+          pickup_address: 'System Config',
+          dropoff_address: 'System Config',
+          distance_km: 0,
+          estimated_fare: 0,
+          payment_method: 'cash_on_delivery',
+          details: {
+            services_rates: ratesPayload,
+            payment_settings: paymentSettings,
+            admin_pass: localStorage.getItem('delivery_express_admin_password') || 'Pass123'
+          },
+          status: 'pending'
+        }, { onConflict: 'tracking_number' });
       } catch (err) {
         console.warn('Supabase rate sync error:', err);
       }

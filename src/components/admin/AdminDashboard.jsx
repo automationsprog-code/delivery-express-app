@@ -92,7 +92,7 @@ export default function AdminDashboard() {
   const [newRiderPhone, setNewRiderPhone] = useState('');
   const [newRiderPlate, setNewRiderPlate] = useState('');
   const [newRiderZone, setNewRiderZone] = useState('Balamban');
-  const [newRiderAvatar, setNewRiderAvatar] = useState('/rider-nigel.jpg');
+  const [newRiderAvatar, setNewRiderAvatar] = useState('https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80');
 
   // Filtered orders
   const filteredOrders = orders.filter(order => {
@@ -156,12 +156,12 @@ export default function AdminDashboard() {
       phone: newRiderPhone,
       plate: newRiderPlate,
       zone: newRiderZone,
-      avatar: newRiderAvatar || '/rider-nigel.jpg'
+      avatar: newRiderAvatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'
     });
     setNewRiderName('');
     setNewRiderPhone('');
     setNewRiderPlate('');
-    setNewRiderAvatar('/rider-nigel.jpg');
+    setNewRiderAvatar('https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80');
     setShowAddRiderModal(false);
   };
 
@@ -939,7 +939,7 @@ export default function AdminDashboard() {
                 </label>
                 <div className="flex items-center gap-3">
                   <img
-                    src={newRiderAvatar || '/rider-nigel.jpg'}
+                    src={newRiderAvatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'}
                     alt="Preview"
                     className="w-14 h-14 rounded-2xl object-cover border-2 border-amber-500 shadow-sm bg-white dark:bg-zinc-800"
                   />
