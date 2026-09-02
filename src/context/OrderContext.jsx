@@ -14,7 +14,20 @@ export function OrderProvider({ children }) {
   const [soundActive, setSoundActive] = useState(true);
   const [vibrationActive, setVibrationActive] = useState(true);
 
-  // Current logged in user (null = customer by default, no login required)
+  // GCash & Maya QR Payment Settings
+  const [paymentSettings, setPaymentSettings] = useState(() => {
+    const saved = localStorage.getItem('delivery_express_payment_settings');
+    return saved ? JSON.parse(saved) : {
+      gcashName: "DELIVERY EXPRESS BALAMBAN",
+      gcashNumber: "0917-882-1923",
+      gcashQrUrl: "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=DELIVERY_EXPRESS_GCASH_09178821923",
+      mayaName: "DELIVERY EXPRESS",
+      mayaNumber: "0928-441-9012",
+      mayaQrUrl: ""
+    };
+  });
+
+  // Current logged in user (null = customer by default)
   const [currentUser, setCurrentUser] = useState(() => {
     const saved = localStorage.getItem('delivery_express_current_user');
     return saved ? JSON.parse(saved) : null;
@@ -54,7 +67,11 @@ export function OrderProvider({ children }) {
     }
   }, [theme]);
 
-  // Persist user and data
+  // Persist settings
+  useEffect(() => {
+    localStorage.setItem('delivery_express_payment_settings', JSON.stringify(paymentSettings));
+  }, [paymentSettings]);
+
   useEffect(() => {
     if (currentUser) {
       localStorage.setItem('delivery_express_current_user', JSON.stringify(currentUser));
@@ -160,6 +177,12 @@ export function OrderProvider({ children }) {
     const now = new Date();
     const hour = now.getHours();
     return hour >= 8 || hour < 2;
+  };
+
+  const updatePaymentSettings = (newSettings) => {
+    setPaymentSettings(prev => ({ ...prev, ...newSettings }));
+    showNotification('GCash & QR Payment Settings updated!', 'success');
+    soundService.playOrderChime();
   };
 
   // Create new order
@@ -436,10 +459,34 @@ export function OrderProvider({ children }) {
     }));
   };
 
+  // Delete Rider and cleanly unassign from active orders
   const deleteRider = (riderId) => {
     const rider = riders.find(r => r.id === riderId);
     setRiders(prev => prev.filter(r => r.id !== riderId));
-    showNotification(`Rider ${rider?.name || ''} removed from roster`, 'info');
+    
+    // Cleanly unassign any order assigned to this deleted rider
+    setOrders(prev => prev.map(o => {
+      if (o.riderId === riderId) {
+        return {
+          ...o,
+          riderId: null,
+          riderName: null,
+          riderPhone: null,
+          riderCoords: null,
+          status: 'pending',
+          statusText: 'Waiting for Courier Assignment'
+        };
+      }
+      return o;
+    }));
+
+    showNotification(`Rider ${rider?.name || ''} removed from roster & unassigned`, 'info');
+  };
+
+  // Delete order
+  const deleteOrder = (orderId) => {
+    setOrders(prev => prev.filter(o => o.id !== orderId && o.trackingNumber !== orderId));
+    showNotification('Order removed', 'info');
   };
 
   const broadcastAdminAnnouncement = (msg) => {
@@ -464,6 +511,8 @@ export function OrderProvider({ children }) {
         toggleSound,
         vibrationActive,
         toggleVibration,
+        paymentSettings,
+        updatePaymentSettings,
         currentUser,
         loginAsRider,
         loginAsAdmin,
@@ -491,6 +540,7 @@ export function OrderProvider({ children }) {
         updateRider,
         toggleRiderDuty,
         deleteRider,
+        deleteOrder,
         resetSampleData
       }}
     >

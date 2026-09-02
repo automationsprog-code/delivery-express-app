@@ -24,7 +24,10 @@ import {
   Phone,
   ShieldCheck,
   X,
-  MapPin
+  MapPin,
+  QrCode,
+  Upload,
+  Image as ImageIcon
 } from 'lucide-react';
 
 export default function AdminDashboard() {
@@ -37,22 +40,33 @@ export default function AdminDashboard() {
     updateRider,
     toggleRiderDuty,
     deleteRider,
+    deleteOrder,
+    paymentSettings,
+    updatePaymentSettings,
     broadcastAdminAnnouncement,
     isWithinOperatingHours,
     showNotification
   } = useOrder();
 
-  const [activeTab, setActiveTab] = useState('dispatch');
+  const [activeTab, setActiveTab] = useState('dispatch'); // 'dispatch' | 'staff' | 'payments' | 'broadcast' | 'rates'
   const [selectedStatusFilter, setSelectedStatusFilter] = useState('all');
   
+  // Modals
   const [showAddRiderModal, setShowAddRiderModal] = useState(false);
   const [editingRider, setEditingRider] = useState(null);
   const [broadcastText, setBroadcastText] = useState('');
 
+  // Add Rider Form State
   const [newRiderName, setNewRiderName] = useState('');
   const [newRiderPhone, setNewRiderPhone] = useState('');
   const [newRiderPlate, setNewRiderPlate] = useState('');
   const [newRiderZone, setNewRiderZone] = useState('Balamban Proper / Public Palengke');
+  const [newRiderAvatar, setNewRiderAvatar] = useState('');
+
+  // Payment Settings Form State
+  const [gcashName, setGcashName] = useState(paymentSettings.gcashName || 'DELIVERY EXPRESS BALAMBAN');
+  const [gcashNumber, setGcashNumber] = useState(paymentSettings.gcashNumber || '0917-882-1923');
+  const [gcashQrUrl, setGcashQrUrl] = useState(paymentSettings.gcashQrUrl || '');
 
   const totalRevenue = orders.reduce((sum, o) => sum + (o.estimatedFare || 0), 0);
   const activeOrdersCount = orders.filter(o => o.status !== 'delivered' && o.status !== 'cancelled').length;
@@ -64,6 +78,30 @@ export default function AdminDashboard() {
     return o.status === selectedStatusFilter;
   });
 
+  // Handle Image File Upload for Rider Profile Picture
+  const handlePhotoUpload = (e, targetSetter) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        targetSetter(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Handle QR Code Image File Upload
+  const handleQrUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setGcashQrUrl(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleCreateRider = (e) => {
     e.preventDefault();
     if (!newRiderName || !newRiderPhone || !newRiderPlate) {
@@ -74,11 +112,13 @@ export default function AdminDashboard() {
       name: newRiderName,
       phone: newRiderPhone,
       plate: newRiderPlate,
-      zone: newRiderZone
+      zone: newRiderZone,
+      avatar: newRiderAvatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'
     });
     setNewRiderName('');
     setNewRiderPhone('');
     setNewRiderPlate('');
+    setNewRiderAvatar('');
     setShowAddRiderModal(false);
   };
 
@@ -89,9 +129,19 @@ export default function AdminDashboard() {
       name: editingRider.name,
       phone: editingRider.phone,
       plate: editingRider.plate,
-      zone: editingRider.zone
+      zone: editingRider.zone,
+      avatar: editingRider.avatar
     });
     setEditingRider(null);
+  };
+
+  const handleSavePaymentSettings = (e) => {
+    e.preventDefault();
+    updatePaymentSettings({
+      gcashName,
+      gcashNumber,
+      gcashQrUrl
+    });
   };
 
   const handleSendBroadcast = (e) => {
@@ -103,7 +153,10 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-6 pb-20 md:pb-8">
+      
+      {/* Top Operations Metric Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        
         <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 p-4 sm:p-5 rounded-3xl shadow-sm card-float">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-500 dark:text-zinc-400">Total Bookings</span>
@@ -157,13 +210,15 @@ export default function AdminDashboard() {
         </div>
       </div>
 
+      {/* Admin Subnav Tabs */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 dark:border-zinc-800 pb-3">
         <div className="flex flex-wrap items-center gap-2">
           {[
             { id: 'dispatch', label: 'Live Dispatch Board', icon: LayoutDashboard },
             { id: 'staff', label: `Staff & Riders (${riders.length})`, icon: Users },
+            { id: 'payments', label: 'GCash / QR Payments', icon: QrCode },
             { id: 'broadcast', label: 'Radio Broadcast', icon: Radio },
-            { id: 'rates', label: 'Services & Rates', icon: Sliders }
+            { id: 'rates', label: 'Rates Config', icon: Sliders }
           ].map(tab => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -193,6 +248,7 @@ export default function AdminDashboard() {
         </button>
       </div>
 
+      {/* TAB 1: Live Dispatch Kanban */}
       {activeTab === 'dispatch' && (
         <div className="space-y-4">
           <div className="flex items-center gap-2 overflow-x-auto pb-2 text-xs">
@@ -280,17 +336,15 @@ export default function AdminDashboard() {
                               Mark Delivered
                             </button>
                           )}
-                          {order.proofOfDeliveryUrl && (
-                            <a
-                              href={order.proofOfDeliveryUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="p-1.5 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 rounded-xl hover:text-slate-900"
-                              title="View Proof"
-                            >
-                              <Eye className="w-3.5 h-3.5" />
-                            </a>
-                          )}
+                          <button
+                            onClick={() => {
+                              if (confirm(`Delete Order #${order.trackingNumber}?`)) deleteOrder(order.id);
+                            }}
+                            className="p-1.5 bg-slate-100 dark:bg-zinc-800 hover:bg-rose-50 hover:text-rose-600 text-slate-500 rounded-xl"
+                            title="Delete Order"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -302,6 +356,7 @@ export default function AdminDashboard() {
         </div>
       )}
 
+      {/* TAB 2: STAFF & RIDERS MANAGEMENT SUITE */}
       {activeTab === 'staff' && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
@@ -310,7 +365,7 @@ export default function AdminDashboard() {
                 Delivery Express Courier & Staff Roster
               </h4>
               <p className="text-xs text-slate-500 dark:text-zinc-400">
-                Manage couriers across Balamban, Asturias, Toledo, Tuburan, and Pinamungajan
+                Manage couriers, photo upload, toggle duty, and edit vehicle information
               </p>
             </div>
           </div>
@@ -336,12 +391,12 @@ export default function AdminDashboard() {
                         <img
                           src={rider.avatar}
                           alt={rider.name}
-                          className="w-12 h-12 rounded-2xl object-cover border-2 border-amber-500 shadow-sm"
+                          className="w-14 h-14 rounded-2xl object-cover border-2 border-amber-500 shadow-sm"
                         />
                         <span className={`absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border-2 border-white dark:border-zinc-900 ${currentStatus === 'active' ? 'bg-emerald-500' : currentStatus === 'break' ? 'bg-amber-500' : 'bg-slate-400'}`} />
                       </div>
                       <div>
-                        <h4 className="font-extrabold text-slate-900 dark:text-white text-sm">
+                        <h4 className="font-extrabold text-slate-900 dark:text-white text-sm sm:text-base">
                           {rider.name}
                         </h4>
                         <p className="text-xs text-slate-500 dark:text-zinc-400">{rider.phone}</p>
@@ -371,7 +426,7 @@ export default function AdminDashboard() {
                   <div className="pt-1 flex items-center justify-between gap-1.5">
                     <button
                       onClick={() => toggleRiderDuty(rider.id)}
-                      className="flex-1 py-1.5 px-2.5 bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 rounded-xl text-[11px] font-bold transition-colors"
+                      className="flex-1 py-2 px-2.5 bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 rounded-xl text-[11px] font-bold transition-colors"
                       title="Cycle status: Active -> On Break -> Offline"
                     >
                       Status: {currentStatus.toUpperCase()}
@@ -379,20 +434,20 @@ export default function AdminDashboard() {
 
                     <button
                       onClick={() => setEditingRider(rider)}
-                      className="p-1.5 bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 text-slate-700 dark:text-zinc-300 rounded-xl"
-                      title="Edit Staff Info"
+                      className="p-2 bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 text-slate-700 dark:text-zinc-300 rounded-xl"
+                      title="Edit Staff Info & Photo"
                     >
-                      <Edit2 className="w-3.5 h-3.5" />
+                      <Edit2 className="w-4 h-4" />
                     </button>
 
                     <button
                       onClick={() => {
-                        if (confirm(`Remove ${rider.name} from roster?`)) deleteRider(rider.id);
+                        if (confirm(`Remove ${rider.name} from roster and unassign any active jobs?`)) deleteRider(rider.id);
                       }}
-                      className="p-1.5 bg-rose-50 dark:bg-rose-950/50 hover:bg-rose-100 text-rose-600 dark:text-rose-400 rounded-xl"
+                      className="p-2 bg-rose-50 dark:bg-rose-950/50 hover:bg-rose-100 text-rose-600 dark:text-rose-400 rounded-xl"
                       title="Remove Rider"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
+                      <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
@@ -402,6 +457,102 @@ export default function AdminDashboard() {
         </div>
       )}
 
+      {/* TAB 3: GCASH / QR PAYMENTS MANAGER */}
+      {activeTab === 'payments' && (
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+          
+          <div className="md:col-span-7 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl p-6 shadow-sm space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="p-3 rounded-2xl bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                <QrCode className="w-6 h-6" />
+              </div>
+              <div>
+                <h4 className="font-extrabold text-slate-900 dark:text-white text-base">
+                  GCash & QR Code Payment Settings
+                </h4>
+                <p className="text-xs text-slate-500 dark:text-zinc-400">
+                  Upload your official Delivery Express GCash QR code for customer scan-to-pay
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleSavePaymentSettings} className="space-y-4 text-xs pt-2">
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
+                  GCash Registered Account Name
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={gcashName}
+                  onChange={(e) => setGcashName(e.target.value)}
+                  placeholder="e.g. DELIVERY EXPRESS BALAMBAN"
+                  className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-2xl p-3 text-slate-900 dark:text-white font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
+                  GCash Registered Mobile / Account #
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={gcashNumber}
+                  onChange={(e) => setGcashNumber(e.target.value)}
+                  placeholder="e.g. 0917-882-1923"
+                  className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-2xl p-3 text-slate-900 dark:text-white font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
+                  Upload GCash QR Code Image
+                </label>
+                <div className="flex items-center gap-3">
+                  <label className="cursor-pointer px-4 py-2.5 bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 text-slate-800 dark:text-zinc-200 font-bold rounded-2xl border border-slate-300 dark:border-zinc-700 flex items-center gap-2">
+                    <Upload className="w-4 h-4 text-blue-600" />
+                    <span>Upload QR Image</span>
+                    <input type="file" accept="image/*" className="hidden" onChange={handleQrUpload} />
+                  </label>
+                  <span className="text-[11px] text-slate-400">PNG, JPG or Screenshot</span>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black rounded-2xl text-xs sm:text-sm shadow-md"
+              >
+                Save Payment Settings
+              </button>
+            </form>
+          </div>
+
+          {/* Customer Live Preview of QR */}
+          <div className="md:col-span-5 bg-gradient-to-br from-blue-900 via-indigo-950 to-zinc-900 text-white p-6 rounded-3xl shadow-xl flex flex-col items-center justify-center text-center space-y-3">
+            <span className="text-[10px] bg-white/20 uppercase font-extrabold px-3 py-1 rounded-full">
+              Customer GCash Scan Preview
+            </span>
+            <div className="p-3 bg-white rounded-2xl shadow-lg">
+              <img
+                src={gcashQrUrl || 'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=DELIVERY_EXPRESS_GCASH'}
+                alt="GCash QR Code"
+                className="w-44 h-44 object-contain"
+              />
+            </div>
+            <div>
+              <p className="text-sm font-extrabold text-amber-300">{gcashName}</p>
+              <p className="text-xs text-blue-200 font-mono mt-0.5">{gcashNumber}</p>
+            </div>
+            <p className="text-[11px] text-slate-300 leading-relaxed max-w-xs">
+              Customers will see this QR Code on their phone screen when they choose GCash payment upon booking.
+            </p>
+          </div>
+
+        </div>
+      )}
+
+      {/* TAB 4: RADIO BROADCAST TO STAFF */}
       {activeTab === 'broadcast' && (
         <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl p-6 shadow-sm space-y-4 max-w-xl">
           <div className="flex items-center gap-3">
@@ -438,6 +589,7 @@ export default function AdminDashboard() {
         </div>
       )}
 
+      {/* TAB 5: Services & Rates Config */}
       {activeTab === 'rates' && (
         <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl p-6 shadow-sm space-y-4">
           <div>
@@ -478,6 +630,7 @@ export default function AdminDashboard() {
         </div>
       )}
 
+      {/* MODAL 1: ADD NEW RIDER WITH PHOTO UPLOAD */}
       {showAddRiderModal && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4">
@@ -492,6 +645,26 @@ export default function AdminDashboard() {
             </div>
 
             <form onSubmit={handleCreateRider} className="space-y-3 text-xs">
+              
+              {/* Photo Upload & Preview */}
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
+                  Rider Profile Picture
+                </label>
+                <div className="flex items-center gap-3">
+                  <img
+                    src={newRiderAvatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'}
+                    alt="Preview"
+                    className="w-14 h-14 rounded-2xl object-cover border-2 border-amber-500 shadow-sm"
+                  />
+                  <label className="cursor-pointer px-3.5 py-2 bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 text-slate-800 dark:text-zinc-200 font-bold rounded-xl border border-slate-300 dark:border-zinc-700 flex items-center gap-1.5">
+                    <Upload className="w-3.5 h-3.5 text-rose-500" />
+                    <span>Upload Photo</span>
+                    <input type="file" accept="image/*" className="hidden" onChange={(e) => handlePhotoUpload(e, setNewRiderAvatar)} />
+                  </label>
+                </div>
+              </div>
+
               <div>
                 <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">Rider Full Name *</label>
                 <input
@@ -567,6 +740,7 @@ export default function AdminDashboard() {
         </div>
       )}
 
+      {/* MODAL 2: EDIT RIDER WITH PHOTO UPLOAD */}
       {editingRider && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4">
@@ -581,6 +755,26 @@ export default function AdminDashboard() {
             </div>
 
             <form onSubmit={handleEditRiderSubmit} className="space-y-3 text-xs">
+              
+              {/* Photo Edit */}
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
+                  Change Profile Picture
+                </label>
+                <div className="flex items-center gap-3">
+                  <img
+                    src={editingRider.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'}
+                    alt="Preview"
+                    className="w-14 h-14 rounded-2xl object-cover border-2 border-amber-500 shadow-sm"
+                  />
+                  <label className="cursor-pointer px-3.5 py-2 bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 text-slate-800 dark:text-zinc-200 font-bold rounded-xl border border-slate-300 dark:border-zinc-700 flex items-center gap-1.5">
+                    <Upload className="w-3.5 h-3.5 text-rose-500" />
+                    <span>Upload New Photo</span>
+                    <input type="file" accept="image/*" className="hidden" onChange={(e) => handlePhotoUpload(e, (url) => setEditingRider({ ...editingRider, avatar: url }))} />
+                  </label>
+                </div>
+              </div>
+
               <div>
                 <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">Full Name</label>
                 <input

@@ -1,444 +1,403 @@
 import React, { useState } from 'react';
 import { useOrder } from '../../context/OrderContext';
-import { BALAMBAN_LANDMARKS } from '../../lib/constants';
+import { BALAMBAN_LANDMARKS, BRAND, MUNICIPALITIES_AND_ZONES } from '../../lib/constants';
 import { 
   X, 
   MapPin, 
   Navigation, 
   CreditCard, 
-  Wallet, 
-  Banknote, 
-  Calculator, 
-  Sparkles, 
-  CheckCircle2, 
-  Info,
-  Phone,
-  User,
-  Compass,
+  DollarSign, 
+  ShieldCheck, 
+  Phone, 
+  User, 
+  FileText,
+  Clock,
+  Sparkles,
+  CheckCircle2,
   LocateFixed,
-  Volume2
+  Building,
+  QrCode
 } from 'lucide-react';
 
 export default function BookingModal({ service, onClose, onBookingSuccess }) {
-  const { createOrder } = useOrder();
+  const { createOrder, paymentSettings } = useOrder();
 
-  // Form State
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
-  const [pickupAddress, setPickupAddress] = useState('');
-  const [pickupLandmark, setPickupLandmark] = useState('');
+  const [pickupAddress, setPickupAddress] = useState('Balamban Public Market, Cebu');
+  const [pickupLandmark, setPickupLandmark] = useState('Palengke Town Proper');
   const [pickupCoords, setPickupCoords] = useState([10.5015, 123.7150]);
-  
   const [dropoffAddress, setDropoffAddress] = useState('');
   const [dropoffLandmark, setDropoffLandmark] = useState('');
   const [dropoffCoords, setDropoffCoords] = useState([10.4720, 123.7060]);
-
-  const [distanceKm, setDistanceKm] = useState(3.5);
   const [paymentMethod, setPaymentMethod] = useState('Cash on Delivery');
   const [customerNotes, setCustomerNotes] = useState('');
   const [dynamicFields, setDynamicFields] = useState({});
-  const [itemCost, setItemCost] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
+  const [itemCostInput, setItemCostInput] = useState(0);
 
   // Dynamic Fare Calculation
-  const baseFare = service.baseFare;
-  const distanceFare = Math.round(distanceKm * service.perKmRate);
+  const distanceKm = 3.5;
+  const baseFare = service.baseFare || 50;
+  const perKmRate = service.perKmRate || 10;
   const errandFee = service.errandFee || 0;
-  const deliveryFee = baseFare + distanceFare + errandFee;
-  const totalEstimatedCost = deliveryFee + (parseFloat(itemCost) || 0);
+  const estimatedDeliveryFare = baseFare + (distanceKm * perKmRate) + errandFee;
+  const totalDue = estimatedDeliveryFare + parseFloat(itemCostInput || 0);
 
-  const handleFieldChange = (fieldName, value) => {
-    setDynamicFields(prev => ({ ...prev, [fieldName]: value }));
+  const handleDynamicChange = (name, value) => {
+    setDynamicFields(prev => ({ ...prev, [name]: value }));
+    if (name === 'estimatedCost' || name === 'budgetLimit' || name === 'amountDue' || name === 'maxBudget') {
+      setItemCostInput(parseFloat(value) || 0);
+    }
   };
 
-  const handleUseCurrentLocation = (type) => {
+  const handleUseMyLiveGps = () => {
     if (!navigator.geolocation) {
-      alert('Geolocation is not supported by your browser.');
+      alert('Geolocation is not supported on this browser.');
       return;
     }
     setIsLocating(true);
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
-        if (type === 'dropoff') {
-          setDropoffCoords([latitude, longitude]);
-          setDropoffAddress(`Live GPS Pin (Balamban: ${latitude.toFixed(4)}, ${longitude.toFixed(4)})`);
-        } else {
-          setPickupCoords([latitude, longitude]);
-          setPickupAddress(`Live GPS Pin (Balamban: ${latitude.toFixed(4)}, ${longitude.toFixed(4)})`);
-        }
+        setDropoffCoords([latitude, longitude]);
+        setDropoffAddress(`Live GPS Pin (${latitude.toFixed(4)}, ${longitude.toFixed(4)}) Balamban`);
+        setDropoffLandmark('Customer Exact GPS Location');
         setIsLocating(false);
       },
-      (error) => {
-        console.warn('GPS Error:', error);
+      (err) => {
+        console.warn(err);
         setIsLocating(false);
-        alert('Could not retrieve exact GPS. Defaulting to Balamban Town Center.');
+        alert('Could not retrieve GPS location. Please type your address or select a landmark.');
       },
-      { enableHighAccuracy: true, timeout: 10000 }
+      { enableHighAccuracy: true }
     );
+  };
+
+  const handleSelectLandmark = (landmark, target = 'dropoff') => {
+    if (target === 'pickup') {
+      setPickupAddress(landmark.name);
+      setPickupCoords([landmark.lat, landmark.lng]);
+      setPickupLandmark(landmark.name);
+    } else {
+      setDropoffAddress(landmark.name);
+      setDropoffCoords([landmark.lat, landmark.lng]);
+      setDropoffLandmark(landmark.name);
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!customerName || !customerPhone || !pickupAddress || !dropoffAddress) {
-      alert('Palihug ibutang imong Pangalan, Contact Number, Pickup ug Drop-off Address.');
+    if (!customerName || !customerPhone || !dropoffAddress) {
+      alert('Please fill in your name, contact number, and delivery destination.');
       return;
     }
 
-    setIsSubmitting(true);
+    const order = await createOrder({
+      serviceId: service.id,
+      customerName,
+      customerPhone,
+      pickupAddress,
+      pickupLandmark,
+      pickupCoords,
+      dropoffAddress,
+      dropoffLandmark,
+      dropoffCoords,
+      distanceKm,
+      estimatedFare: estimatedDeliveryFare,
+      itemCost: parseFloat(itemCostInput || 0),
+      paymentMethod,
+      details: dynamicFields,
+      customerNotes
+    });
 
-    try {
-      const order = await createOrder({
-        serviceId: service.id,
-        customerName,
-        customerPhone,
-        pickupAddress,
-        pickupLandmark,
-        pickupCoords,
-        dropoffAddress,
-        dropoffLandmark,
-        dropoffCoords,
-        distanceKm,
-        estimatedFare: deliveryFee,
-        itemCost: parseFloat(itemCost) || 0,
-        paymentMethod,
-        details: dynamicFields,
-        customerNotes
-      });
-
-      setIsSubmitting(false);
+    if (onBookingSuccess) {
       onBookingSuccess(order);
-    } catch (err) {
-      console.error(err);
-      setIsSubmitting(false);
     }
   };
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fadeIn">
-      <div className="relative w-full max-w-2xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+      <div className="relative w-full max-w-2xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden max-h-[92vh] flex flex-col">
         
-        {/* Modal Header with Service Banner */}
-        <div className={`relative bg-gradient-to-r ${service.color} p-5 sm:p-6 text-white shrink-0`}>
+        {/* Modal Header */}
+        <div className="bg-gradient-to-r from-rose-600 via-red-600 to-amber-500 text-white p-5 sm:p-6 flex items-start justify-between relative shadow-md shrink-0">
+          <div>
+            <div className="flex items-center gap-2 text-rose-100 text-xs font-bold uppercase tracking-wider mb-1">
+              <span>{service.badge || 'Fast Dispatch'}</span>
+              <span>•</span>
+              <span>Balamban & West Cebu</span>
+            </div>
+            <h3 className="text-lg sm:text-2xl font-black text-white font-heading">
+              {service.name}
+            </h3>
+            <p className="text-xs sm:text-sm text-rose-100 mt-0.5">
+              {service.tagline}
+            </p>
+          </div>
+
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 p-2 rounded-full bg-black/20 hover:bg-black/40 text-white transition-colors"
+            className="p-2 rounded-full bg-black/20 hover:bg-black/40 text-white transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
-
-          <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-md text-white border border-white/30 text-[11px] font-bold px-2.5 py-0.5 rounded-full mb-2">
-            <span>📍 Balamban • {service.badge}</span>
-          </div>
-
-          <h3 className="text-xl sm:text-2xl font-black text-white font-heading">
-            Book {service.name}
-          </h3>
-          <p className="text-xs text-rose-50 mt-0.5">
-            {service.tagline}
-          </p>
         </div>
 
-        {/* Modal Body Form */}
-        <form onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-5 overflow-y-auto flex-1">
+        {/* Scrollable Form Body */}
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-5 text-slate-800 dark:text-zinc-200">
           
-          {/* 1. Contact Information */}
+          {/* Section 1: Customer Info */}
           <div className="space-y-3">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400 flex items-center gap-1.5">
-              <User className="w-3.5 h-3.5" /> 1. Customer Contact Details
+            <h4 className="text-xs font-extrabold uppercase tracking-wider text-rose-600 dark:text-rose-400 flex items-center gap-1.5">
+              <User className="w-3.5 h-3.5" />
+              <span>1. Customer Details</span>
             </h4>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1">Customer Full Name *</label>
+                <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1">
+                  Your Full Name *
+                </label>
                 <input
                   type="text"
                   required
                   value={customerName}
                   onChange={(e) => setCustomerName(e.target.value)}
                   placeholder="e.g. Maria Clara"
-                  className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700/80 rounded-2xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-rose-500 shadow-sm"
+                  className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700/80 rounded-2xl px-3.5 py-2.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-rose-500 shadow-sm"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1">Active Mobile / Phone # *</label>
+                <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1">
+                  Mobile Number (for Courier SMS/Call) *
+                </label>
                 <input
                   type="tel"
                   required
                   value={customerPhone}
                   onChange={(e) => setCustomerPhone(e.target.value)}
                   placeholder="e.g. 0917-123-4567"
-                  className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700/80 rounded-2xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-rose-500 shadow-sm"
+                  className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700/80 rounded-2xl px-3.5 py-2.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-rose-500 shadow-sm"
                 />
               </div>
             </div>
           </div>
 
-          {/* 2. Service-Specific Dynamic Fields */}
-          <div className="space-y-3 pt-3 border-t border-slate-100 dark:border-zinc-800">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400 flex items-center gap-1.5">
-              <Info className="w-3.5 h-3.5" /> 2. Errand & Item Requirements
-            </h4>
+          {/* Section 2: Pickup & Dropoff Routing */}
+          <div className="space-y-3 pt-2 border-t border-slate-100 dark:border-zinc-800">
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-extrabold uppercase tracking-wider text-rose-600 dark:text-rose-400 flex items-center gap-1.5">
+                <MapPin className="w-3.5 h-3.5" />
+                <span>2. Balamban / West Cebu Route</span>
+              </h4>
+
+              <button
+                type="button"
+                onClick={handleUseMyLiveGps}
+                disabled={isLocating}
+                className="text-xs px-3 py-1 bg-amber-50 hover:bg-amber-100 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-500/30 rounded-xl font-bold flex items-center gap-1.5 transition-all shadow-sm"
+              >
+                <LocateFixed className={`w-3.5 h-3.5 ${isLocating ? 'animate-spin' : ''}`} />
+                <span>{isLocating ? 'Pinning GPS...' : 'Use My Live GPS'}</span>
+              </button>
+            </div>
 
             <div className="space-y-3">
-              {service.fields.map((field) => (
-                <div key={field.name}>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1">
-                    {field.label} {field.required && '*'}
-                  </label>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1">
+                  Pickup Location / Store (Balamban / Asturias / Toledo) *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={pickupAddress}
+                  onChange={(e) => setPickupAddress(e.target.value)}
+                  placeholder="Store name or specific pickup address"
+                  className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700/80 rounded-2xl px-3.5 py-2.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-rose-500 shadow-sm"
+                />
+              </div>
 
-                  {field.type === 'textarea' ? (
-                    <textarea
-                      rows={3}
-                      required={field.required}
-                      placeholder={field.placeholder}
-                      value={dynamicFields[field.name] || ''}
-                      onChange={(e) => handleFieldChange(field.name, e.target.value)}
-                      className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700/80 rounded-2xl p-3 text-xs sm:text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-rose-500 resize-none shadow-sm"
-                    />
-                  ) : field.type === 'checkbox' ? (
-                    <label className="flex items-center gap-2 text-xs text-slate-700 dark:text-zinc-300 cursor-pointer p-2.5 rounded-2xl bg-slate-50 dark:bg-zinc-950/60 border border-slate-200 dark:border-zinc-800">
-                      <input
-                        type="checkbox"
-                        checked={Boolean(dynamicFields[field.name])}
-                        onChange={(e) => handleFieldChange(field.name, e.target.checked)}
-                        className="w-4 h-4 text-rose-600 rounded bg-white dark:bg-zinc-900 border-slate-300 dark:border-zinc-700 focus:ring-rose-500"
-                      />
-                      <span className="font-medium">{field.label}</span>
-                    </label>
-                  ) : (
-                    <input
-                      type={field.type}
-                      required={field.required}
-                      placeholder={field.placeholder}
-                      value={dynamicFields[field.name] || ''}
-                      onChange={(e) => {
-                        handleFieldChange(field.name, e.target.value);
-                        if (field.name === 'estimatedCost' || field.name === 'budgetLimit' || field.name === 'amountDue' || field.name === 'maxBudget') {
-                          setItemCost(e.target.value);
-                        }
-                      }}
-                      className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700/80 rounded-2xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-rose-500 shadow-sm"
-                    />
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* 3. Pickup & Drop-off Route Details */}
-          <div className="space-y-3 pt-3 border-t border-slate-100 dark:border-zinc-800">
-            <div className="flex items-center justify-between">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400 flex items-center gap-1.5">
-                <MapPin className="w-3.5 h-3.5" /> 3. Balamban Route
-              </h4>
-              <span className="text-[10px] text-slate-400 font-bold">Balamban Hub</span>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1">
+                  Drop-off Destination & Landmark *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={dropoffAddress}
+                  onChange={(e) => setDropoffAddress(e.target.value)}
+                  placeholder="Barangay, Street, House #, or Landmark"
+                  className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700/80 rounded-2xl px-3.5 py-2.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-rose-500 shadow-sm"
+                />
+              </div>
             </div>
 
-            {/* Quick Balamban Shortcuts */}
+            {/* Quick Landmark Chips */}
             <div>
-              <span className="text-[11px] text-slate-500 dark:text-zinc-400 block mb-1.5 font-bold">
-                ⚡ Quick Balamban Landmarks:
+              <span className="text-[10px] text-slate-400 dark:text-zinc-500 font-bold block mb-1.5">
+                Quick Landmark Pin:
               </span>
-              <div className="flex flex-wrap gap-1.5">
-                {BALAMBAN_LANDMARKS.slice(0, 5).map(lm => (
+              <div className="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto">
+                {BALAMBAN_LANDMARKS.map((lm, idx) => (
                   <button
-                    key={lm.name}
+                    key={idx}
                     type="button"
-                    onClick={() => {
-                      setPickupAddress(lm.name);
-                      setPickupCoords([lm.lat, lm.lng]);
-                    }}
-                    className="text-[10px] px-2.5 py-1 bg-slate-100 dark:bg-zinc-800 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 rounded-xl border border-slate-200 dark:border-zinc-700 transition-colors font-semibold"
+                    onClick={() => handleSelectLandmark(lm, 'dropoff')}
+                    className="text-[11px] px-2.5 py-1 bg-slate-100 hover:bg-rose-50 hover:text-rose-600 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-300 rounded-xl border border-slate-200 dark:border-zinc-700/80 transition-colors"
                   >
-                    📍 {lm.name.split('(')[0].trim()}
+                    📍 {lm.name}
                   </button>
                 ))}
               </div>
             </div>
-
-            {/* Pickup */}
-            <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-zinc-950/80 border border-slate-200 dark:border-zinc-800 space-y-2">
-              <div className="flex items-center justify-between text-xs font-bold text-blue-600 dark:text-blue-400">
-                <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block"></span>
-                  <span>1. Pickup / Store Location</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleUseCurrentLocation('pickup')}
-                  className="flex items-center gap-1 text-[10px] text-slate-500 hover:text-blue-600 font-semibold"
-                >
-                  <LocateFixed className="w-3 h-3" />
-                  <span>GPS Pin</span>
-                </button>
-              </div>
-              <input
-                type="text"
-                required
-                value={pickupAddress}
-                onChange={(e) => setPickupAddress(e.target.value)}
-                placeholder="Store / Sender address in Balamban *"
-                className="w-full bg-white dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700/80 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
-              />
-              <input
-                type="text"
-                value={pickupLandmark}
-                onChange={(e) => setPickupLandmark(e.target.value)}
-                placeholder="Landmark (e.g. Near Gaisano Balamban, Palengke, Highway)"
-                className="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl px-3 py-1.5 text-xs text-slate-700 dark:text-zinc-300 placeholder-slate-400 focus:outline-none"
-              />
-            </div>
-
-            {/* Drop-off */}
-            <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-zinc-950/80 border border-slate-200 dark:border-zinc-800 space-y-2">
-              <div className="flex items-center justify-between text-xs font-bold text-emerald-600 dark:text-emerald-400">
-                <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span>
-                  <span>2. Drop-off Destination</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleUseCurrentLocation('dropoff')}
-                  className="flex items-center gap-1 text-[10px] text-slate-500 hover:text-emerald-600 font-semibold"
-                >
-                  <LocateFixed className="w-3 h-3" />
-                  <span>Use My Live GPS</span>
-                </button>
-              </div>
-              <input
-                type="text"
-                required
-                value={dropoffAddress}
-                onChange={(e) => setDropoffAddress(e.target.value)}
-                placeholder="House / Barangay / Destination in Balamban *"
-                className="w-full bg-white dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700/80 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-emerald-500"
-              />
-              <input
-                type="text"
-                value={dropoffLandmark}
-                onChange={(e) => setDropoffLandmark(e.target.value)}
-                placeholder="Landmark (e.g. Purok 3 Buanoy, Cantuod chapel, Green Gate)"
-                className="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl px-3 py-1.5 text-xs text-slate-700 dark:text-zinc-300 placeholder-slate-400 focus:outline-none"
-              />
-            </div>
-
-            {/* Distance Slider */}
-            <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-zinc-950/60 border border-slate-200 dark:border-zinc-800 space-y-1.5">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-600 dark:text-zinc-400 font-bold">Estimated Trip Distance:</span>
-                <span className="font-extrabold text-amber-600 dark:text-amber-400 text-sm">{distanceKm} km</span>
-              </div>
-              <input
-                type="range"
-                min="0.5"
-                max="25"
-                step="0.5"
-                value={distanceKm}
-                onChange={(e) => setDistanceKm(parseFloat(e.target.value))}
-                className="w-full accent-rose-600 cursor-pointer"
-              />
-              <div className="flex justify-between text-[10px] text-slate-400 dark:text-zinc-500 font-medium">
-                <span>0.5 km (Poblacion)</span>
-                <span>4.0 km (Buanoy/Cantuod)</span>
-                <span>20 km (Boundary)</span>
-              </div>
-            </div>
           </div>
 
-          {/* 4. Payment Method & Notes */}
-          <div className="space-y-3 pt-3 border-t border-slate-100 dark:border-zinc-800">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400 flex items-center gap-1.5">
-              <CreditCard className="w-3.5 h-3.5" /> 4. Payment Option
+          {/* Section 3: Dynamic Service Fields */}
+          {service.fields && service.fields.length > 0 && (
+            <div className="space-y-3 pt-2 border-t border-slate-100 dark:border-zinc-800">
+              <h4 className="text-xs font-extrabold uppercase tracking-wider text-rose-600 dark:text-rose-400 flex items-center gap-1.5">
+                <FileText className="w-3.5 h-3.5" />
+                <span>3. Specific Item & Order Details</span>
+              </h4>
+
+              <div className="space-y-3">
+                {service.fields.map((field) => (
+                  <div key={field.name}>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1">
+                      {field.label} {field.required && '*'}
+                    </label>
+
+                    {field.type === 'textarea' ? (
+                      <textarea
+                        required={field.required}
+                        rows={3}
+                        value={dynamicFields[field.name] || ''}
+                        onChange={(e) => handleDynamicChange(field.name, e.target.value)}
+                        placeholder={field.placeholder}
+                        className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700/80 rounded-2xl p-3 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-rose-500 shadow-sm resize-none"
+                      />
+                    ) : field.type === 'checkbox' ? (
+                      <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                        <input
+                          type="checkbox"
+                          checked={!!dynamicFields[field.name]}
+                          onChange={(e) => handleDynamicChange(field.name, e.target.checked)}
+                          className="w-4 h-4 rounded text-rose-600 focus:ring-rose-500"
+                        />
+                        <span>{field.placeholder || field.label}</span>
+                      </label>
+                    ) : (
+                      <input
+                        type={field.type}
+                        required={field.required}
+                        value={dynamicFields[field.name] || ''}
+                        onChange={(e) => handleDynamicChange(field.name, e.target.value)}
+                        placeholder={field.placeholder}
+                        className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700/80 rounded-2xl px-3.5 py-2.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-rose-500 shadow-sm"
+                      />
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Section 4: Payment Method & GCash QR Code */}
+          <div className="space-y-3 pt-2 border-t border-slate-100 dark:border-zinc-800">
+            <h4 className="text-xs font-extrabold uppercase tracking-wider text-rose-600 dark:text-rose-400 flex items-center gap-1.5">
+              <CreditCard className="w-3.5 h-3.5" />
+              <span>4. Payment Method</span>
             </h4>
 
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               {[
-                { name: 'Cash on Delivery', icon: Banknote },
-                { name: 'GCash', icon: Wallet },
-                { name: 'Maya', icon: CreditCard }
-              ].map(opt => {
-                const Icon = opt.icon;
-                const isSelected = paymentMethod === opt.name;
-                return (
-                  <button
-                    type="button"
-                    key={opt.name}
-                    onClick={() => setPaymentMethod(opt.name)}
-                    className={`p-3 rounded-2xl border flex flex-col items-center justify-center gap-1 transition-all ${
-                      isSelected 
-                        ? 'bg-rose-50 dark:bg-rose-950/50 border-rose-500 text-rose-700 dark:text-rose-300 font-bold shadow-sm' 
-                        : 'bg-white dark:bg-zinc-950 border-slate-200 dark:border-zinc-800 text-slate-600 dark:text-zinc-400'
-                    }`}
-                  >
-                    <Icon className="w-4 h-4" />
-                    <span className="text-[11px]">{opt.name}</span>
-                  </button>
-                );
-              })}
+                { id: 'Cash on Delivery', label: 'Cash on Delivery (COD)' },
+                { id: 'GCash', label: 'GCash / Scan QR Code' }
+              ].map(pm => (
+                <button
+                  key={pm.id}
+                  type="button"
+                  onClick={() => setPaymentMethod(pm.id)}
+                  className={`py-3 px-3 rounded-2xl text-xs font-bold border transition-all text-center flex items-center justify-center gap-2 ${
+                    paymentMethod === pm.id
+                      ? 'bg-rose-50 dark:bg-rose-950/60 border-rose-500 text-rose-700 dark:text-rose-300 shadow-sm font-extrabold'
+                      : 'bg-slate-50 dark:bg-zinc-950 border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-400'
+                  }`}
+                >
+                  {pm.id === 'GCash' && <QrCode className="w-4 h-4 text-blue-500" />}
+                  <span>{pm.label}</span>
+                </button>
+              ))}
             </div>
 
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1">Additional Courier Notes</label>
-              <input
-                type="text"
-                value={customerNotes}
-                onChange={(e) => setCustomerNotes(e.target.value)}
-                placeholder="e.g. Text pag abot sa eskina, palihug ampingi ang items"
-                className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700/80 rounded-2xl px-3.5 py-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-rose-500"
-              />
-            </div>
+            {/* If GCash is selected: Show Official Delivery Express GCash QR Code */}
+            {paymentMethod === 'GCash' && (
+              <div className="p-4 bg-gradient-to-br from-blue-900/90 to-indigo-950 text-white rounded-3xl border border-blue-500/30 flex flex-col sm:flex-row items-center gap-4 shadow-lg animate-fadeIn">
+                <div className="p-2 bg-white rounded-2xl shrink-0 shadow-md">
+                  <img
+                    src={paymentSettings.gcashQrUrl || 'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=DELIVERY_EXPRESS_GCASH'}
+                    alt="GCash QR Code"
+                    className="w-28 h-28 object-contain"
+                  />
+                </div>
+                <div className="space-y-1 text-center sm:text-left">
+                  <span className="text-[10px] bg-blue-500/30 text-blue-200 font-bold px-2 py-0.5 rounded-full uppercase">
+                    Official Delivery Express GCash
+                  </span>
+                  <p className="text-sm font-black text-white">{paymentSettings.gcashName}</p>
+                  <p className="text-xs font-mono font-bold text-amber-300">{paymentSettings.gcashNumber}</p>
+                  <p className="text-[11px] text-blue-200">
+                    Scan with your GCash app or send to the number above.
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* 5. Pricing Breakdown Summary Card */}
-          <div className="p-4 rounded-3xl bg-slate-100 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 space-y-2">
-            <div className="flex items-center justify-between text-xs text-slate-600 dark:text-zinc-400 pb-2 border-b border-slate-200 dark:border-zinc-800/80">
-              <span>Base Courier Fare:</span>
-              <span className="font-bold text-slate-800 dark:text-zinc-200">₱{baseFare}</span>
+          {/* Section 5: Transparent Fare Breakdown */}
+          <div className="p-4 bg-slate-50 dark:bg-zinc-950/80 rounded-2xl border border-slate-200 dark:border-zinc-800 space-y-2 text-xs">
+            <div className="flex justify-between text-slate-600 dark:text-zinc-400">
+              <span>Base Rate ({service.name}):</span>
+              <span className="font-semibold">₱{baseFare}</span>
             </div>
-            <div className="flex items-center justify-between text-xs text-slate-600 dark:text-zinc-400 pb-2 border-b border-slate-200 dark:border-zinc-800/80">
-              <span>Distance ({distanceKm} km @ ₱{service.perKmRate}/km):</span>
-              <span className="font-bold text-slate-800 dark:text-zinc-200">₱{distanceFare}</span>
+            <div className="flex justify-between text-slate-600 dark:text-zinc-400">
+              <span>Distance (~{distanceKm} km in Balamban):</span>
+              <span className="font-semibold">₱{distanceKm * perKmRate}</span>
             </div>
             {errandFee > 0 && (
-              <div className="flex items-center justify-between text-xs text-slate-600 dark:text-zinc-400 pb-2 border-b border-slate-200 dark:border-zinc-800/80">
-                <span>Specialized Handling Fee:</span>
-                <span className="font-bold text-slate-800 dark:text-zinc-200">₱{errandFee}</span>
+              <div className="flex justify-between text-slate-600 dark:text-zinc-400">
+                <span>Special Errand Handling:</span>
+                <span className="font-semibold">₱{errandFee}</span>
               </div>
             )}
-            {parseFloat(itemCost) > 0 && (
-              <div className="flex items-center justify-between text-xs text-amber-700 dark:text-amber-400 pb-2 border-b border-slate-200 dark:border-zinc-800/80">
-                <span>Estimated Item / Bill Cost:</span>
-                <span className="font-black">₱{parseFloat(itemCost).toLocaleString()}</span>
+            {itemCostInput > 0 && (
+              <div className="flex justify-between text-slate-600 dark:text-zinc-400">
+                <span>Estimated Item Cost:</span>
+                <span className="font-semibold">₱{itemCostInput}</span>
               </div>
             )}
-            <div className="flex items-center justify-between pt-1 text-sm font-bold text-slate-900 dark:text-white">
-              <span>Total Estimated Booking:</span>
-              <span className="text-xl font-black text-emerald-600 dark:text-emerald-400">₱{totalEstimatedCost.toLocaleString()}</span>
+
+            <div className="pt-2 border-t border-slate-200 dark:border-zinc-800 flex justify-between items-center text-sm font-extrabold text-slate-900 dark:text-white">
+              <span>Total Estimated Due:</span>
+              <span className="text-lg font-black text-emerald-600 dark:text-emerald-400">
+                ₱{totalDue.toLocaleString()}
+              </span>
             </div>
           </div>
 
-          {/* Submit Button */}
-          <div className="pt-2">
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full py-4 px-4 rounded-2xl bg-gradient-to-r from-rose-600 via-red-600 to-amber-500 hover:from-rose-500 hover:to-amber-400 text-white font-black text-sm tracking-wide shadow-xl shadow-rose-600/30 flex items-center justify-center gap-2 transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50"
-            >
-              {isSubmitting ? (
-                <span>Dispatching Courier in Balamban...</span>
-              ) : (
-                <>
-                  <Sparkles className="w-4 h-4 text-amber-300" />
-                  <span>Confirm & Book Delivery Express Courier</span>
-                </>
-              )}
-            </button>
-          </div>
+          {/* Submit Action */}
+          <button
+            type="submit"
+            className="w-full py-4 px-6 bg-gradient-to-r from-rose-600 via-red-600 to-amber-500 hover:from-rose-500 hover:to-amber-400 text-white font-black rounded-2xl text-sm sm:text-base transition-all shadow-xl shadow-rose-600/25 flex items-center justify-center gap-2"
+          >
+            <Sparkles className="w-5 h-5" />
+            <span>Confirm & Dispatch Order in Balamban</span>
+          </button>
 
         </form>
+
       </div>
     </div>
   );
