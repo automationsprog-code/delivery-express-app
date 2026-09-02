@@ -37,7 +37,8 @@ export default function RiderPortal() {
     updateRiderLocation,
     setRiderOnlineStatus,
     toggleRiderDuty,
-    uploadProofOfDelivery
+    uploadProofOfDelivery,
+    currentUser
   } = useOrder();
 
   const [selectedOrderForPod, setSelectedOrderForPod] = useState(null);
@@ -46,28 +47,33 @@ export default function RiderPortal() {
   const [podNotes, setPodNotes] = useState('');
   const [isSimulatingMove, setIsSimulatingMove] = useState(false);
 
-  const currentRider = riders.find(r => r.id === selectedRiderId) || riders[0] || {
-    id: 'no-rider',
-    name: 'Courier',
-    isOnline: false,
+  const currentRider = riders.find(r => r.id === selectedRiderId || r.id === currentUser?.id || r.name === currentUser?.name) || riders[0] || {
+    id: 'b2c77a52-42ae-4f07-a8fa-540722d74fae',
+    name: 'Nigel',
+    isOnline: true,
     rating: 5.0,
     avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
-    plate: 'Motorcycle',
-    zone: 'Balamban'
+    plate: 'MIO GEAR - G629MC',
+    zone: 'Balamban Proper'
   };
 
   const isOnline = currentRider.isOnline !== false && currentRider.status !== 'offline';
 
+  // Orders assigned to this rider
   const myActiveOrders = orders.filter(o => 
-    o.riderId === currentRider.id && o.status !== 'delivered' && o.status !== 'cancelled'
+    (o.riderId === currentRider.id || o.riderName === currentRider.name || o.details?.rider_name === currentRider.name) && 
+    o.status !== 'delivered' && 
+    o.status !== 'cancelled'
   );
 
   const myCompletedOrders = orders.filter(o => 
-    o.riderId === currentRider.id && o.status === 'delivered'
+    (o.riderId === currentRider.id || o.riderName === currentRider.name || o.details?.rider_name === currentRider.name) && 
+    o.status === 'delivered'
   );
 
+  // Available unassigned orders
   const unassignedOrders = orders.filter(o => 
-    !o.riderId && o.status === 'pending'
+    !o.riderId && !o.riderName && !o.details?.rider_name && o.status === 'pending'
   );
 
   const totalEarningsToday = myCompletedOrders.reduce((acc, curr) => acc + (curr.estimatedFare || 80), 0);

@@ -62,7 +62,7 @@ export function OrderProvider({ children }) {
       {
         id: 'b2c77a52-42ae-4f07-a8fa-540722d74fae',
         name: 'Nigel',
-        phone: '0917-882-1923',
+        phone: '09458819427',
         plate: 'MIO GEAR - G629MC',
         zone: 'Balamban Proper / Public Palengke',
         municipality: 'Balamban',
@@ -180,7 +180,7 @@ export function OrderProvider({ children }) {
             return {
               id: r.id,
               name: r.full_name || 'Courier',
-              phone: r.phone || '0917-000-0000',
+              phone: r.phone || '09458819427',
               plate: cleanPlate,
               zone: r.motorcycle_plate?.includes('(') ? r.motorcycle_plate.split('(')[1].replace(')', '') : 'Balamban Proper',
               municipality: 'Balamban',
@@ -211,10 +211,11 @@ export function OrderProvider({ children }) {
             const rawMessages = (o.details && o.details.chat_messages) ? o.details.chat_messages : (o.messages || []);
             const assignedRiderObj = currentRiderList.find(r => r.id === o.rider_id);
             const riderName = o.details?.rider_name || assignedRiderObj?.name || (o.rider_id ? 'Nigel' : null);
-            const riderPhone = o.details?.rider_phone || assignedRiderObj?.phone || (o.rider_id ? '0917-882-1923' : null);
+            const riderPhone = o.details?.rider_phone || assignedRiderObj?.phone || (o.rider_id ? '09458819427' : null);
+            const assignedRiderId = o.rider_id || assignedRiderObj?.id || (riderName === 'Nigel' ? 'b2c77a52-42ae-4f07-a8fa-540722d74fae' : null);
 
             const st = o.status || 'pending';
-            const isAssigned = st !== 'pending' && st !== 'cancelled' && (!!o.rider_id || !!riderName);
+            const isAssigned = st !== 'pending' && st !== 'cancelled' && (!!assignedRiderId || !!riderName);
             const isPurchased = st === 'at_pickup_purchasing' || st === 'purchasing' || st === 'out_for_delivery' || st === 'in_transit' || st === 'delivered';
             const isOutForDelivery = st === 'out_for_delivery' || st === 'in_transit' || st === 'delivered';
             const isDelivered = st === 'delivered';
@@ -255,7 +256,7 @@ export function OrderProvider({ children }) {
               paymentMethod: o.payment_method === 'cash_on_delivery' ? 'Cash on Delivery' : 'GCash',
               status: st,
               statusText: st === 'pending' ? 'Waiting for Courier Assignment' : st === 'at_pickup_purchasing' ? 'Purchasing / At Store' : st === 'out_for_delivery' ? 'Out for Delivery' : st === 'delivered' ? 'Delivered & Completed' : st === 'cancelled' ? 'Cancelled by Customer' : 'In Progress',
-              riderId: o.rider_id,
+              riderId: assignedRiderId,
               riderName: riderName,
               riderPhone: riderPhone,
               details: o.details || {},
@@ -355,7 +356,7 @@ export function OrderProvider({ children }) {
   };
 
   const loginAsRider = (riderId) => {
-    const rider = riders.find(r => r.id === riderId) || riders[0];
+    const rider = riders.find(r => r.id === riderId || r.name === riderId) || riders[0];
     const userObj = { role: 'rider', id: rider.id, name: rider.name };
     setCurrentUser(userObj);
     setSelectedRiderId(rider.id);
@@ -605,14 +606,16 @@ export function OrderProvider({ children }) {
     if (isSupabaseConfigured && supabase) {
       try {
         const targetOrder = orders.find(o => o.id === orderId || o.trackingNumber === orderId);
+        const tracking = targetOrder?.trackingNumber || orderId;
         const currentDetails = targetOrder?.details || {};
+
         await supabase.from('orders').update({
           status: 'cancelled',
           details: {
             ...currentDetails,
             cancel_reason: reason
           }
-        }).eq('tracking_number', orderId);
+        }).or(`tracking_number.eq.${tracking},id.eq.${orderId}`);
       } catch (err) {
         console.warn('Supabase cancel order warning:', err);
       }
@@ -656,7 +659,7 @@ export function OrderProvider({ children }) {
             ...currentDetails,
             chat_messages: updatedMessages
           }
-        }).eq('tracking_number', orderIdentifier);
+        }).or(`tracking_number.eq.${orderIdentifier},id.eq.${orderId}`);
       } catch (err) {
         console.warn('Supabase chat sync error:', err);
       }
@@ -665,7 +668,7 @@ export function OrderProvider({ children }) {
 
   // Assign Rider (Syncs rider name, phone, plate, and updates status in Supabase)
   const assignRider = async (orderId, riderId) => {
-    const rider = riders.find(r => r.id === riderId) || riders[0];
+    const rider = riders.find(r => r.id === riderId || r.name === riderId) || riders[0];
     if (!rider) return;
 
     setOrders(prev => prev.map(order => {
@@ -694,8 +697,9 @@ export function OrderProvider({ children }) {
 
     if (isSupabaseConfigured && supabase) {
       try {
-        const currentOrder = orders.find(o => o.id === orderId || o.trackingNumber === orderId);
-        const currentDetails = currentOrder?.details || {};
+        const targetOrder = orders.find(o => o.id === orderId || o.trackingNumber === orderId);
+        const tracking = targetOrder?.trackingNumber || orderId;
+        const currentDetails = targetOrder?.details || {};
         
         await supabase.from('orders').update({
           status: 'assigned',
@@ -706,7 +710,7 @@ export function OrderProvider({ children }) {
             rider_phone: rider.phone,
             rider_plate: rider.plate
           }
-        }).eq('tracking_number', orderId);
+        }).or(`tracking_number.eq.${tracking},id.eq.${orderId}`);
       } catch (err) {
         console.warn('Supabase assign rider error:', err);
       }
@@ -797,9 +801,12 @@ export function OrderProvider({ children }) {
 
     if (isSupabaseConfigured && supabase) {
       try {
+        const targetOrder = orders.find(o => o.id === orderId || o.trackingNumber === orderId);
+        const tracking = targetOrder?.trackingNumber || orderId;
+
         await supabase.from('orders').update({
           status: dbStatus
-        }).eq('tracking_number', orderId);
+        }).or(`tracking_number.eq.${tracking},id.eq.${orderId}`);
       } catch (err) {
         console.warn('Supabase status update error:', err);
       }
@@ -840,11 +847,14 @@ export function OrderProvider({ children }) {
 
     if (isSupabaseConfigured && supabase) {
       try {
+        const targetOrder = orders.find(o => o.id === orderId || o.trackingNumber === orderId);
+        const tracking = targetOrder?.trackingNumber || orderId;
+
         await supabase.from('orders').update({
           status: 'delivered',
           proof_of_delivery_url: photoUrl,
           delivery_notes: notes
-        }).eq('tracking_number', orderId);
+        }).or(`tracking_number.eq.${tracking},id.eq.${orderId}`);
       } catch (_) {}
     }
 
