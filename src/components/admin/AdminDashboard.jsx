@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useOrder } from '../../context/OrderContext';
 import { SERVICES, BRAND, ORDER_STATUSES } from '../../lib/constants';
+import { uploadAvatarToStorage } from '../../lib/supabase';
 import { 
   Users, 
   Bike, 
@@ -20,7 +21,9 @@ import {
   LayoutDashboard,
   ShieldCheck,
   Power,
-  Sparkles
+  Sparkles,
+  Camera,
+  Loader2
 } from 'lucide-react';
 
 const MUNICIPALITIES_AND_ZONES = [
@@ -88,6 +91,7 @@ export default function AdminDashboard() {
   // Add / Edit Rider Modal State
   const [showAddRiderModal, setShowAddRiderModal] = useState(false);
   const [editingRider, setEditingRider] = useState(null);
+  const [uploadingRiderId, setUploadingRiderId] = useState(null);
   
   const [newRiderName, setNewRiderName] = useState('');
   const [newRiderPhone, setNewRiderPhone] = useState('');
@@ -109,39 +113,29 @@ export default function AdminDashboard() {
     return curr.status === 'delivered' ? acc + (curr.estimatedFare || 80) : acc;
   }, 0);
 
-  // Compress and process photos cleanly so they render instantly on PC & mobile
-  const handlePhotoUpload = (e, targetSetter) => {
+  // Facebook-Style HD Photo Upload directly to Supabase Storage CDN
+  const handlePhotoUpload = async (e, targetSetter, riderId = 'avatar') => {
     const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          const maxDim = 350;
-          let width = img.width;
-          let height = img.height;
-          if (width > height) {
-            if (width > maxDim) {
-              height *= maxDim / width;
-              width = maxDim;
-            }
-          } else {
-            if (height > maxDim) {
-              width *= maxDim / height;
-              height = maxDim;
-            }
-          }
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0, width, height);
-          const compressed = canvas.toDataURL('image/jpeg', 0.85);
-          targetSetter(compressed);
-        };
-        img.src = reader.result;
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+
+    // 1. Instant local high-definition preview
+    const localPreview = URL.createObjectURL(file);
+    targetSetter(localPreview);
+
+    // 2. High-speed upload to Supabase Storage 'rider-avatars'
+    setUploadingRiderId(riderId);
+    try {
+      const publicUrl = await uploadAvatarToStorage(file, riderId);
+      if (publicUrl) {
+        targetSetter(publicUrl);
+        if (riderId && riderId !== 'avatar' && riderId !== 'new') {
+          updateRider(riderId, { avatar: publicUrl });
+        }
+      }
+    } catch (err) {
+      console.warn('Storage upload error:', err);
+    } finally {
+      setUploadingRiderId(null);
     }
   };
 
@@ -461,13 +455,34 @@ export default function AdminDashboard() {
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-3">
-                      <div className="relative">
+                      <div className="relative group">
                         <img
-                          src={rider.avatar}
+                          src={rider.avatar || '/rider-nigel.jpg'}
                           alt={rider.name}
-                          className="w-14 h-14 rounded-2xl object-cover border-2 border-amber-500 shadow-sm bg-white dark:bg-zinc-800"
+                          className="w-16 h-16 rounded-2xl object-cover border-2 border-amber-500 shadow-md bg-white dark:bg-zinc-800"
                         />
-                        <span className={`absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border-2 border-white dark:border-zinc-900 ${currentStatus === 'active' ? 'bg-emerald-500' : currentStatus === 'break' ? 'bg-amber-500' : 'bg-slate-400'}`} />
+                        <span className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white dark:border-zinc-900 ${currentStatus === 'active' ? 'bg-emerald-500' : currentStatus === 'break' ? 'bg-amber-500' : 'bg-slate-400'}`} />
+                        
+                        {/* Facebook-style 1-tap Camera Upload on Avatar */}
+                        <label 
+                          title="Change Profile Picture (Upload High-Res Photo)"
+                          className="absolute inset-0 rounded-2xl bg-black/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center cursor-pointer transition-opacity text-white"
+                        >
+                          {uploadingRiderId === rider.id ? (
+                            <Loader2 className="w-5 h-5 animate-spin" />
+                          ) : (
+                            <>
+                              <Camera className="w-5 h-5 text-white" />
+                              <span className="text-[8px] font-bold mt-0.5">Edit</span>
+                            </>
+                          )}
+                          <input 
+                            type="file" 
+                            accept="image/*" 
+                            className="hidden" 
+                            onChange={(e) => handlePhotoUpload(e, (url) => updateRider(rider.id, { avatar: url }), rider.id)} 
+                          />
+                        </label>
                       </div>
                       <div>
                         <h4 className="font-extrabold text-slate-900 dark:text-white text-sm sm:text-base">
@@ -875,27 +890,38 @@ export default function AdminDashboard() {
               
               <div>
                 <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
-                  Change Profile Picture
+                  Change Profile Picture (High-Res Cloud Sync)
                 </label>
-                <div className="flex items-center gap-3">
-                  <img
-                    src={editingRider.avatar || '/rider-nigel.jpg'}
-                    alt="Preview"
-                    className="w-14 h-14 rounded-2xl object-cover border-2 border-amber-500 shadow-sm bg-white dark:bg-zinc-800"
-                  />
-                  <div className="flex flex-col gap-1.5">
-                    <label className="cursor-pointer px-3.5 py-2 bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 text-slate-800 dark:text-zinc-200 font-bold rounded-xl border border-slate-300 dark:border-zinc-700 flex items-center gap-1.5">
-                      <Upload className="w-3.5 h-3.5 text-rose-500" />
-                      <span>Upload New Photo</span>
-                      <input type="file" accept="image/*" className="hidden" onChange={(e) => handlePhotoUpload(e, (url) => setEditingRider({ ...editingRider, avatar: url }))} />
+                <div className="flex items-center gap-4">
+                  <div className="relative">
+                    <img
+                      src={editingRider.avatar || '/rider-nigel.jpg'}
+                      alt="Preview"
+                      className="w-16 h-16 rounded-2xl object-cover border-2 border-amber-500 shadow-md bg-white dark:bg-zinc-800"
+                    />
+                    {uploadingRiderId && (
+                      <div className="absolute inset-0 bg-black/60 rounded-2xl flex items-center justify-center">
+                        <Loader2 className="w-5 h-5 text-white animate-spin" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-1.5 flex-1">
+                    <label className="cursor-pointer px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-xl shadow-sm flex items-center justify-center gap-2 text-xs">
+                      <Camera className="w-4 h-4" />
+                      <span>{uploadingRiderId ? 'Uploading to Cloud...' : 'Upload HD Photo (From Phone / PC)'}</span>
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        className="hidden" 
+                        onChange={(e) => handlePhotoUpload(e, (url) => setEditingRider({ ...editingRider, avatar: url }), editingRider.id)} 
+                      />
                     </label>
                     <button
                       type="button"
                       onClick={() => setEditingRider({ ...editingRider, avatar: '/rider-nigel.jpg' })}
-                      className="px-3 py-1.5 bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-800 rounded-xl font-extrabold text-[10px] text-left flex items-center gap-1"
+                      className="px-3 py-1.5 bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 text-slate-700 dark:text-zinc-300 rounded-xl font-bold text-[11px] text-center"
                     >
-                      <Sparkles className="w-3 h-3 text-amber-500" />
-                      <span>Use Nigel's Official Face Photo</span>
+                      Reset to Nigel Default Photo
                     </button>
                   </div>
                 </div>
