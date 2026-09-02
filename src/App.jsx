@@ -6,6 +6,7 @@ import BookingModal from './components/customer/BookingModal';
 import LiveTracker from './components/customer/LiveTracker';
 import RiderPortal from './components/rider/RiderPortal';
 import AdminDashboard from './components/admin/AdminDashboard';
+import AuthModal from './components/common/AuthModal';
 import { BRAND } from './lib/constants';
 import { 
   Bike, 
@@ -17,13 +18,17 @@ import {
   Package, 
   Compass, 
   Layers, 
-  ExternalLink 
+  ExternalLink,
+  User,
+  Lock,
+  ArrowRight
 } from 'lucide-react';
 
 function MainContent() {
-  const { activeRole, activeTrackingId, setActiveTrackingId } = useOrder();
+  const { activeRole, currentUser, activeTrackingId, setActiveTrackingId } = useOrder();
   const [customerTab, setCustomerTab] = useState('services'); // 'services' | 'tracker'
   const [selectedServiceForBooking, setSelectedServiceForBooking] = useState(null);
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
   const handleBookingSuccess = (newOrder) => {
     setSelectedServiceForBooking(null);
@@ -37,10 +42,10 @@ function MainContent() {
       {/* Universal Header */}
       <Header />
 
-      {/* Main Body Container: Expanded for Wide Screen Displays (No empty side gaps) */}
-      <main className="flex-1 max-w-[1600px] w-full mx-auto px-4 sm:px-8 lg:px-12 py-6 space-y-6">
+      {/* Main Body Container: Responsive & Widescreen Balanced */}
+      <main className="flex-1 max-w-[1600px] w-full mx-auto px-3.5 sm:px-8 lg:px-12 py-4 sm:py-6 space-y-6">
         
-        {/* VIEW 1: CUSTOMER VIEW (DEFAULT) */}
+        {/* VIEW 1: CUSTOMER VIEW */}
         {activeRole === 'customer' && (
           <div className="space-y-6">
             
@@ -48,7 +53,7 @@ function MainContent() {
             <div className="flex items-center justify-center sm:justify-start gap-2 border-b border-slate-200 dark:border-zinc-800 pb-3">
               <button
                 onClick={() => setCustomerTab('services')}
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-extrabold transition-all shadow-sm ${
+                className={`flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-extrabold transition-all shadow-sm ${
                   customerTab === 'services'
                     ? 'bg-gradient-to-r from-rose-600 to-red-600 text-white shadow-rose-600/20 shadow-md'
                     : 'bg-white dark:bg-zinc-900 text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-zinc-800'
@@ -60,7 +65,7 @@ function MainContent() {
 
               <button
                 onClick={() => setCustomerTab('tracker')}
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-extrabold transition-all relative shadow-sm ${
+                className={`flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-extrabold transition-all relative shadow-sm ${
                   customerTab === 'tracker'
                     ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-zinc-950 shadow-amber-500/20 shadow-md'
                     : 'bg-white dark:bg-zinc-900 text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-zinc-800'
@@ -78,7 +83,37 @@ function MainContent() {
             {customerTab === 'services' ? (
               <ServiceGrid onSelectService={(service) => setSelectedServiceForBooking(service)} />
             ) : (
-              <LiveTracker />
+              /* If customer is not signed in and clicks tracker, offer sign-in prompt or tracking by number */
+              !currentUser ? (
+                <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl p-6 sm:p-10 text-center max-w-xl mx-auto space-y-4 shadow-sm">
+                  <div className="w-16 h-16 rounded-3xl bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 mx-auto flex items-center justify-center">
+                    <User className="w-8 h-8" />
+                  </div>
+                  <h3 className="text-xl font-extrabold text-slate-900 dark:text-white font-heading">
+                    Sign in to View Your Live Orders
+                  </h3>
+                  <p className="text-xs sm:text-sm text-slate-500 dark:text-zinc-400 max-w-md mx-auto">
+                    Sign in with Google or your name to view real-time GPS tracking and live courier updates.
+                  </p>
+                  <div className="pt-2 flex flex-col sm:flex-row gap-2 justify-center">
+                    <button
+                      onClick={() => setShowAuthModal(true)}
+                      className="px-6 py-3 bg-rose-600 hover:bg-rose-500 text-white font-black rounded-2xl text-xs sm:text-sm shadow-md flex items-center justify-center gap-2"
+                    >
+                      <span>Sign In as Customer</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => setCustomerTab('services')}
+                      className="px-6 py-3 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 font-bold rounded-2xl text-xs"
+                    >
+                      Browse Services
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <LiveTracker />
+              )
             )}
 
             {/* Booking Modal Popup */}
@@ -138,6 +173,14 @@ function MainContent() {
 
         </div>
       </footer>
+
+      {/* Global Auth Modal */}
+      {showAuthModal && (
+        <AuthModal
+          defaultTab="customer"
+          onClose={() => setShowAuthModal(false)}
+        />
+      )}
 
     </div>
   );

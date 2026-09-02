@@ -8,7 +8,6 @@ import {
   Bike, 
   ShieldCheck, 
   Clock, 
-  PhoneCall, 
   Send, 
   Database, 
   LayoutDashboard, 
@@ -56,48 +55,26 @@ export default function Header() {
 
   return (
     <>
-      {/* Top Alert Bar */}
-      <div className="bg-gradient-to-r from-rose-900 via-zinc-900 to-amber-900 text-white text-xs border-b border-rose-500/20 px-4 sm:px-8 py-1.5 flex flex-wrap items-center justify-between gap-2 shadow-sm">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 font-medium">
+      {/* Top Alert Bar - Clean responsive layout */}
+      <div className="bg-gradient-to-r from-rose-900 via-zinc-900 to-amber-900 text-white text-[11px] sm:text-xs border-b border-rose-500/20 px-3.5 sm:px-8 py-1.5 flex items-center justify-between gap-2 shadow-sm">
+        <div className="flex items-center gap-2 sm:gap-3 truncate">
+          <div className="flex items-center gap-1.5 font-medium shrink-0">
             <span className="relative flex h-2 w-2">
               <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${isOpen ? 'bg-emerald-400' : 'bg-rose-400'}`}></span>
               <span className={`relative inline-flex rounded-full h-2 w-2 ${isOpen ? 'bg-emerald-500' : 'bg-rose-500'}`}></span>
             </span>
             <span className={isOpen ? 'text-emerald-300 font-bold' : 'text-rose-300 font-bold'}>
-              {isOpen ? 'OPEN NOW' : 'OFFLINE'}
+              {isOpen ? 'OPEN' : 'CLOSED'}
             </span>
-            <span className="text-zinc-300">({BRAND.operatingHours.display})</span>
           </div>
 
-          <div className="hidden sm:flex items-center gap-1 text-zinc-300 border-l border-white/20 pl-3">
-            <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
-            <span>Balamban • Asturias • Toledo • Tuburan</span>
-          </div>
+          <span className="text-zinc-300 truncate">({BRAND.operatingHours.display})</span>
         </div>
 
-        <div className="flex items-center gap-3 ml-auto text-xs">
-          <a
-            href={BRAND.facebookPage}
-            target="_blank"
-            rel="noreferrer"
-            className="flex items-center gap-1 text-zinc-200 hover:text-white transition-colors font-semibold"
-          >
-            <Send className="w-3 h-3 text-blue-300" />
-            <span className="hidden xs:inline">facebook.com/deliveryexpress23</span>
-          </a>
-
-          <div className="flex items-center gap-1.5 text-zinc-300">
-            <span className="text-white/40">•</span>
-            {isSupabaseConfigured ? (
-              <span className="flex items-center gap-1 text-emerald-300 font-medium" title="Supabase Live Multi-Device Sync Active">
-                <Database className="w-3 h-3" /> Live Sync
-              </span>
-            ) : (
-              <span className="flex items-center gap-1 text-amber-300 font-medium">
-                <Sparkles className="w-3 h-3" /> Ready
-              </span>
-            )}
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0 text-xs">
+          <div className="flex items-center gap-1 text-emerald-300 font-medium">
+            <Database className="w-3 h-3" />
+            <span className="hidden xs:inline">Live Cloud Sync</span>
           </div>
         </div>
       </div>
@@ -105,162 +82,142 @@ export default function Header() {
       {/* Admin Radio Broadcast Announcement Banner */}
       {announcement && (
         <div className="bg-amber-500 text-zinc-950 px-4 sm:px-8 py-2 text-xs font-bold flex items-center justify-between gap-3 shadow-md animate-bounce">
-          <div className="flex items-center gap-2">
-            <Radio className="w-4 h-4 animate-spin" />
-            <span>RADIO ANNOUNCEMENT ({announcement.time}): {announcement.msg}</span>
+          <div className="flex items-center gap-2 truncate">
+            <Radio className="w-4 h-4 animate-spin shrink-0" />
+            <span className="truncate">RADIO ({announcement.time}): {announcement.msg}</span>
           </div>
-          <span className="text-[10px] bg-zinc-950 text-amber-400 px-2 py-0.5 rounded-full uppercase">
-            All Staff Alert
+          <span className="text-[10px] bg-zinc-950 text-amber-400 px-2 py-0.5 rounded-full uppercase shrink-0">
+            Staff Alert
           </span>
         </div>
       )}
 
-      {/* Main App Bar - Expanded Widescreen Layout */}
-      <header className="sticky top-0 z-40 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-md border-b border-slate-200 dark:border-zinc-800 px-4 sm:px-8 lg:px-12 py-3 shadow-sm transition-colors">
-        <div className="max-w-[1600px] mx-auto flex items-center justify-between gap-3">
+      {/* Main App Bar - Mobile Optimized & Widescreen Balanced */}
+      <header className="sticky top-0 z-40 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-md border-b border-slate-200 dark:border-zinc-800 px-3.5 sm:px-8 lg:px-12 py-2.5 sm:py-3 shadow-sm transition-colors">
+        <div className="max-w-[1600px] mx-auto flex items-center justify-between gap-2 sm:gap-3">
           
-          {/* Brand Logo & Tagline */}
+          {/* Brand Logo */}
           <div 
             onClick={() => setActiveRole('customer')}
-            className="flex items-center gap-3 cursor-pointer select-none"
+            className="flex items-center gap-2 sm:gap-3 cursor-pointer select-none shrink-0"
           >
-            <div className="relative flex items-center justify-center w-11 h-11 rounded-2xl bg-gradient-to-br from-rose-600 via-red-600 to-amber-500 shadow-md shadow-rose-600/20 p-2 text-white">
-              <Bike className="w-6 h-6 transform -rotate-6" />
-              <div className="absolute -bottom-1 -right-1 bg-amber-400 text-zinc-950 font-black text-[9px] px-1 rounded shadow-sm">
+            <div className="relative flex items-center justify-center w-9 h-9 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-br from-rose-600 via-red-600 to-amber-500 shadow-md shadow-rose-600/20 p-1.5 sm:p-2 text-white">
+              <Bike className="w-5 h-5 sm:w-6 sm:h-6 transform -rotate-6" />
+              <div className="absolute -bottom-1 -right-1 bg-amber-400 text-zinc-950 font-black text-[8px] sm:text-[9px] px-1 rounded shadow-sm">
                 24/7
               </div>
             </div>
             
             <div>
-              <div className="flex items-center gap-1.5">
-                <h1 className="text-lg md:text-xl font-extrabold tracking-tight text-slate-900 dark:text-white uppercase font-heading">
+              <div className="flex items-center gap-1">
+                <h1 className="text-sm sm:text-lg font-extrabold tracking-tight text-slate-900 dark:text-white uppercase font-heading whitespace-nowrap">
                   Delivery <span className="text-rose-600 dark:text-rose-500">Express</span>
                 </h1>
-                <span className="bg-rose-100 dark:bg-rose-500/20 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-500/30 text-[10px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider">
+                <span className="hidden sm:inline bg-rose-100 dark:bg-rose-500/20 text-rose-700 dark:text-rose-300 text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase">
                   West Cebu
                 </span>
               </div>
-              <p className="text-[11px] text-slate-500 dark:text-zinc-400 font-medium line-clamp-1">
+              <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-zinc-400 font-medium hidden sm:block">
                 {BRAND.tagline}
               </p>
             </div>
           </div>
 
           {/* Right Controls */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             
             {/* Audio Toggle */}
             <button
               onClick={toggleSound}
               title={soundActive ? 'Mute sound' : 'Enable sound'}
-              className={`p-2.5 rounded-2xl border transition-all ${
+              className={`p-2 sm:p-2.5 rounded-xl sm:rounded-2xl border transition-all ${
                 soundActive 
                   ? 'bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-500/30 shadow-sm' 
                   : 'bg-slate-100 dark:bg-zinc-900 text-slate-400 border-slate-200 dark:border-zinc-800'
               }`}
             >
-              {soundActive ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+              {soundActive ? <Volume2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <VolumeX className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
             </button>
 
-            {/* Theme Toggle (Light / Dark) */}
+            {/* Theme Toggle */}
             <button
               onClick={toggleTheme}
-              title={`Switch to ${theme === 'light' ? 'Dark' : 'Light'} Mode`}
-              className="p-2.5 rounded-2xl bg-slate-100 dark:bg-zinc-900 hover:bg-slate-200 dark:hover:bg-zinc-800 text-slate-700 dark:text-amber-400 border border-slate-200 dark:border-zinc-800 transition-colors shadow-sm"
+              title={`Switch Mode`}
+              className="p-2 sm:p-2.5 rounded-xl sm:rounded-2xl bg-slate-100 dark:bg-zinc-900 hover:bg-slate-200 dark:hover:bg-zinc-800 text-slate-700 dark:text-amber-400 border border-slate-200 dark:border-zinc-800 transition-colors shadow-sm"
             >
-              {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+              {theme === 'light' ? <Moon className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <Sun className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
             </button>
 
             {/* USER / AUTH STATUS */}
             {currentUser ? (
-              <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-zinc-900 p-1 rounded-2xl border border-slate-200 dark:border-zinc-800">
-                <div className="px-2.5 py-1 text-xs font-extrabold text-slate-900 dark:text-white flex items-center gap-1.5">
+              <div className="flex items-center gap-1 bg-slate-100 dark:bg-zinc-900 p-1 rounded-xl sm:rounded-2xl border border-slate-200 dark:border-zinc-800">
+                <div className="px-2 py-0.5 text-xs font-extrabold text-slate-900 dark:text-white flex items-center gap-1 truncate max-w-[90px] sm:max-w-[130px]">
                   {currentUser.role === 'customer' ? (
-                    <>
-                      <User className="w-3.5 h-3.5 text-rose-500" />
-                      <span className="truncate max-w-[120px]">{currentUser.name}</span>
-                    </>
+                    <span className="truncate">{currentUser.name.split(' ')[0]}</span>
                   ) : currentUser.role === 'rider' ? (
-                    <>
-                      <Bike className="w-3.5 h-3.5 text-amber-500" />
-                      <span className="truncate max-w-[100px]">{currentUser.name}</span>
-                    </>
+                    <span className="truncate">{currentUser.name}</span>
                   ) : (
-                    <>
-                      <ShieldCheck className="w-3.5 h-3.5 text-rose-500" />
-                      <span>Dispatcher</span>
-                    </>
+                    <span>Admin</span>
                   )}
                 </div>
 
-                {/* Change Password Modal Trigger for Riders / Admin */}
                 {currentUser.role !== 'customer' && (
                   <button
                     onClick={() => setShowPasswordModal(true)}
                     title="Change Password"
-                    className="p-1.5 bg-white dark:bg-zinc-800 hover:bg-slate-200 text-slate-700 dark:text-zinc-300 rounded-xl transition-colors shadow-sm"
+                    className="p-1.5 bg-white dark:bg-zinc-800 hover:bg-slate-200 text-slate-700 dark:text-zinc-300 rounded-lg shadow-sm"
                   >
-                    <KeyRound className="w-3.5 h-3.5" />
+                    <KeyRound className="w-3 h-3" />
                   </button>
                 )}
 
                 <button
                   onClick={logout}
                   title="Logout"
-                  className="p-1.5 bg-rose-50 dark:bg-rose-950/50 hover:bg-rose-100 text-rose-600 dark:text-rose-400 rounded-xl transition-colors"
+                  className="p-1.5 bg-rose-50 dark:bg-rose-950/50 hover:bg-rose-100 text-rose-600 dark:text-rose-400 rounded-lg"
                 >
-                  <LogOut className="w-3.5 h-3.5" />
+                  <LogOut className="w-3 h-3" />
                 </button>
               </div>
             ) : (
-              <div className="flex items-center gap-1.5">
-                
-                {/* Customer Sign in with Google / Email */}
+              <div className="flex items-center gap-1 sm:gap-1.5">
                 <button
                   onClick={() => handleOpenLogin('customer')}
-                  className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-white dark:bg-zinc-900 hover:bg-slate-100 text-slate-800 dark:text-zinc-100 text-xs font-bold border border-slate-200 dark:border-zinc-800 transition-all shadow-sm"
+                  className="px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl sm:rounded-2xl bg-white dark:bg-zinc-900 hover:bg-slate-100 text-slate-800 dark:text-zinc-100 text-[11px] sm:text-xs font-bold border border-slate-200 dark:border-zinc-800 transition-all shadow-sm flex items-center gap-1"
                 >
-                  <User className="w-3.5 h-3.5 text-rose-500" />
-                  <span>Customer Login</span>
-                </button>
-
-                <button
-                  onClick={() => handleOpenLogin('rider')}
-                  className="hidden sm:flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-slate-100 dark:bg-zinc-900 hover:bg-amber-50 text-slate-700 dark:text-zinc-200 text-xs font-bold border border-slate-200 dark:border-zinc-800 transition-all shadow-sm"
-                >
-                  <Bike className="w-3.5 h-3.5 text-amber-500" />
-                  <span>Rider Login</span>
+                  <User className="w-3 h-3 text-rose-500" />
+                  <span className="hidden sm:inline">Customer</span> Login
                 </button>
 
                 <button
                   onClick={() => handleOpenLogin('admin')}
-                  className="px-3.5 py-2 rounded-2xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white text-xs font-bold transition-all shadow-md shadow-rose-600/20 flex items-center gap-1.5"
+                  className="px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl sm:rounded-2xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 text-white text-[11px] sm:text-xs font-bold shadow-md flex items-center gap-1 shrink-0"
                 >
-                  <Lock className="w-3.5 h-3.5" />
-                  <span>Staff / Admin</span>
+                  <Lock className="w-3 h-3" />
+                  <span>Admin</span>
                 </button>
               </div>
             )}
 
-            {/* Reset Sample Data */}
+            {/* Reset Roster to Nigel */}
             <button
               onClick={resetSampleData}
-              title="Reset Sample Demo Orders"
-              className="p-2.5 rounded-2xl bg-slate-100 dark:bg-zinc-900 hover:bg-slate-200 dark:hover:bg-zinc-800 text-slate-500 dark:text-zinc-400 border border-slate-200 dark:border-zinc-800 transition-colors"
+              title="Reset Demo Data"
+              className="p-2 sm:p-2.5 rounded-xl sm:rounded-2xl bg-slate-100 dark:bg-zinc-900 text-slate-500 dark:text-zinc-400 border border-slate-200 dark:border-zinc-800"
             >
-              <RotateCcw className="w-4 h-4" />
+              <RotateCcw className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </button>
           </div>
 
         </div>
       </header>
 
-      {/* Mobile Fixed Bottom Navigation Bar */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-lg border-t border-slate-200 dark:border-zinc-800 py-2 px-4 shadow-2xl safe-bottom">
+      {/* Mobile Fixed Bottom Navigation */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-lg border-t border-slate-200 dark:border-zinc-800 py-1.5 px-3 shadow-2xl safe-bottom">
         <div className="grid grid-cols-3 gap-1 text-center">
           <button
             onClick={() => setActiveRole('customer')}
-            className={`py-1.5 px-2 rounded-2xl flex flex-col items-center gap-1 transition-all ${
+            className={`py-1.5 px-1 rounded-xl flex flex-col items-center gap-0.5 transition-all ${
               activeRole === 'customer' 
                 ? 'bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 font-bold' 
                 : 'text-slate-500 dark:text-zinc-400'
@@ -278,7 +235,7 @@ export default function Header() {
                 handleOpenLogin('rider');
               }
             }}
-            className={`py-1.5 px-2 rounded-2xl flex flex-col items-center gap-1 transition-all ${
+            className={`py-1.5 px-1 rounded-xl flex flex-col items-center gap-0.5 transition-all ${
               activeRole === 'rider' 
                 ? 'bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 font-bold' 
                 : 'text-slate-500 dark:text-zinc-400'
@@ -296,33 +253,33 @@ export default function Header() {
                 handleOpenLogin('admin');
               }
             }}
-            className={`py-1.5 px-2 rounded-2xl flex flex-col items-center gap-1 transition-all ${
+            className={`py-1.5 px-1 rounded-xl flex flex-col items-center gap-0.5 transition-all ${
               activeRole === 'admin' 
                 ? 'bg-slate-100 dark:bg-zinc-800 text-rose-600 dark:text-rose-400 font-bold' 
                 : 'text-slate-500 dark:text-zinc-400'
             }`}
           >
             <LayoutDashboard className="w-4 h-4" />
-            <span className="text-[10px]">Admin / Staff</span>
+            <span className="text-[10px]">Admin</span>
           </button>
         </div>
       </nav>
 
-      {/* Floating Global Toast Notification */}
+      {/* Global Notification Toast */}
       {notification && (
-        <div className="fixed top-20 right-4 sm:right-6 z-50 animate-bounce">
-          <div className={`px-4 py-3 rounded-2xl shadow-2xl border backdrop-blur-md flex items-center gap-3 text-xs sm:text-sm font-bold ${
+        <div className="fixed top-16 right-3 sm:right-6 z-50 animate-bounce">
+          <div className={`px-3.5 py-2.5 rounded-2xl shadow-xl border backdrop-blur-md flex items-center gap-2.5 text-xs font-bold ${
             notification.type === 'success' 
               ? 'bg-emerald-50 dark:bg-emerald-950/90 text-emerald-800 dark:text-emerald-200 border-emerald-300 dark:border-emerald-500/40' 
               : 'bg-white dark:bg-zinc-900/90 text-slate-800 dark:text-zinc-100 border-slate-300 dark:border-zinc-700'
           }`}>
-            <BellRing className="w-4 h-4 text-amber-500 animate-pulse" />
+            <BellRing className="w-4 h-4 text-amber-500 animate-pulse shrink-0" />
             <span>{notification.msg}</span>
           </div>
         </div>
       )}
 
-      {/* Login Modal */}
+      {/* Auth Modal */}
       {showAuthModal && (
         <AuthModal
           defaultTab={authTab}
@@ -330,7 +287,7 @@ export default function Header() {
         />
       )}
 
-      {/* Change Password Modal */}
+      {/* Password Change Modal */}
       {showPasswordModal && currentUser && (
         <ChangePasswordModal
           userRole={currentUser.role}

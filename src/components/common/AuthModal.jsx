@@ -16,8 +16,8 @@ import {
 export default function AuthModal({ onClose, defaultTab = 'customer' }) {
   const { riders, loginAsCustomer, loginAsRider, loginAsAdmin, showNotification } = useOrder();
   
-  const [selectedRole, setSelectedRole] = useState(defaultTab); // 'customer' | 'rider' | 'admin'
-  const [selectedRiderId, setSelectedRiderId] = useState(riders[0]?.id || 'rider-1');
+  const [selectedRole, setSelectedRole] = useState(defaultTab);
+  const [selectedRiderId, setSelectedRiderId] = useState(riders[0]?.id || 'rider-nigel-1');
   const [passwordInput, setPasswordInput] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -28,8 +28,6 @@ export default function AuthModal({ onClose, defaultTab = 'customer' }) {
 
   // Handle Google Login for Customer
   const handleGoogleLogin = () => {
-    // In production with Supabase Auth Google provider:
-    // supabase.auth.signInWithOAuth({ provider: 'google' });
     const googleUser = {
       name: 'Google Verified User',
       email: 'customer.balamban@gmail.com',
@@ -41,42 +39,45 @@ export default function AuthModal({ onClose, defaultTab = 'customer' }) {
 
   const handleCustomerDirectLogin = (e) => {
     e.preventDefault();
-    if (!customerName) {
-      setErrorMsg('Please enter your name.');
+    if (!customerName.trim()) {
+      setErrorMsg('Please enter your full name.');
       return;
     }
     loginAsCustomer({
-      name: customerName,
-      email: customerEmail || `${customerName.toLowerCase().replace(/\s+/g, '')}@gmail.com`
+      name: customerName.trim(),
+      email: customerEmail.trim() || `${customerName.toLowerCase().replace(/\s+/g, '')}@gmail.com`
     });
     onClose();
   };
 
   const handleRiderLogin = (e) => {
     e.preventDefault();
-    const rider = riders.find(r => r.id === selectedRiderId);
+    const rider = riders.find(r => r.id === selectedRiderId) || riders[0];
     if (!rider) {
-      setErrorMsg('Please select a rider account.');
+      setErrorMsg('No rider found. Please add a rider first.');
       return;
     }
-    // Rider password check (default: '1234' or saved password)
-    const storedPass = rider.password || '1234';
-    if (!passwordInput || passwordInput === storedPass || passwordInput === '1234') {
+    
+    // Strict password verification (Saved password or default 1234 if not modified)
+    const storedPass = localStorage.getItem(`rider_pass_${rider.id}`) || rider.password || '1234';
+    
+    if (passwordInput === storedPass) {
       loginAsRider(rider.id);
       onClose();
     } else {
-      setErrorMsg('Incorrect courier password.');
+      setErrorMsg('Incorrect password for ' + rider.name + '.');
     }
   };
 
   const handleAdminLogin = (e) => {
     e.preventDefault();
     const storedAdminPass = localStorage.getItem('delivery_express_admin_password') || '1234';
-    if (passwordInput === storedAdminPass || passwordInput === '1234' || passwordInput === 'admin') {
+    
+    if (passwordInput === storedAdminPass) {
       loginAsAdmin();
       onClose();
     } else {
-      setErrorMsg('Incorrect Admin Password.');
+      setErrorMsg('Incorrect Admin Master Password.');
     }
   };
 
@@ -95,14 +96,14 @@ export default function AuthModal({ onClose, defaultTab = 'customer' }) {
 
           <div className="flex items-center gap-2 text-xs font-bold text-amber-400 mb-1">
             <Lock className="w-3.5 h-3.5" />
-            <span>Secure Account Access</span>
+            <span>Secure Portal Sign In</span>
           </div>
 
           <h3 className="text-xl font-black text-white font-heading">
-            Delivery Express Login
+            Delivery Express Access
           </h3>
           <p className="text-xs text-slate-300 mt-0.5">
-            Sync your orders, jobs, and settings across all devices
+            Realtime sync across PC, Mobile, and Courier apps
           </p>
         </div>
 
@@ -156,11 +157,10 @@ export default function AuthModal({ onClose, defaultTab = 'customer' }) {
             </div>
           )}
 
-          {/* TAB 1: CUSTOMER LOGIN (GOOGLE & EMAIL) */}
+          {/* TAB 1: CUSTOMER LOGIN */}
           {selectedRole === 'customer' && (
             <div className="space-y-4">
               
-              {/* Google Sign-in Button */}
               <button
                 type="button"
                 onClick={handleGoogleLogin}
@@ -195,12 +195,12 @@ export default function AuthModal({ onClose, defaultTab = 'customer' }) {
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">Gmail / Email (Optional)</label>
+                  <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">Email / Phone</label>
                   <input
-                    type="email"
+                    type="text"
                     value={customerEmail}
                     onChange={(e) => setCustomerEmail(e.target.value)}
-                    placeholder="e.g. mariaclara@gmail.com"
+                    placeholder="e.g. 0917-123-4567 or email"
                     className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-2xl px-3.5 py-2.5 text-slate-900 dark:text-white focus:outline-none focus:border-rose-500"
                   />
                 </div>
@@ -209,14 +209,14 @@ export default function AuthModal({ onClose, defaultTab = 'customer' }) {
                   type="submit"
                   className="w-full py-3.5 px-4 bg-rose-600 hover:bg-rose-500 text-white font-black rounded-2xl text-xs sm:text-sm shadow-md flex items-center justify-center gap-2 transition-all"
                 >
-                  <span>Sign In as Customer</span>
+                  <span>Sign In & Open Tracker</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </form>
             </div>
           )}
 
-          {/* TAB 2: RIDER LOGIN (PASSWORD MASKED) */}
+          {/* TAB 2: RIDER LOGIN */}
           {selectedRole === 'rider' && (
             <form onSubmit={handleRiderLogin} className="space-y-4 text-xs">
               <div>
@@ -259,7 +259,7 @@ export default function AuthModal({ onClose, defaultTab = 'customer' }) {
                     required
                     value={passwordInput}
                     onChange={(e) => setPasswordInput(e.target.value)}
-                    placeholder="Enter password (default: 1234)"
+                    placeholder="Enter your private password"
                     className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-2xl px-3.5 py-2.5 pr-10 text-slate-900 dark:text-white focus:outline-none focus:border-amber-500"
                   />
                   <button
@@ -295,7 +295,7 @@ export default function AuthModal({ onClose, defaultTab = 'customer' }) {
                     required
                     value={passwordInput}
                     onChange={(e) => setPasswordInput(e.target.value)}
-                    placeholder="Enter password (default: 1234)"
+                    placeholder="Enter master password"
                     className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-2xl px-3.5 py-2.5 pr-10 text-slate-900 dark:text-white focus:outline-none focus:border-rose-500"
                   />
                   <button
@@ -306,9 +306,6 @@ export default function AuthModal({ onClose, defaultTab = 'customer' }) {
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
-                <span className="text-[10px] text-slate-400 mt-1 block">
-                  Encrypted authorization with full dispatcher controls.
-                </span>
               </div>
 
               <button

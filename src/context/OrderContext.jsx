@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { INITIAL_ORDERS, MOCK_RIDERS, SERVICES, BRAND } from '../lib/constants';
+import { SERVICES, BRAND } from '../lib/constants';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { soundService } from '../lib/soundUtils';
 import confetti from 'canvas-confetti';
@@ -33,7 +33,7 @@ export function OrderProvider({ children }) {
     };
   });
 
-  // Current logged in user (Customer, Rider, or Admin)
+  // Current logged in user (null = not logged in)
   const [currentUser, setCurrentUser] = useState(() => {
     const saved = localStorage.getItem('delivery_express_current_user');
     return saved ? JSON.parse(saved) : null;
@@ -41,29 +41,38 @@ export function OrderProvider({ children }) {
 
   const [orders, setOrders] = useState(() => {
     const saved = localStorage.getItem('delivery_express_orders_balamban');
-    return saved ? JSON.parse(saved) : INITIAL_ORDERS;
+    return saved ? JSON.parse(saved) : [];
   });
 
   const [riders, setRiders] = useState(() => {
     const saved = localStorage.getItem('delivery_express_riders_balamban');
-    return saved ? JSON.parse(saved) : MOCK_RIDERS;
+    return saved ? JSON.parse(saved) : [
+      {
+        id: 'rider-nigel-1',
+        name: 'Nigel',
+        phone: '0917-882-1923',
+        plate: 'MIO GEAR - G629MC',
+        zone: 'Balamban Proper / Public Palengke',
+        municipality: 'Balamban',
+        avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+        rating: 5.0,
+        trips: 1,
+        isOnline: true,
+        status: 'active',
+        password: '1234',
+        lat: 10.5015,
+        lng: 123.7150
+      }
+    ];
   });
 
-  const [activeRole, setActiveRole] = useState(() => {
-    const savedUser = localStorage.getItem('delivery_express_current_user');
-    if (savedUser) {
-      const parsed = JSON.parse(savedUser);
-      return parsed.role || 'customer';
-    }
-    return 'customer';
-  });
-
-  const [selectedRiderId, setSelectedRiderId] = useState('rider-1');
-  const [activeTrackingId, setActiveTrackingId] = useState('DE-2026-001');
+  const [activeRole, setActiveRole] = useState('customer');
+  const [selectedRiderId, setSelectedRiderId] = useState('rider-nigel-1');
+  const [activeTrackingId, setActiveTrackingId] = useState('');
   const [notification, setNotification] = useState(null);
   const [announcement, setAnnouncement] = useState(null);
 
-  // Apply theme class to document root
+  // Apply theme class
   useEffect(() => {
     localStorage.setItem('delivery_express_theme', theme);
     if (theme === 'dark') {
@@ -73,7 +82,7 @@ export function OrderProvider({ children }) {
     }
   }, [theme]);
 
-  // Save to localStorage
+  // Persist locally
   useEffect(() => {
     localStorage.setItem('delivery_express_services_rates', JSON.stringify(servicesList));
   }, [servicesList]);
@@ -98,26 +107,26 @@ export function OrderProvider({ children }) {
     localStorage.setItem('delivery_express_riders_balamban', JSON.stringify(riders));
   }, [riders]);
 
-  // ==========================================
-  // SUPABASE REALTIME MULTI-DEVICE SYNC
-  // ==========================================
+  // ========================================================
+  // SUPABASE CLOUD DATABASE REALTIME TWO-WAY SYNCHRONIZATION
+  // ========================================================
   useEffect(() => {
     if (!isSupabaseConfigured || !supabase) return;
 
-    // 1. Initial Fetch of Riders & Orders from Supabase
     const fetchSupabaseData = async () => {
       try {
-        // Fetch Orders
+        // 1. Fetch live orders
         const { data: orderData, error: orderErr } = await supabase
           .from('orders')
           .select('*')
           .order('created_at', { ascending: false });
+
         if (!orderErr && orderData && orderData.length > 0) {
-          const formattedOrders = orderData.map(o => ({
+          const formatted = orderData.map(o => ({
             id: o.id || o.tracking_number,
             trackingNumber: o.tracking_number,
             serviceId: o.service_id,
-            serviceName: o.service_name,
+            serviceName: o.service_id ? (SERVICES.find(s => s.id === o.service_id)?.name || 'Delivery') : 'Food Delivery',
             customerName: o.customer_name,
             customerPhone: o.customer_phone,
             pickupAddress: o.pickup_address,
@@ -128,108 +137,78 @@ export function OrderProvider({ children }) {
             dropoffCoords: [parseFloat(o.dropoff_lat || 10.4720), parseFloat(o.dropoff_lng || 123.7060)],
             distanceKm: parseFloat(o.distance_km || 3.5),
             estimatedFare: parseFloat(o.estimated_fare || 100),
-            itemCost: parseFloat(o.item_cost || 0),
-            paymentMethod: o.payment_method,
-            status: o.status,
-            statusText: o.status_text,
+            itemCost: parseFloat(o.item_estimated_cost || 0),
+            paymentMethod: o.payment_method === 'cash_on_delivery' ? 'Cash on Delivery' : 'GCash',
+            status: o.status || 'pending',
+            statusText: o.status === 'pending' ? 'Waiting for Courier Assignment' : o.status,
             riderId: o.rider_id,
-            riderName: o.rider_name,
-            riderPhone: o.rider_phone,
+            riderName: o.rider_name || null,
+            riderPhone: o.rider_phone || null,
             details: o.details || {},
             messages: o.messages || [],
-            logs: o.logs || [],
+            logs: [
+              { step: 'Booking Confirmed (Balamban)', time: 'Received', done: true },
+              { step: 'Rider Assigned', time: o.rider_name ? 'Assigned' : 'Searching...', done: !!o.rider_id },
+              { step: 'Purchased / Picked Up', time: o.status === 'purchasing' || o.status === 'in_transit' || o.status === 'delivered' ? 'Done' : 'Pending', done: o.status === 'purchasing' || o.status === 'in_transit' || o.status === 'delivered' },
+              { step: 'Out for Delivery', time: o.status === 'in_transit' || o.status === 'delivered' ? 'On the way' : 'Pending', done: o.status === 'in_transit' || o.status === 'delivered' },
+              { step: 'Delivered', time: o.status === 'delivered' ? 'Completed' : 'Pending', done: o.status === 'delivered' }
+            ],
             proofOfDeliveryUrl: o.proof_of_delivery_url,
             deliveryNotes: o.delivery_notes
           }));
-          setOrders(formattedOrders);
+          setOrders(formatted);
+          if (formatted.length > 0 && !activeTrackingId) {
+            setActiveTrackingId(formatted[0].trackingNumber);
+          }
         }
 
-        // Fetch Riders
+        // 2. Fetch live riders
         const { data: riderData, error: riderErr } = await supabase
           .from('riders')
           .select('*')
           .order('created_at', { ascending: true });
+
         if (!riderErr && riderData && riderData.length > 0) {
-          setRiders(riderData);
-        } else if (riders.length > 0) {
-          // Seed Supabase with initial riders if table is empty
-          for (const r of riders) {
-            await supabase.from('riders').upsert({
-              id: r.id,
-              name: r.name,
-              phone: r.phone,
-              plate: r.plate,
-              zone: r.zone,
-              municipality: r.municipality || 'Balamban',
-              avatar: r.avatar,
-              rating: r.rating,
-              trips: r.trips,
-              is_online: r.isOnline !== false,
-              status: r.status || 'active',
-              lat: r.lat,
-              lng: r.lng
-            });
+          const formattedRiders = riderData.map(r => ({
+            id: r.id,
+            name: r.full_name || 'Courier',
+            phone: r.phone || '0917-000-0000',
+            plate: r.motorcycle_plate || 'Motorcycle',
+            zone: r.motorcycle_plate?.includes('(') ? r.motorcycle_plate.split('(')[1].replace(')', '') : 'Balamban Proper',
+            municipality: 'Balamban',
+            avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+            rating: parseFloat(r.rating || 5.0),
+            trips: r.total_completed_trips || 0,
+            isOnline: r.is_online !== false,
+            status: r.is_online ? 'active' : 'offline',
+            password: localStorage.getItem(`rider_pass_${r.id}`) || '1234',
+            lat: parseFloat(r.current_lat || 10.5015),
+            lng: parseFloat(r.current_lng || 123.7150)
+          }));
+          setRiders(formattedRiders);
+          if (formattedRiders.length > 0) {
+            setSelectedRiderId(formattedRiders[0].id);
           }
         }
       } catch (err) {
-        console.warn('Supabase sync warning:', err);
+        console.warn('Supabase initial fetch warning:', err);
       }
     };
 
     fetchSupabaseData();
 
-    // 2. Realtime Subscriptions (Broadcast changes across PC and Mobile in real-time)
+    // Subscribe to real-time changes
     const orderChannel = supabase
-      .channel('orders-realtime-sync')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload) => {
-        if (payload.eventType === 'INSERT') {
-          const newO = payload.new;
-          const formatted = {
-            id: newO.id || newO.tracking_number,
-            trackingNumber: newO.tracking_number,
-            serviceId: newO.service_id,
-            serviceName: newO.service_name,
-            customerName: newO.customer_name,
-            customerPhone: newO.customer_phone,
-            pickupAddress: newO.pickup_address,
-            pickupLandmark: newO.pickup_landmark,
-            pickupCoords: [parseFloat(newO.pickup_lat || 10.5015), parseFloat(newO.pickup_lng || 123.7150)],
-            dropoffAddress: newO.dropoff_address,
-            dropoffLandmark: newO.dropoff_landmark,
-            dropoffCoords: [parseFloat(newO.dropoff_lat || 10.4720), parseFloat(newO.dropoff_lng || 123.7060)],
-            distanceKm: parseFloat(newO.distance_km || 3.5),
-            estimatedFare: parseFloat(newO.estimated_fare || 100),
-            itemCost: parseFloat(newO.item_cost || 0),
-            paymentMethod: newO.payment_method,
-            status: newO.status,
-            statusText: newO.status_text,
-            riderId: newO.rider_id,
-            riderName: newO.rider_name,
-            riderPhone: newO.rider_phone,
-            details: newO.details || {},
-            messages: newO.messages || [],
-            logs: newO.logs || []
-          };
-          setOrders(prev => [formatted, ...prev.filter(x => x.trackingNumber !== formatted.trackingNumber)]);
-          soundService.playOrderChime();
-        } else if (payload.eventType === 'UPDATE') {
-          setOrders(prev => prev.map(o => o.id === payload.new.id || o.trackingNumber === payload.new.tracking_number ? { ...o, ...payload.new } : o));
-        } else if (payload.eventType === 'DELETE') {
-          setOrders(prev => prev.filter(o => o.id !== payload.old.id && o.trackingNumber !== payload.old.tracking_number));
-        }
+      .channel('public:orders')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
+        fetchSupabaseData();
       })
       .subscribe();
 
     const riderChannel = supabase
-      .channel('riders-realtime-sync')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'riders' }, (payload) => {
-        if (payload.eventType === 'INSERT') {
-          setRiders(prev => [...prev.filter(r => r.id !== payload.new.id), payload.new]);
-        } else if (payload.eventType === 'UPDATE') {
-          setRiders(prev => prev.map(r => r.id === payload.new.id ? { ...r, ...payload.new } : r));
-        } else if (payload.eventType === 'DELETE') {
-          setRiders(prev => prev.filter(r => r.id !== payload.old.id));
-        }
+      .channel('public:riders')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'riders' }, () => {
+        fetchSupabaseData();
       })
       .subscribe();
 
@@ -239,18 +218,18 @@ export function OrderProvider({ children }) {
     };
   }, []);
 
-  // Auth Methods
+  // Authentication Handlers
   const loginAsCustomer = (customerData) => {
     const userObj = {
       role: 'customer',
       name: customerData.name || 'Verified Customer',
       email: customerData.email || 'customer@gmail.com',
-      avatar: customerData.avatar
+      avatar: customerData.avatar || null
     };
     setCurrentUser(userObj);
     setActiveRole('customer');
     soundService.playSuccessFanfare();
-    showNotification(`Signed in as Customer (${userObj.name})`, 'success');
+    showNotification(`Signed in as ${userObj.name}`, 'success');
   };
 
   const loginAsRider = (riderId) => {
@@ -260,15 +239,15 @@ export function OrderProvider({ children }) {
     setSelectedRiderId(rider.id);
     setActiveRole('rider');
     soundService.playSuccessFanfare();
-    showNotification(`Logged in as Courier: ${rider.name}`, 'success');
+    showNotification(`Courier Console: ${rider.name}`, 'success');
   };
 
   const loginAsAdmin = () => {
-    const userObj = { role: 'admin', name: 'Dispatcher / Operations Lead' };
+    const userObj = { role: 'admin', name: 'Dispatcher / Admin' };
     setCurrentUser(userObj);
     setActiveRole('admin');
     soundService.playSuccessFanfare();
-    showNotification('Logged in as Dispatcher / Admin', 'success');
+    showNotification('Admin Dispatcher Authorized', 'success');
   };
 
   const logout = () => {
@@ -282,13 +261,9 @@ export function OrderProvider({ children }) {
     localStorage.setItem('delivery_express_admin_password', newPassword);
   };
 
-  const updateRiderPassword = async (riderId, newPassword) => {
+  const updateRiderPassword = (riderId, newPassword) => {
+    localStorage.setItem(`rider_pass_${riderId}`, newPassword);
     setRiders(prev => prev.map(r => r.id === riderId ? { ...r, password: newPassword } : r));
-    if (isSupabaseConfigured && supabase) {
-      try {
-        await supabase.from('riders').update({ password_hash: newPassword }).eq('id', riderId);
-      } catch (_) {}
-    }
   };
 
   const toggleTheme = () => {
@@ -322,7 +297,7 @@ export function OrderProvider({ children }) {
 
   const updatePaymentSettings = (newSettings) => {
     setPaymentSettings(prev => ({ ...prev, ...newSettings }));
-    showNotification('GCash & QR Payment Settings updated!', 'success');
+    showNotification('Payment Settings saved!', 'success');
     soundService.playOrderChime();
   };
 
@@ -338,7 +313,7 @@ export function OrderProvider({ children }) {
       }
       return s;
     }));
-    showNotification(`Rates updated!`, 'success');
+    showNotification('Courier rates updated!', 'success');
     soundService.playOrderChime();
   };
 
@@ -369,7 +344,6 @@ export function OrderProvider({ children }) {
       riderId: null,
       riderName: null,
       riderPhone: null,
-      riderCoords: null,
       details: orderInput.details || {},
       customerNotes: orderInput.customerNotes || '',
       messages: [
@@ -394,10 +368,9 @@ export function OrderProvider({ children }) {
     if (isSupabaseConfigured && supabase) {
       try {
         await supabase.from('orders').insert({
-          id: trackingNumber,
           tracking_number: trackingNumber,
           service_id: service.id,
-          service_name: service.name,
+          service_type: service.id,
           customer_name: newOrder.customerName,
           customer_phone: newOrder.customerPhone,
           pickup_address: newOrder.pickupAddress,
@@ -410,24 +383,21 @@ export function OrderProvider({ children }) {
           dropoff_lng: newOrder.dropoffCoords[1],
           distance_km: newOrder.distanceKm,
           estimated_fare: newOrder.estimatedFare,
-          item_cost: newOrder.itemCost,
-          payment_method: newOrder.paymentMethod,
-          status: 'pending',
-          status_text: 'Waiting for Courier Assignment',
+          item_estimated_cost: newOrder.itemCost,
+          payment_method: newOrder.paymentMethod === 'GCash' ? 'gcash' : 'cash_on_delivery',
           details: newOrder.details,
           customer_notes: newOrder.customerNotes,
-          messages: newOrder.messages,
-          logs: newOrder.logs
+          status: 'pending'
         });
       } catch (err) {
-        console.warn('Supabase insert failed, saving locally:', err);
+        console.warn('Supabase insert warning:', err);
       }
     }
 
     setOrders(prev => [newOrder, ...prev]);
     setActiveTrackingId(trackingNumber);
     soundService.playOrderChime();
-    showNotification(`Booking ${trackingNumber} dispatched in Balamban!`, 'success');
+    showNotification(`Booking ${trackingNumber} placed in Balamban!`, 'success');
     
     try {
       confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
@@ -436,8 +406,8 @@ export function OrderProvider({ children }) {
     return newOrder;
   };
 
-  // In-App Chat Send Message
-  const sendMessage = async (orderId, senderRole, senderName, text) => {
+  // In-App Chat
+  const sendMessage = (orderId, senderRole, senderName, text) => {
     const newMsg = {
       id: `msg-${Date.now()}`,
       senderRole,
@@ -446,24 +416,15 @@ export function OrderProvider({ children }) {
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
 
-    let updatedMessages = [];
-
     setOrders(prev => prev.map(o => {
       if (o.id === orderId || o.trackingNumber === orderId) {
-        updatedMessages = [...(o.messages || []), newMsg];
         return {
           ...o,
-          messages: updatedMessages
+          messages: [...(o.messages || []), newMsg]
         };
       }
       return o;
     }));
-
-    if (isSupabaseConfigured && supabase) {
-      try {
-        await supabase.from('orders').update({ messages: updatedMessages }).eq('tracking_number', orderId);
-      } catch (_) {}
-    }
 
     soundService.playOrderChime();
     soundService.triggerVibrate([80]);
@@ -473,14 +434,6 @@ export function OrderProvider({ children }) {
   const assignRider = async (orderId, riderId) => {
     const rider = riders.find(r => r.id === riderId);
     if (!rider) return;
-
-    const welcomeMsg = {
-      id: `msg-${Date.now()}`,
-      senderRole: 'rider',
-      senderName: rider.name,
-      text: `Maayong adlaw! Ako si ${rider.name}, imong Delivery Express courier. Akong gi-accept imong order.`,
-      time: 'Just now'
-    };
 
     setOrders(prev => prev.map(order => {
       if (order.id === orderId || order.trackingNumber === orderId) {
@@ -497,7 +450,6 @@ export function OrderProvider({ children }) {
           riderCoords: [rider.lat, rider.lng],
           status: 'assigned',
           statusText: `Rider Assigned: ${rider.name}`,
-          messages: [...(order.messages || []), welcomeMsg],
           logs: updatedLogs
         };
       }
@@ -507,11 +459,7 @@ export function OrderProvider({ children }) {
     if (isSupabaseConfigured && supabase) {
       try {
         await supabase.from('orders').update({
-          rider_id: rider.id,
-          rider_name: rider.name,
-          rider_phone: rider.phone,
-          status: 'assigned',
-          status_text: `Rider Assigned: ${rider.name}`
+          status: 'assigned'
         }).eq('tracking_number', orderId);
       } catch (_) {}
     }
@@ -520,57 +468,30 @@ export function OrderProvider({ children }) {
     showNotification(`Courier ${rider.name} assigned!`, 'success');
   };
 
-  // Update Rider Live GPS Location
+  // Update Rider GPS
   const updateRiderLocation = async (riderId, newLat, newLng) => {
     setRiders(prev => prev.map(r => r.id === riderId ? { ...r, lat: newLat, lng: newLng } : r));
-    
-    setOrders(prev => prev.map(o => {
-      if (o.riderId === riderId && o.status !== 'delivered' && o.status !== 'cancelled') {
-        return { ...o, riderCoords: [newLat, newLng] };
-      }
-      return o;
-    }));
 
     if (isSupabaseConfigured && supabase) {
       try {
-        await supabase.from('riders').update({ lat: newLat, lng: newLng }).eq('id', riderId);
+        await supabase.from('riders').update({
+          current_lat: newLat,
+          current_lng: newLng
+        }).eq('id', riderId);
       } catch (_) {}
     }
 
     soundService.triggerVibrate([50]);
   };
 
-  // Update order status workflow
-  const updateOrderStatus = async (orderId, newStatus, customNotes = '') => {
-    let statusText = 'Updated';
-
+  // Update order status
+  const updateOrderStatus = async (orderId, newStatus) => {
     setOrders(prev => prev.map(order => {
       if (order.id === orderId || order.trackingNumber === orderId) {
-        let logs = [...order.logs];
-
-        if (newStatus === 'purchasing') {
-          statusText = 'At Pickup / Purchasing in Balamban';
-          logs[2] = { step: 'Items Purchased / Picked Up', time: 'Just now', done: true };
-          soundService.playOrderChime();
-        } else if (newStatus === 'in_transit') {
-          statusText = 'Courier Out for Delivery in Balamban';
-          logs[3] = { step: 'Out for Delivery', time: 'Just now', done: true };
-          soundService.playOrderChime();
-        } else if (newStatus === 'delivered') {
-          statusText = 'Delivered Successfully in Balamban';
-          logs[4] = { step: 'Delivered & Completed', time: 'Just now', done: true };
-          soundService.playSuccessFanfare();
-          try {
-            confetti({ particleCount: 120, spread: 80, origin: { y: 0.5 } });
-          } catch (_) {}
-        }
-
         return {
           ...order,
           status: newStatus,
-          statusText,
-          deliveryNotes: customNotes || order.deliveryNotes,
-          logs
+          statusText: newStatus
         };
       }
       return order;
@@ -578,29 +499,29 @@ export function OrderProvider({ children }) {
 
     if (isSupabaseConfigured && supabase) {
       try {
-        await supabase.from('orders').update({
-          status: newStatus,
-          status_text: statusText
-        }).eq('tracking_number', orderId);
+        await supabase.from('orders').update({ status: newStatus }).eq('tracking_number', orderId);
       } catch (_) {}
     }
 
-    showNotification(`Order status: ${newStatus}`, 'info');
+    if (newStatus === 'delivered') {
+      soundService.playSuccessFanfare();
+      try { confetti({ particleCount: 120, spread: 80 }); } catch (_) {}
+    } else {
+      soundService.playOrderChime();
+    }
+    showNotification(`Order: ${newStatus}`, 'info');
   };
 
-  // Proof of delivery uploader
+  // Proof of delivery
   const uploadProofOfDelivery = async (orderId, photoUrl, notes) => {
     setOrders(prev => prev.map(order => {
       if (order.id === orderId || order.trackingNumber === orderId) {
-        const logs = [...order.logs];
-        logs[4] = { step: 'Delivered & Proof Captured', time: 'Just now', done: true };
         return {
           ...order,
           status: 'delivered',
           statusText: 'Delivered (Proof Attached)',
           proofOfDeliveryUrl: photoUrl,
-          deliveryNotes: notes,
-          logs
+          deliveryNotes: notes
         };
       }
       return order;
@@ -610,7 +531,6 @@ export function OrderProvider({ children }) {
       try {
         await supabase.from('orders').update({
           status: 'delivered',
-          status_text: 'Delivered (Proof Attached)',
           proof_of_delivery_url: photoUrl,
           delivery_notes: notes
         }).eq('tracking_number', orderId);
@@ -619,56 +539,46 @@ export function OrderProvider({ children }) {
 
     soundService.playSuccessFanfare();
     showNotification('Proof of Delivery submitted!', 'success');
-    try {
-      confetti({ particleCount: 140, spread: 90 });
-    } catch (_) {}
+    try { confetti({ particleCount: 140, spread: 90 }); } catch (_) {}
   };
 
-  // Staff & Rider Management with Supabase Live Multi-Device Sync
+  // Staff Management (Synced with Supabase)
   const addRider = async (newRiderData) => {
     const newRider = {
       id: `rider-${Date.now()}`,
       name: newRiderData.name,
       phone: newRiderData.phone,
       plate: newRiderData.plate,
-      zone: newRiderData.zone || 'Balamban Proper / Public Palengke',
+      zone: newRiderData.zone || 'Balamban Proper',
       municipality: newRiderData.municipality || 'Balamban',
       rating: 5.0,
       trips: 0,
       isOnline: true,
-      isBusy: false,
       status: 'active',
+      password: newRiderData.password || '1234',
       lat: 10.5015,
       lng: 123.7150,
-      avatar: newRiderData.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
-      password: newRiderData.password || '1234'
+      avatar: newRiderData.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'
     };
 
-    setRiders(prev => [newRider, ...prev]);
+    setRiders(prev => [...prev, newRider]);
 
     if (isSupabaseConfigured && supabase) {
       try {
         await supabase.from('riders').insert({
-          id: newRider.id,
-          name: newRider.name,
+          full_name: newRider.name,
           phone: newRider.phone,
-          plate: newRider.plate,
-          zone: newRider.zone,
-          municipality: newRider.municipality,
-          avatar: newRider.avatar,
-          rating: newRider.rating,
-          trips: newRider.trips,
+          motorcycle_plate: `${newRider.plate} (${newRider.zone})`,
           is_online: true,
-          status: 'active',
-          lat: newRider.lat,
-          lng: newRider.lng
+          rating: 5.0,
+          total_completed_trips: 0
         });
       } catch (err) {
         console.warn('Supabase rider insert warning:', err);
       }
     }
 
-    showNotification(`New Courier "${newRider.name}" added & synced!`, 'success');
+    showNotification(`Courier "${newRider.name}" added & synced!`, 'success');
     soundService.playOrderChime();
   };
 
@@ -678,16 +588,14 @@ export function OrderProvider({ children }) {
     if (isSupabaseConfigured && supabase) {
       try {
         await supabase.from('riders').update({
-          name: updatedFields.name,
+          full_name: updatedFields.name,
           phone: updatedFields.phone,
-          plate: updatedFields.plate,
-          zone: updatedFields.zone,
-          avatar: updatedFields.avatar
+          motorcycle_plate: `${updatedFields.plate} (${updatedFields.zone})`
         }).eq('id', riderId);
       } catch (_) {}
     }
 
-    showNotification('Rider profile updated across devices!', 'info');
+    showNotification('Rider updated on all devices!', 'info');
   };
 
   const toggleRiderDuty = async (riderId) => {
@@ -695,7 +603,6 @@ export function OrderProvider({ children }) {
     setRiders(prev => prev.map(r => {
       if (r.id === riderId) {
         nextStatus = r.status === 'active' ? 'break' : r.status === 'break' ? 'offline' : 'active';
-        showNotification(`${r.name} status: ${nextStatus.toUpperCase()}`, 'info');
         return { ...r, status: nextStatus, isOnline: nextStatus === 'active' };
       }
       return r;
@@ -704,7 +611,6 @@ export function OrderProvider({ children }) {
     if (isSupabaseConfigured && supabase) {
       try {
         await supabase.from('riders').update({
-          status: nextStatus,
           is_online: nextStatus === 'active'
         }).eq('id', riderId);
       } catch (_) {}
@@ -722,7 +628,6 @@ export function OrderProvider({ children }) {
           riderId: null,
           riderName: null,
           riderPhone: null,
-          riderCoords: null,
           status: 'pending',
           statusText: 'Waiting for Courier Assignment'
         };
@@ -736,7 +641,7 @@ export function OrderProvider({ children }) {
       } catch (_) {}
     }
 
-    showNotification(`Rider ${rider?.name || ''} removed from all devices`, 'info');
+    showNotification(`Rider ${rider?.name || ''} deleted from all devices`, 'info');
   };
 
   const deleteOrder = async (orderId) => {
@@ -748,21 +653,37 @@ export function OrderProvider({ children }) {
       } catch (_) {}
     }
 
-    showNotification('Order removed from all devices', 'info');
+    showNotification('Order removed', 'info');
   };
 
   const broadcastAdminAnnouncement = (msg) => {
     setAnnouncement({ msg, time: new Date().toLocaleTimeString() });
     soundService.playBroadcastAlert();
-    showNotification(`Radio Broadcast: "${msg}"`, 'success');
+    showNotification(`Radio: "${msg}"`, 'success');
   };
 
   const resetSampleData = () => {
-    setOrders(INITIAL_ORDERS);
-    setRiders(MOCK_RIDERS);
-    setServicesList(SERVICES);
-    setActiveTrackingId('DE-2026-001');
-    showNotification('Sample data & rates refreshed!', 'info');
+    setOrders([]);
+    setRiders([
+      {
+        id: 'rider-nigel-1',
+        name: 'Nigel',
+        phone: '0917-882-1923',
+        plate: 'MIO GEAR - G629MC',
+        zone: 'Balamban Proper / Public Palengke',
+        municipality: 'Balamban',
+        avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+        rating: 5.0,
+        trips: 1,
+        isOnline: true,
+        status: 'active',
+        password: '1234',
+        lat: 10.5015,
+        lng: 123.7150
+      }
+    ]);
+    setActiveTrackingId('');
+    showNotification('Roster reset to Nigel!', 'info');
   };
 
   return (
