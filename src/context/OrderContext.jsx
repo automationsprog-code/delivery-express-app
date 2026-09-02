@@ -136,8 +136,9 @@ export function OrderProvider({ children }) {
 
     const fetchSupabaseData = async () => {
       try {
-        // 1. Fetch Cloud Security Credentials Config (Cross-device synced passwords)
+        // 1. Fetch Cloud Security Credentials & Cloud Avatars (Cross-device synced)
         let cloudRiderPasswords = {};
+        let cloudRiderAvatars = {};
         let cloudAdminPass = 'Pass123';
         try {
           const { data: secConfig } = await supabase
@@ -149,12 +150,13 @@ export function OrderProvider({ children }) {
           if (secConfig && secConfig.description) {
             const parsed = JSON.parse(secConfig.description);
             cloudRiderPasswords = parsed.rider_passwords || {};
+            cloudRiderAvatars = parsed.rider_avatars || {};
             cloudAdminPass = parsed.admin_pass || 'Pass123';
             localStorage.setItem('delivery_express_admin_password', cloudAdminPass);
           }
         } catch (_) {}
 
-        // 2. Fetch live riders first so we can map names and passwords
+        // 2. Fetch live riders with cloud synced avatars and passwords
         const { data: riderData, error: riderErr } = await supabase
           .from('riders')
           .select('*')
@@ -163,7 +165,14 @@ export function OrderProvider({ children }) {
         let currentRiderList = [];
         if (!riderErr && riderData) {
           currentRiderList = (riderData || []).map(r => {
-            const savedAvatar = localStorage.getItem(`rider_avatar_${r.id}`);
+            const cloudAvatar = cloudRiderAvatars[r.id];
+            const localAvatar = localStorage.getItem(`rider_avatar_${r.id}`);
+            const finalAvatar = cloudAvatar || localAvatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80';
+            
+            if (cloudAvatar) {
+              localStorage.setItem(`rider_avatar_${r.id}`, cloudAvatar);
+            }
+
             const cleanPlate = r.motorcycle_plate?.split('(')[0]?.trim() || r.motorcycle_plate || 'Motorcycle';
             const riderPass = cloudRiderPasswords[r.id] || localStorage.getItem(`rider_pass_${r.id}`) || 'Pass123';
             localStorage.setItem(`rider_pass_${r.id}`, riderPass);
@@ -175,7 +184,7 @@ export function OrderProvider({ children }) {
               plate: cleanPlate,
               zone: r.motorcycle_plate?.includes('(') ? r.motorcycle_plate.split('(')[1].replace(')', '') : 'Balamban Proper',
               municipality: 'Balamban',
-              avatar: savedAvatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+              avatar: finalAvatar,
               rating: parseFloat(r.rating || 5.0),
               trips: r.total_completed_trips || 0,
               isOnline: r.is_online !== false,
@@ -375,7 +384,7 @@ export function OrderProvider({ children }) {
     if (isSupabaseConfigured && supabase) {
       try {
         const { data: existing } = await supabase.from('services').select('*').eq('id', 'system_security_config').maybeSingle();
-        let parsed = { admin_pass: newPassword, rider_passwords: {} };
+        let parsed = { admin_pass: newPassword, rider_passwords: {}, rider_avatars: {} };
         if (existing && existing.description) {
           try { parsed = JSON.parse(existing.description); } catch (_) {}
           parsed.admin_pass = newPassword;
@@ -403,7 +412,7 @@ export function OrderProvider({ children }) {
     if (isSupabaseConfigured && supabase) {
       try {
         const { data: existing } = await supabase.from('services').select('*').eq('id', 'system_security_config').maybeSingle();
-        let parsed = { admin_pass: 'Pass123', rider_passwords: {} };
+        let parsed = { admin_pass: 'Pass123', rider_passwords: {}, rider_avatars: {} };
         if (existing && existing.description) {
           try { parsed = JSON.parse(existing.description); } catch (_) {}
         }
@@ -844,7 +853,7 @@ export function OrderProvider({ children }) {
     try { confetti({ particleCount: 140, spread: 90 }); } catch (_) {}
   };
 
-  // Staff Management (Preserves Profile Picture & Syncs)
+  // Staff Management (Preserves Profile Picture & Syncs across all devices)
   const addRider = async (newRiderData) => {
     const newId = `rider-${Date.now()}`;
     const avatarToSave = newRiderData.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80';
@@ -880,6 +889,26 @@ export function OrderProvider({ children }) {
           rating: 5.0,
           total_completed_trips: 0
         });
+
+        // Sync avatar to cloud
+        const { data: existing } = await supabase.from('services').select('*').eq('id', 'system_security_config').maybeSingle();
+        let parsed = { admin_pass: 'Pass123', rider_passwords: {}, rider_avatars: {} };
+        if (existing && existing.description) {
+          try { parsed = JSON.parse(existing.description); } catch (_) {}
+        }
+        if (!parsed.rider_avatars) parsed.rider_avatars = {};
+        parsed.rider_avatars[newId] = avatarToSave;
+
+        await supabase.from('services').upsert({
+          id: 'system_security_config',
+          name: 'Security Configuration',
+          icon: 'Lock',
+          description: JSON.stringify(parsed),
+          base_fare: 0,
+          per_km_rate: 0,
+          errand_fee: 0,
+          is_active: false
+        });
       } catch (err) {
         console.warn('Supabase rider insert warning:', err);
       }
@@ -903,10 +932,34 @@ export function OrderProvider({ children }) {
           phone: updatedFields.phone,
           motorcycle_plate: `${updatedFields.plate} (${updatedFields.zone})`
         }).eq('id', riderId);
-      } catch (_) {}
+
+        // Sync avatar to cloud so mobile phone sees it instantly
+        if (updatedFields.avatar) {
+          const { data: existing } = await supabase.from('services').select('*').eq('id', 'system_security_config').maybeSingle();
+          let parsed = { admin_pass: 'Pass123', rider_passwords: {}, rider_avatars: {} };
+          if (existing && existing.description) {
+            try { parsed = JSON.parse(existing.description); } catch (_) {}
+          }
+          if (!parsed.rider_avatars) parsed.rider_avatars = {};
+          parsed.rider_avatars[riderId] = updatedFields.avatar;
+
+          await supabase.from('services').upsert({
+            id: 'system_security_config',
+            name: 'Security Configuration',
+            icon: 'Lock',
+            description: JSON.stringify(parsed),
+            base_fare: 0,
+            per_km_rate: 0,
+            errand_fee: 0,
+            is_active: false
+          });
+        }
+      } catch (err) {
+        console.warn('Supabase update rider warning:', err);
+      }
     }
 
-    showNotification('Rider profile & photo updated!', 'success');
+    showNotification('Rider profile & photo updated across all devices!', 'success');
   };
 
   const deleteRider = async (riderId) => {
