@@ -58,23 +58,27 @@ function MainContent() {
     if (currentUser?.role === 'admin' || currentUser?.role === 'rider') return true;
     if (!currentUser) return false;
 
+    const custEmail = currentUser.email ? String(currentUser.email).trim().toLowerCase() : '';
+    const orderEmail = (o.details?.customer_email || o.customerEmail || '')?.trim().toLowerCase();
+    if (custEmail && orderEmail && custEmail !== orderEmail) return false;
+
+    const custName = currentUser.name ? String(currentUser.name).trim().toLowerCase() : '';
+    const orderName = o.customerName ? String(o.customerName).trim().toLowerCase() : '';
+    if (custName && orderName && custName !== orderName && !custName.includes(orderName) && !orderName.includes(custName)) return false;
+
     const custPhone = currentUser.phone ? String(currentUser.phone).replace(/\D/g, '') : '';
     const orderPhone = o.customerPhone ? String(o.customerPhone).replace(/\D/g, '') : '';
     const phoneMatch = custPhone.length >= 7 && orderPhone.length >= 7 && custPhone.slice(-10) === orderPhone.slice(-10);
 
-    const custEmail = currentUser.email ? String(currentUser.email).trim().toLowerCase() : '';
-    const orderEmail = (o.details?.customer_email || o.customerEmail || '')?.trim().toLowerCase();
     const emailMatch = Boolean(custEmail && orderEmail && custEmail === orderEmail);
 
     const custId = currentUser.id ? String(currentUser.id) : '';
     const orderCustId = (o.details?.customer_id || o.customerId || '')?.trim();
     const idMatch = Boolean(custId && orderCustId && custId === orderCustId);
 
-    const custName = currentUser.name ? String(currentUser.name).trim().toLowerCase() : '';
-    const orderName = o.customerName ? String(o.customerName).trim().toLowerCase() : '';
     const nameMatch = Boolean(custName && orderName && custName.length >= 3 && custName === orderName);
 
-    return phoneMatch || emailMatch || idMatch || nameMatch;
+    return idMatch || emailMatch || (phoneMatch && (!orderEmail || orderEmail === custEmail)) || nameMatch;
   }).length;
 
   return (
