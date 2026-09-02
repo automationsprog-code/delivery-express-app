@@ -39,7 +39,8 @@ export default function ServiceGrid({ onSelectService }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
 
-  const activeRidersCount = riders.filter(r => (r.status === 'active' || r.isOnline)).length;
+  // Exact real-time on-duty active rider count
+  const activeRidersCount = riders.filter(r => (r.status === 'active' && r.isOnline !== false)).length;
   const isOpen = isWithinOperatingHours();
 
   const filteredServices = (servicesList || []).filter(service => {
@@ -51,7 +52,7 @@ export default function ServiceGrid({ onSelectService }) {
   return (
     <div className="space-y-6 pb-20 md:pb-8">
       
-      {/* Dynamic Wide Hero Banner with Live Courier Stats */}
+      {/* Dynamic Wide Hero Banner with Real-Time Courier Stats */}
       <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-rose-600 via-red-600 to-amber-500 text-white shadow-xl p-6 sm:p-8 lg:p-10 border border-rose-400/20">
         
         {/* Background glow graphics */}
@@ -92,20 +93,33 @@ export default function ServiceGrid({ onSelectService }) {
 
           </div>
 
-          {/* Quick Stats Box on Widescreen */}
+          {/* Quick Stats Box on Widescreen: Real-Time Live Couriers */}
           <div className="lg:col-span-4 bg-white/10 backdrop-blur-md border border-white/20 rounded-3xl p-5 text-center space-y-3 shadow-lg">
             <span className="text-[10px] uppercase font-bold tracking-wider text-rose-200 block">
               Active Couriers in West Cebu
             </span>
+
             <div className="flex items-center justify-center gap-2">
               <span className="relative flex h-3 w-3">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                {activeRidersCount > 0 ? (
+                  <>
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                  </>
+                ) : (
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-slate-400"></span>
+                )}
               </span>
-              <span className="text-3xl font-black text-white">{activeRidersCount || 3} Couriers</span>
+
+              <span className="text-3xl font-black text-white">
+                {activeRidersCount} {activeRidersCount === 1 ? 'Courier' : 'Couriers'}
+              </span>
             </div>
+
             <p className="text-xs text-rose-100 font-medium">
-              Ready for pickup in Balamban proper, Gaisano, Buanoy, and adjacent towns.
+              {activeRidersCount > 0
+                ? `Ready for pickup in Balamban proper, Gaisano, Buanoy, and adjacent towns.`
+                : `All couriers are currently off-duty or on break. You can still place a pre-booking.`}
             </p>
           </div>
 
@@ -136,7 +150,7 @@ export default function ServiceGrid({ onSelectService }) {
         </div>
       </div>
 
-      {/* Responsive Grid: Expands to 4-5 Columns on Widescreens to eliminate empty gaps */}
+      {/* Responsive Grid: Expands to 4-5 Columns on Widescreens */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 sm:gap-5">
         {filteredServices.map((service) => {
           const IconComponent = iconMap[service.icon] || Package;
