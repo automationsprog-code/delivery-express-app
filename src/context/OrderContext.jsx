@@ -56,27 +56,24 @@ export function OrderProvider({ children }) {
     return saved ? JSON.parse(saved) : [];
   });
 
-  const [riders, setRiders] = useState(() => {
-    const saved = localStorage.getItem('delivery_express_riders_balamban');
-    return saved ? JSON.parse(saved) : [
-      {
-        id: 'b2c77a52-42ae-4f07-a8fa-540722d74fae',
-        name: 'Nigel',
-        phone: '09458819427',
-        plate: 'MIO GEAR - G629MC',
-        zone: 'Balamban Proper / Public Palengke',
-        municipality: 'Balamban',
-        avatar: localStorage.getItem('rider_avatar_b2c77a52-42ae-4f07-a8fa-540722d74fae') || '/rider-nigel.jpg',
-        rating: 5.0,
-        trips: 1,
-        isOnline: true,
-        status: 'active',
-        password: localStorage.getItem('rider_pass_b2c77a52-42ae-4f07-a8fa-540722d74fae') || 'Pass123',
-        lat: 10.5015,
-        lng: 123.7150
-      }
-    ];
-  });
+  const [riders, setRiders] = useState([
+    {
+      id: 'b2c77a52-42ae-4f07-a8fa-540722d74fae',
+      name: 'Nigel',
+      phone: '09458819427',
+      plate: 'MIO GEAR - G629MC',
+      zone: 'Balamban Proper',
+      municipality: 'Balamban',
+      avatar: '/rider-nigel.jpg',
+      rating: 5.0,
+      trips: 1,
+      isOnline: true,
+      status: 'active',
+      password: 'Pass123',
+      lat: 10.5015,
+      lng: 123.7150
+    }
+  ]);
 
   const [selectedRiderId, setSelectedRiderId] = useState(() => {
     const savedUser = localStorage.getItem('delivery_express_current_user');
@@ -166,20 +163,17 @@ export function OrderProvider({ children }) {
         if (!riderErr && riderData) {
           currentRiderList = (riderData || []).map(r => {
             const cloudAvatar = cloudRiderAvatars[r.id];
-            const localAvatar = localStorage.getItem(`rider_avatar_${r.id}`);
             
-            // Prioritize cloud avatar or /rider-nigel.jpg over stale local screenshot
+            // Strictly prioritize cloud avatar or permanent /rider-nigel.jpg
             let finalAvatar = '/rider-nigel.jpg';
             if (cloudAvatar && cloudAvatar.length > 5 && !cloudAvatar.includes('unsplash')) {
               finalAvatar = cloudAvatar;
-            } else if (localAvatar && localAvatar.startsWith('data:image/jpeg') && localAvatar.length > 500) {
-              finalAvatar = localAvatar;
+            } else if (r.id === 'b2c77a52-42ae-4f07-a8fa-540722d74fae') {
+              finalAvatar = '/rider-nigel.jpg';
             }
-            
-            localStorage.setItem(`rider_avatar_${r.id}`, finalAvatar);
 
             const cleanPlate = r.motorcycle_plate?.split('(')[0]?.trim() || r.motorcycle_plate || 'Motorcycle';
-            const riderPass = cloudRiderPasswords[r.id] || localStorage.getItem(`rider_pass_${r.id}`) || 'Pass123';
+            const riderPass = cloudRiderPasswords[r.id] || 'Pass123';
             localStorage.setItem(`rider_pass_${r.id}`, riderPass);
 
             return {
