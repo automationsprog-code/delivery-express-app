@@ -129,18 +129,14 @@ export default function AuthModal({ onClose, defaultTab = 'customer' }) {
   const handleCustomerSignIn = (e) => {
     e.preventDefault();
     if (!loginIdentifier.trim() || !loginPassword.trim()) {
-      setErrorMsg('Please enter your email/phone and password.');
+      setErrorMsg('Please enter your registered email/phone and password.');
       return;
     }
     const success = loginCustomerWithPassword(loginIdentifier.trim(), loginPassword.trim());
     if (success) {
       onClose();
     } else {
-      loginAsCustomer({
-        name: loginIdentifier.trim(),
-        email: loginIdentifier.includes('@') ? loginIdentifier.trim() : 'customer@gmail.com'
-      });
-      onClose();
+      setErrorMsg('Incorrect email/phone or password. Please verify your credentials or Sign Up for a new account.');
     }
   };
 

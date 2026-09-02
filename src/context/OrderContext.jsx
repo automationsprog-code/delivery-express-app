@@ -286,6 +286,24 @@ export function OrderProvider({ children }) {
           }
         }
 
+        // Fetch cloud registered customers for seamless cross-device login
+        try {
+          const { data: custRow } = await supabase.from('services').select('*').eq('id', 'registered_customers_data').maybeSingle();
+          if (custRow && custRow.description) {
+            const parsedCusts = JSON.parse(custRow.description);
+            if (Array.isArray(parsedCusts) && parsedCusts.length > 0) {
+              const localCusts = JSON.parse(localStorage.getItem('delivery_express_registered_customers') || '[]');
+              const combined = [...localCusts];
+              parsedCusts.forEach(c => {
+                if (!combined.some(x => x.email === c.email || (x.phone && c.phone && x.phone.slice(-10) === c.phone.slice(-10)))) {
+                  combined.push(c);
+                }
+              });
+              localStorage.setItem('delivery_express_registered_customers', JSON.stringify(combined));
+            }
+          }
+        } catch (_) {}
+
         // 2. Fetch live riders with cloud synced avatars and passwords
         const { data: riderData, error: riderErr } = await supabase
           .from('riders')
@@ -439,22 +457,54 @@ export function OrderProvider({ children }) {
     };
   }, []);
 
-  // Customer Account Register & Login (With Anti-Scam Avatar Verification)
-  const registerCustomer = (customerData) => {
+  // Customer Account Register & Login (With Anti-Scam Avatar Verification & Cross-device Sync)
+  const registerCustomer = async (customerData) => {
     const userObj = {
       role: 'customer',
-      name: customerData.name,
-      firstName: customerData.firstName || customerData.name.split(' ')[0],
-      lastName: customerData.lastName || customerData.name.split(' ').slice(1).join(' '),
-      email: customerData.email,
-      phone: customerData.phone,
+      name: customerData.name?.trim() || `${customerData.firstName || ''} ${customerData.lastName || ''}`.trim(),
+      firstName: customerData.firstName?.trim() || customerData.name?.split(' ')[0] || '',
+      lastName: customerData.lastName?.trim() || customerData.name?.split(' ').slice(1).join(' ') || '',
+      email: (customerData.email || '').trim().toLowerCase(),
+      phone: (customerData.phone || '').replace(/\D/g, ''),
       avatar: customerData.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-      password: customerData.password
+      password: customerData.password?.trim()
     };
-    const existing = JSON.parse(localStorage.getItem('delivery_express_registered_customers') || '[]');
+
+    let existing = [];
+    try {
+      const saved = localStorage.getItem('delivery_express_registered_customers');
+      existing = saved ? JSON.parse(saved) : [];
+      if (!Array.isArray(existing)) existing = [];
+    } catch (_) {
+      existing = [];
+    }
+
+    // Filter out previous entry with same email or phone
+    existing = existing.filter(c => 
+      !(c.email && userObj.email && c.email === userObj.email) &&
+      !(c.phone && userObj.phone && c.phone.slice(-10) === userObj.phone.slice(-10))
+    );
     existing.push(userObj);
     localStorage.setItem('delivery_express_registered_customers', JSON.stringify(existing));
     
+    // Cloud sync registered customers to Supabase
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('services').upsert({
+          id: 'registered_customers_data',
+          name: 'Registered Customers Data',
+          icon: 'Users',
+          description: JSON.stringify(existing),
+          base_fare: 0,
+          per_km_rate: 0,
+          errand_fee: 0,
+          is_active: false
+        });
+      } catch (err) {
+        console.warn('Customer cloud register warning:', err);
+      }
+    }
+
     setCurrentUser(userObj);
     setActiveRole('customer');
     soundService.playSuccessFanfare();
@@ -462,8 +512,25 @@ export function OrderProvider({ children }) {
   };
 
   const loginCustomerWithPassword = (emailOrPhone, password) => {
-    const existing = JSON.parse(localStorage.getItem('delivery_express_registered_customers') || '[]');
-    const found = existing.find(c => (c.email === emailOrPhone || c.phone === emailOrPhone) && c.password === password);
+    let existing = [];
+    try {
+      const saved = localStorage.getItem('delivery_express_registered_customers');
+      existing = saved ? JSON.parse(saved) : [];
+      if (!Array.isArray(existing)) existing = [];
+    } catch (_) {
+      existing = [];
+    }
+
+    const cleanInput = (emailOrPhone || '').trim().toLowerCase();
+    const cleanDigits = cleanInput.replace(/\D/g, '');
+
+    const found = existing.find(c => {
+      const cEmail = (c.email || '').trim().toLowerCase();
+      const cPhone = (c.phone || '').replace(/\D/g, '');
+      const emailMatches = cEmail && cEmail === cleanInput;
+      const phoneMatches = cleanDigits && cPhone && (cPhone === cleanDigits || cPhone.slice(-10) === cleanDigits.slice(-10));
+      return (emailMatches || phoneMatches) && c.password === password.trim();
+    });
     
     if (found) {
       setCurrentUser(found);
