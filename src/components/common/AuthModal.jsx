@@ -105,7 +105,7 @@ export default function AuthModal({ onClose, defaultTab = 'customer' }) {
       lastName: formattedName.split(' ').slice(1).join(' ') || '',
       email: googleEmail.trim().toLowerCase(),
       phone: '',
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+      avatar: null,
       password: 'GoogleUser123'
     });
     onClose();
@@ -125,7 +125,7 @@ export default function AuthModal({ onClose, defaultTab = 'customer' }) {
       lastName: lastName.trim(),
       phone: phone.trim(),
       email: email.trim() || `${firstName.toLowerCase().trim()}${lastName.toLowerCase().trim()}@gmail.com`,
-      avatar: customerAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+      avatar: customerAvatar || null,
       password: customerPassword.trim()
     });
     onClose();
@@ -370,20 +370,27 @@ export default function AuthModal({ onClose, defaultTab = 'customer' }) {
                     <div className="flex items-center justify-between">
                       <label className="font-black text-slate-800 dark:text-zinc-200 text-xs flex items-center gap-1.5">
                         <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                        <span>Profile Picture (Anti-Scam Verification) *</span>
+                        <span>Profile Picture (Optional Face Upload)</span>
                       </label>
-                      <span className="text-[9px] font-extrabold uppercase bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-300 dark:border-emerald-800">
-                        Required
+                      <span className="text-[9px] font-bold text-slate-400 bg-slate-100 dark:bg-zinc-800 px-2 py-0.5 rounded-full">
+                        {customerAvatar ? 'Photo Selected 🟢' : 'Optional'}
                       </span>
                     </div>
 
                     <div className="flex items-center gap-3.5">
                       <div className="relative shrink-0">
-                        <img
-                          src={customerAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'}
-                          alt="Customer Avatar"
-                          className="w-14 h-14 rounded-2xl object-cover border-2 border-rose-500 shadow-md bg-white dark:bg-zinc-800"
-                        />
+                        {customerAvatar ? (
+                          <img
+                            src={customerAvatar}
+                            alt="Customer Avatar"
+                            className="w-14 h-14 rounded-2xl object-cover border-2 border-emerald-500 shadow-md bg-white dark:bg-zinc-800"
+                          />
+                        ) : (
+                          <div className="w-14 h-14 rounded-2xl border-2 border-dashed border-rose-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 flex flex-col items-center justify-center text-slate-400 dark:text-zinc-500 shadow-sm">
+                            <User className="w-6 h-6 text-slate-400" />
+                            <span className="text-[8px] font-bold mt-0.5">No Photo</span>
+                          </div>
+                        )}
                         {customerAvatar && (
                           <span className="absolute -top-1 -right-1 bg-emerald-500 text-white rounded-full p-0.5 shadow-sm">
                             <CheckCircle2 className="w-3 h-3" />
@@ -404,7 +411,7 @@ export default function AuthModal({ onClose, defaultTab = 'customer' }) {
                           />
                         </label>
                         <p className="text-[10px] text-slate-500 dark:text-zinc-400 leading-tight">
-                          Real face photo prevents scamming and helps rider verify customer upon delivery.
+                          Optional face photo to help rider verify delivery address.
                         </p>
                       </div>
                     </div>

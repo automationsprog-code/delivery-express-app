@@ -300,12 +300,20 @@ export function OrderProvider({ children }) {
               const localCusts = JSON.parse(localStorage.getItem('delivery_express_registered_customers') || '[]');
               const combined = [...localCusts];
               parsed.registered_customers.forEach(c => {
-                if (!combined.some(x => (x.email && c.email && x.email.toLowerCase() === c.email.toLowerCase()) || (x.phone && c.phone && x.phone.slice(-10) === c.phone.slice(-10)))) {
-                  combined.push(c);
+                const cleanC = {
+                  ...c,
+                  avatar: c.avatar && !c.avatar.includes('unsplash') ? c.avatar : null
+                };
+                if (!combined.some(x => (x.email && cleanC.email && x.email.toLowerCase() === cleanC.email.toLowerCase()) || (x.phone && cleanC.phone && x.phone.slice(-10) === cleanC.phone.slice(-10)))) {
+                  combined.push(cleanC);
                 }
               });
-              setRegisteredCustomers(combined);
-              try { localStorage.setItem('delivery_express_registered_customers', JSON.stringify(combined)); } catch (_) {}
+              const sanitized = combined.map(c => ({
+                ...c,
+                avatar: c.avatar && !c.avatar.includes('unsplash') ? c.avatar : null
+              }));
+              setRegisteredCustomers(sanitized);
+              try { localStorage.setItem('delivery_express_registered_customers', JSON.stringify(sanitized)); } catch (_) {}
             }
             localStorage.setItem('delivery_express_admin_password', cloudAdminPass);
           }
@@ -555,7 +563,7 @@ export function OrderProvider({ children }) {
       email: (customerData.email || '').trim().toLowerCase(),
       phone: (customerData.phone || '').replace(/\D/g, ''),
       municipality: customerData.municipality || 'Balamban',
-      avatar: customerData.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+      avatar: customerData.avatar && !customerData.avatar.includes('unsplash') ? customerData.avatar : null,
       password: customerData.password?.trim() || 'Pass123',
       createdAt: new Date().toISOString()
     };

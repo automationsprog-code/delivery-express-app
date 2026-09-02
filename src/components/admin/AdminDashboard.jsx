@@ -702,11 +702,17 @@ export default function AdminDashboard() {
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex items-center gap-3 min-w-0">
-                          <img
-                            src={cust.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'}
-                            alt={cust.name}
-                            className="w-12 h-12 rounded-2xl object-cover border border-slate-200 dark:border-zinc-700 shadow-sm shrink-0"
-                          />
+                          {cust.avatar && !cust.avatar.includes('unsplash') ? (
+                            <img
+                              src={cust.avatar}
+                              alt={cust.name}
+                              className="w-12 h-12 rounded-2xl object-cover border border-slate-200 dark:border-zinc-700 shadow-sm shrink-0"
+                            />
+                          ) : (
+                            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-rose-500 via-amber-500 to-rose-600 text-white flex items-center justify-center font-black text-sm shadow-md shrink-0 uppercase tracking-tight">
+                              {(cust.name || 'C').split(' ').map(n => n[0]).slice(0, 2).join('')}
+                            </div>
+                          )}
                           <div className="min-w-0">
                             <h5 className="font-extrabold text-sm text-slate-900 dark:text-white truncate">
                               {cust.name}
