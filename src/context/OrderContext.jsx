@@ -338,72 +338,69 @@ export function OrderProvider({ children }) {
         } catch (_) {}
 
         // 2. Fetch live riders with cloud synced avatars and passwords
-        try {
-          const { data: secConfig } = await supabase.from('services').select('*').eq('id', 'system_security_config').maybeSingle();
-          if (secConfig && secConfig.description) {
-            const parsed = JSON.parse(secConfig.description);
-            cloudRiderPasswords = { ...cloudRiderPasswords, ...(parsed.rider_passwords || {}) };
-            cloudRiderAvatars = { ...cloudRiderAvatars, ...(parsed.rider_avatars || {}) };
-            if (Array.isArray(parsed.custom_riders) && parsed.custom_riders.length > 0) {
-              cloudCustomRiders = [...cloudCustomRiders, ...parsed.custom_riders];
-            }
-          }
-        } catch (_) {}
-
         const { data: riderData, error: riderErr } = await supabase
           .from('riders')
           .select('*')
           .order('created_at', { ascending: true });
 
         let currentRiderList = [];
-        if (!riderErr && riderData && riderData.length > 0) {
-          currentRiderList = riderData.map(r => {
-            const cloudAvatar = cloudRiderAvatars[r.id] || cloudRiderAvatars[r.phone] || cloudRiderAvatars[r.full_name] || localStorage.getItem(`rider_avatar_${r.id}`);
-            
-            // Strictly prioritize cloud avatar or permanent /rider-nigel.jpg
-            let finalAvatar = '/rider-nigel.jpg';
-            if (cloudAvatar && cloudAvatar.length > 5 && !cloudAvatar.includes('unsplash')) {
-              finalAvatar = cloudAvatar;
-            } else if (r.id === 'b2c77a52-42ae-4f07-a8fa-540722d74fae') {
-              finalAvatar = '/rider-nigel.jpg';
+        
+        // Priority 1: Cloud Roster from SYS-CONFIG-RATES (Permanent & RLS-immune)
+        if (Array.isArray(cloudCustomRiders) && cloudCustomRiders.length > 0) {
+          cloudCustomRiders.forEach(cr => {
+            if (cr && cr.name && !currentRiderList.some(r => r.id === cr.id || (r.phone && cr.phone && r.phone === cr.phone))) {
+              const pass = cloudRiderPasswords[cr.id] || cloudRiderPasswords[cr.phone] || cr.password || 'Pass123';
+              const avatar = cloudRiderAvatars[cr.id] || cloudRiderAvatars[cr.phone] || cr.avatar || null;
+              currentRiderList.push({
+                ...cr,
+                avatar: avatar && !avatar.includes('unsplash') ? avatar : (cr.name && cr.name.toLowerCase().includes('nigel') ? '/rider-nigel.jpg' : null),
+                password: pass
+              });
             }
-
-            const cleanPlate = r.motorcycle_plate?.split('(')[0]?.trim() || r.motorcycle_plate || 'Motorcycle';
-            const riderPass = cloudRiderPasswords[r.id] || cloudRiderPasswords[r.phone] || cloudRiderPasswords[r.full_name] || localStorage.getItem(`rider_pass_${r.id}`) || 'Pass123';
-            localStorage.setItem(`rider_pass_${r.id}`, riderPass);
-
-            return {
-              id: r.id,
-              name: r.full_name || 'Courier',
-              phone: r.phone || '09458819427',
-              plate: cleanPlate,
-              zone: r.motorcycle_plate?.includes('(') ? r.motorcycle_plate.split('(')[1].replace(')', '') : 'Balamban Proper',
-              municipality: 'Balamban',
-              avatar: finalAvatar,
-              rating: parseFloat(r.rating || 5.0),
-              trips: r.total_completed_trips || 0,
-              isOnline: r.is_online !== false,
-              status: r.is_online ? 'active' : 'offline',
-              password: riderPass,
-              lat: parseFloat(r.current_lat || 10.5015),
-              lng: parseFloat(r.current_lng || 123.7150)
-            };
           });
         }
 
-        // Merge any custom riders from cloud backup or localStorage that might not be in supabase riders table
+        // Priority 2: Supabase Riders Table
+        if (!riderErr && riderData && riderData.length > 0) {
+          riderData.forEach(r => {
+            if (!currentRiderList.some(cr => cr.id === r.id || (cr.phone && r.phone && cr.phone === r.phone))) {
+              const cloudAvatar = cloudRiderAvatars[r.id] || cloudRiderAvatars[r.phone] || cloudRiderAvatars[r.full_name] || localStorage.getItem(`rider_avatar_${r.id}`);
+              let finalAvatar = (r.full_name && r.full_name.toLowerCase().includes('nigel')) ? '/rider-nigel.jpg' : null;
+              if (cloudAvatar && cloudAvatar.length > 5 && !cloudAvatar.includes('unsplash')) {
+                finalAvatar = cloudAvatar;
+              }
+              const cleanPlate = r.motorcycle_plate?.split('(')[0]?.trim() || r.motorcycle_plate || 'Motorcycle';
+              const riderPass = cloudRiderPasswords[r.id] || cloudRiderPasswords[r.phone] || cloudRiderPasswords[r.full_name] || localStorage.getItem(`rider_pass_${r.id}`) || 'Pass123';
+
+              currentRiderList.push({
+                id: r.id,
+                name: r.full_name || 'Courier',
+                phone: r.phone || '09458819427',
+                plate: cleanPlate,
+                zone: r.motorcycle_plate?.includes('(') ? r.motorcycle_plate.split('(')[1].replace(')', '') : 'Balamban Proper',
+                municipality: 'Balamban',
+                avatar: finalAvatar,
+                rating: parseFloat(r.rating || 5.0),
+                trips: r.total_completed_trips || 0,
+                isOnline: r.is_online !== false,
+                status: r.is_online ? 'active' : 'offline',
+                password: riderPass,
+                lat: parseFloat(r.current_lat || 10.5015),
+                lng: parseFloat(r.current_lng || 123.7150)
+              });
+            }
+          });
+        }
+
+        // Priority 3: LocalStorage backup merge
         const localSavedRiders = JSON.parse(localStorage.getItem('delivery_express_riders_balamban') || '[]');
-        const extraRiders = [...cloudCustomRiders, ...(Array.isArray(localSavedRiders) ? localSavedRiders : [])];
-        
-        extraRiders.forEach(er => {
-          if (er && er.name && !currentRiderList.some(r => r.id === er.id || (r.phone && er.phone && r.phone === er.phone))) {
-            const riderPass = cloudRiderPasswords[er.id] || cloudRiderPasswords[er.phone] || er.password || 'Pass123';
-            currentRiderList.push({
-              ...er,
-              password: riderPass
-            });
-          }
-        });
+        if (Array.isArray(localSavedRiders) && localSavedRiders.length > 0) {
+          localSavedRiders.forEach(er => {
+            if (er && er.name && !currentRiderList.some(r => r.id === er.id || (r.phone && er.phone && r.phone === er.phone))) {
+              currentRiderList.push(er);
+            }
+          });
+        }
 
         if (currentRiderList.length > 0) {
           setRiders(currentRiderList);
