@@ -107,24 +107,32 @@ export default function LocationPickerModal({
           </button>
         </div>
 
-        {/* Landmark Chips */}
+        {/* Multi-Municipality Quick Jump & GPS */}
         <div className="p-2 bg-slate-100 dark:bg-zinc-950 border-b border-slate-200 dark:border-zinc-800 flex items-center gap-1.5 overflow-x-auto shrink-0 text-xs">
           <button
             onClick={handleUseCurrentGps}
             disabled={isLocating}
-            className="px-3 py-1.5 bg-rose-600 text-white rounded-xl font-bold flex items-center gap-1 shrink-0 shadow-sm"
+            className="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl font-bold flex items-center gap-1 shrink-0 shadow-sm transition-all"
           >
             <LocateFixed className={`w-3.5 h-3.5 ${isLocating ? 'animate-spin' : ''}`} />
             <span>Use My GPS</span>
           </button>
 
-          {BALAMBAN_LANDMARKS.slice(0, 6).map((lm, i) => (
+          {[
+            { name: "Balamban Proper", lat: 10.5015, lng: 123.7150 },
+            { name: "Gaisano Balamban", lat: 10.4990, lng: 123.7175 },
+            { name: "Asturias Poblacion", lat: 10.5700, lng: 123.7150 },
+            { name: "Toledo City Port / Mall", lat: 10.3770, lng: 123.6380 },
+            { name: "Tuburan Town Proper", lat: 10.7280, lng: 123.8250 },
+            { name: "Pinamungajan Proper", lat: 10.2700, lng: 123.5850 },
+            { name: "Tabuelan Port", lat: 10.8250, lng: 123.8750 }
+          ].map((lm, i) => (
             <button
               key={i}
               onClick={() => handleLandmarkClick(lm)}
-              className="px-2.5 py-1 bg-white dark:bg-zinc-800 hover:bg-slate-200 text-slate-700 dark:text-zinc-300 rounded-xl border border-slate-200 dark:border-zinc-700 whitespace-nowrap shrink-0 text-[11px] font-medium shadow-sm"
+              className="px-2.5 py-1 bg-white dark:bg-zinc-800 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-300 rounded-xl border border-slate-200 dark:border-zinc-700 whitespace-nowrap shrink-0 text-[11px] font-bold shadow-sm transition-all"
             >
-              📍 {lm.name.split(' ')[0]} {lm.name.split(' ')[1] || ''}
+              📍 {lm.name}
             </button>
           ))}
         </div>
