@@ -244,156 +244,16 @@ export const SERVICES = [
   }
 ];
 
-export const MOCK_RIDERS = [
-  {
-    id: "rider-1",
-    name: "Kuya Junrey",
-    phone: "0917-882-1923",
-    plate: "MIO GEAR - G629MC",
-    zone: "Balamban Proper / Public Palengke",
-    municipality: "Balamban",
-    rating: 4.9,
-    trips: 428,
-    isOnline: true,
-    isBusy: false,
-    status: "active",
-    lat: 10.5015,
-    lng: 123.7150,
-    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80"
-  },
-  {
-    id: "rider-2",
-    name: "Kuya Marlon",
-    phone: "0928-441-9012",
-    plate: "7C-9876 (Yamaha NMAX)",
-    zone: "Buanoy / Tsuneishi Heavy Industries Sector",
-    municipality: "Balamban",
-    rating: 5.0,
-    trips: 615,
-    isOnline: true,
-    isBusy: true,
-    status: "active",
-    lat: 10.4700,
-    lng: 123.7050,
-    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80"
-  },
-  {
-    id: "rider-3",
-    name: "Kuya Jayson",
-    phone: "0939-112-7845",
-    plate: "7C-5561 (Honda Beat)",
-    zone: "Asturias Poblacion / Town Proper",
-    municipality: "Asturias",
-    rating: 4.85,
-    trips: 340,
-    isOnline: true,
-    isBusy: false,
-    status: "active",
-    lat: 10.5700,
-    lng: 123.7150,
-    avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80"
-  }
-];
-
-export const INITIAL_ORDERS = [
-  {
-    id: "DE-2026-001",
-    trackingNumber: "DE-2026-001",
-    serviceId: "food_delivery",
-    serviceName: "Food Delivery",
-    customerName: "Maria Clara",
-    customerPhone: "0918-123-4567",
-    pickupAddress: "Jollibee Gaisano Grand Mall Balamban",
-    pickupLandmark: "Beside 360 Pharmacy, Gaisano Balamban",
-    pickupCoords: [10.4990, 123.7175],
-    dropoffAddress: "Purok 3, Barangay Buanoy, Balamban, Cebu",
-    dropoffLandmark: "Near Buanoy National High School, Green Gate",
-    dropoffCoords: [10.4720, 123.7060],
-    distanceKm: 3.8,
-    estimatedFare: 103,
-    itemCost: 480,
-    paymentMethod: "GCash",
-    status: "in_transit",
-    statusText: "Out for Delivery in Balamban",
-    riderId: "rider-1",
-    riderName: "Kuya Junrey",
-    riderPhone: "0917-882-1923",
-    riderCoords: [10.4850, 123.7110],
-    details: {
-      restaurantName: "Jollibee Gaisano Balamban",
-      foodOrders: "2x 1pc Chickenjoy Meal, 1x Yum Burger, 2x Peach Mango Pie",
-      estimatedCost: 480
-    },
-    messages: [
-      {
-        id: "msg-1",
-        senderRole: "rider",
-        senderName: "Kuya Junrey (Rider)",
-        text: "Maayong adlaw! Naa nako sa Gaisano Balamban nag-order na.",
-        time: "10 mins ago"
-      },
-      {
-        id: "msg-2",
-        senderRole: "customer",
-        senderName: "Maria Clara",
-        text: "Salamat kuya! Palihug ko ingon extra gravy.",
-        time: "8 mins ago"
-      }
-    ],
-    customerNotes: "Please text when approaching Buanoy bridge",
-    createdAt: new Date(Date.now() - 25 * 60 * 1000).toISOString(),
-    logs: [
-      { step: "Booking Confirmed", time: "25m ago", done: true },
-      { step: "Rider Assigned (Kuya Junrey)", time: "22m ago", done: true },
-      { step: "Purchased at Gaisano Balamban", time: "10m ago", done: true },
-      { step: "Out for Delivery to Buanoy", time: "4m ago", done: true },
-      { step: "Delivered & Completed", time: "Pending", done: false }
-    ]
-  },
-  {
-    id: "DE-2026-002",
-    trackingNumber: "DE-2026-002",
-    serviceId: "market_mall_kumpra",
-    serviceName: "Market & Mall Kumpra",
-    customerName: "Nanay Elena",
-    customerPhone: "0917-555-8899",
-    pickupAddress: "Balamban Public Market (Palengke Proper)",
-    pickupLandmark: "Meat & Fish Section",
-    pickupCoords: [10.5015, 123.7150],
-    dropoffAddress: "Sitio Aliwan, Barangay Cantuod, Balamban",
-    dropoffLandmark: "Near Cantuod Chapel",
-    dropoffCoords: [10.5180, 123.7250],
-    distanceKm: 2.5,
-    estimatedFare: 167,
-    itemCost: 950,
-    paymentMethod: "Cash on Delivery",
-    status: "assigned",
-    statusText: "Rider Heading to Palengke",
-    riderId: "rider-3",
-    riderName: "Kuya Jayson",
-    riderPhone: "0939-112-7845",
-    riderCoords: [10.5050, 123.7170],
-    details: {
-      marketName: "Balamban Public Market",
-      kumpraList: "1. 1kg Baboy Kasim (hiwa pang adobo)\n2. 1kg Bangus presko\n3. 1 tray itlog",
-      maxBudget: 1000
-    },
-    customerNotes: "Palihug pili-a ang presko nga isda kuya",
-    createdAt: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
-    logs: [
-      { step: "Booking Confirmed", time: "10m ago", done: true },
-      { step: "Rider Assigned (Kuya Jayson)", time: "8m ago", done: true },
-      { step: "Purchased at Market", time: "Pending", done: false },
-      { step: "Out for Delivery", time: "Pending", done: false },
-      { step: "Delivered & Completed", time: "Pending", done: false }
-    ]
-  }
-];
+export const MOCK_RIDERS = [];
+export const INITIAL_ORDERS = [];
 
 export const ORDER_STATUSES = {
   pending: { label: "Pending Dispatch", color: "bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-500/20" },
   assigned: { label: "Rider Assigned", color: "bg-sky-50 dark:bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-200 dark:border-sky-500/20" },
-  purchasing: { label: "At Pickup / Purchasing", color: "bg-purple-50 dark:bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-200 dark:border-purple-500/20" },
+  heading_to_pickup: { label: "Heading to Pickup", color: "bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-500/20" },
+  at_pickup_purchasing: { label: "Purchasing / At Store", color: "bg-purple-50 dark:bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-200 dark:border-purple-500/20" },
+  purchasing: { label: "Purchasing / At Store", color: "bg-purple-50 dark:bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-200 dark:border-purple-500/20" },
+  out_for_delivery: { label: "Out for Delivery", color: "bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border-indigo-200 dark:border-indigo-500/20" },
   in_transit: { label: "Out for Delivery", color: "bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border-indigo-200 dark:border-indigo-500/20" },
   delivered: { label: "Delivered & Completed", color: "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/20" },
   cancelled: { label: "Cancelled", color: "bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-200 dark:border-rose-500/20" }

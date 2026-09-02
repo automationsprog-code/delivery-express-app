@@ -60,13 +60,13 @@ export function OrderProvider({ children }) {
     const saved = localStorage.getItem('delivery_express_riders_balamban');
     return saved ? JSON.parse(saved) : [
       {
-        id: 'rider-nigel-1',
+        id: 'b2c77a52-42ae-4f07-a8fa-540722d74fae',
         name: 'Nigel',
         phone: '0917-882-1923',
         plate: 'MIO GEAR - G629MC',
         zone: 'Balamban Proper / Public Palengke',
         municipality: 'Balamban',
-        avatar: localStorage.getItem('rider_avatar_rider-nigel-1') || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+        avatar: localStorage.getItem('rider_avatar_b2c77a52-42ae-4f07-a8fa-540722d74fae') || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
         rating: 5.0,
         trips: 1,
         isOnline: true,
@@ -86,7 +86,7 @@ export function OrderProvider({ children }) {
         if (parsed.role === 'rider' && parsed.id) return parsed.id;
       } catch (_) {}
     }
-    return 'rider-nigel-1';
+    return 'b2c77a52-42ae-4f07-a8fa-540722d74fae';
   });
 
   const [activeTrackingId, setActiveTrackingId] = useState('');
@@ -136,66 +136,15 @@ export function OrderProvider({ children }) {
 
     const fetchSupabaseData = async () => {
       try {
-        // Fetch live orders
-        const { data: orderData, error: orderErr } = await supabase
-          .from('orders')
-          .select('*')
-          .order('created_at', { ascending: false });
-
-        if (!orderErr) {
-          const formatted = (orderData || []).map(o => {
-            const rawMessages = (o.details && o.details.chat_messages) ? o.details.chat_messages : (o.messages || []);
-            return {
-              id: o.id || o.tracking_number,
-              trackingNumber: o.tracking_number,
-              serviceId: o.service_id,
-              serviceName: o.service_id ? (SERVICES.find(s => s.id === o.service_id)?.name || 'Delivery') : 'Food Delivery',
-              customerName: o.customer_name,
-              customerPhone: o.customer_phone,
-              pickupAddress: o.pickup_address,
-              pickupLandmark: o.pickup_landmark,
-              pickupCoords: [parseFloat(o.pickup_lat || 10.5015), parseFloat(o.pickup_lng || 123.7150)],
-              dropoffAddress: o.dropoff_address,
-              dropoffLandmark: o.dropoff_landmark,
-              dropoffCoords: [parseFloat(o.dropoff_lat || 10.4720), parseFloat(o.dropoff_lng || 123.7060)],
-              distanceKm: parseFloat(o.distance_km || 3.5),
-              estimatedFare: parseFloat(o.estimated_fare || 100),
-              itemCost: parseFloat(o.item_estimated_cost || 0),
-              paymentMethod: o.payment_method === 'cash_on_delivery' ? 'Cash on Delivery' : 'GCash',
-              status: o.status || 'pending',
-              statusText: o.status === 'pending' ? 'Waiting for Courier Assignment' : o.status,
-              riderId: o.rider_id,
-              riderName: o.rider_name || null,
-              riderPhone: o.rider_phone || null,
-              details: o.details || {},
-              messages: rawMessages,
-              logs: [
-                { step: 'Booking Confirmed (Balamban)', time: 'Received', done: true },
-                { step: 'Rider Assigned', time: o.rider_name ? 'Assigned' : 'Searching...', done: !!o.rider_id },
-                { step: 'Purchased / Picked Up', time: o.status === 'purchasing' || o.status === 'in_transit' || o.status === 'delivered' ? 'Done' : 'Pending', done: o.status === 'purchasing' || o.status === 'in_transit' || o.status === 'delivered' },
-                { step: 'Out for Delivery', time: o.status === 'in_transit' || o.status === 'delivered' ? 'On the way' : 'Pending', done: o.status === 'in_transit' || o.status === 'delivered' },
-                { step: 'Delivered', time: o.status === 'delivered' ? 'Completed' : 'Pending', done: o.status === 'delivered' }
-              ],
-              proofOfDeliveryUrl: o.proof_of_delivery_url,
-              deliveryNotes: o.delivery_notes
-            };
-          });
-          setOrders(formatted);
-          if (formatted.length > 0 && !activeTrackingId) {
-            setActiveTrackingId(formatted[0].trackingNumber);
-          } else if (formatted.length === 0) {
-            setActiveTrackingId('');
-          }
-        }
-
-        // Fetch live riders
+        // 1. Fetch live riders first so we can map names
         const { data: riderData, error: riderErr } = await supabase
           .from('riders')
           .select('*')
           .order('created_at', { ascending: true });
 
+        let currentRiderList = [];
         if (!riderErr && riderData) {
-          const formattedRiders = (riderData || []).map(r => {
+          currentRiderList = (riderData || []).map(r => {
             const savedAvatar = localStorage.getItem(`rider_avatar_${r.id}`);
             return {
               id: r.id,
@@ -214,9 +163,72 @@ export function OrderProvider({ children }) {
               lng: parseFloat(r.current_lng || 123.7150)
             };
           });
-          setRiders(formattedRiders);
-          if (formattedRiders.length > 0 && !currentUser) {
-            setSelectedRiderId(formattedRiders[0].id);
+          setRiders(currentRiderList);
+          if (currentRiderList.length > 0 && !currentUser) {
+            setSelectedRiderId(currentRiderList[0].id);
+          }
+        }
+
+        // 2. Fetch live orders
+        const { data: orderData, error: orderErr } = await supabase
+          .from('orders')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (!orderErr && orderData) {
+          const formatted = (orderData || []).map(o => {
+            const rawMessages = (o.details && o.details.chat_messages) ? o.details.chat_messages : (o.messages || []);
+            const assignedRiderObj = currentRiderList.find(r => r.id === o.rider_id);
+            const riderName = o.details?.rider_name || assignedRiderObj?.name || (o.rider_id ? 'Nigel' : null);
+            const riderPhone = o.details?.rider_phone || assignedRiderObj?.phone || (o.rider_id ? '0917-882-1923' : null);
+
+            // Dynamic Step Calculation based on live status
+            const st = o.status || 'pending';
+            const isAssigned = st !== 'pending' && (!!o.rider_id || !!riderName);
+            const isPurchased = st === 'at_pickup_purchasing' || st === 'purchasing' || st === 'out_for_delivery' || st === 'in_transit' || st === 'delivered';
+            const isOutForDelivery = st === 'out_for_delivery' || st === 'in_transit' || st === 'delivered';
+            const isDelivered = st === 'delivered';
+
+            return {
+              id: o.id || o.tracking_number,
+              trackingNumber: o.tracking_number,
+              serviceId: o.service_id,
+              serviceName: o.service_id ? (SERVICES.find(s => s.id === o.service_id)?.name || 'Delivery') : 'Food Delivery',
+              customerName: o.customer_name,
+              customerPhone: o.customer_phone,
+              pickupAddress: o.pickup_address,
+              pickupLandmark: o.pickup_landmark,
+              pickupCoords: [parseFloat(o.pickup_lat || 10.5015), parseFloat(o.pickup_lng || 123.7150)],
+              dropoffAddress: o.dropoff_address,
+              dropoffLandmark: o.dropoff_landmark,
+              dropoffCoords: [parseFloat(o.dropoff_lat || 10.4720), parseFloat(o.dropoff_lng || 123.7060)],
+              distanceKm: parseFloat(o.distance_km || 3.5),
+              estimatedFare: parseFloat(o.estimated_fare || 100),
+              itemCost: parseFloat(o.item_estimated_cost || 0),
+              paymentMethod: o.payment_method === 'cash_on_delivery' ? 'Cash on Delivery' : 'GCash',
+              status: st,
+              statusText: st === 'pending' ? 'Waiting for Courier Assignment' : st === 'at_pickup_purchasing' ? 'Purchasing / At Store' : st === 'out_for_delivery' ? 'Out for Delivery' : st === 'delivered' ? 'Delivered & Completed' : 'In Progress',
+              riderId: o.rider_id,
+              riderName: riderName,
+              riderPhone: riderPhone,
+              details: o.details || {},
+              messages: rawMessages,
+              logs: [
+                { step: 'Booking Confirmed (Balamban)', time: 'Received', done: true },
+                { step: `Rider Assigned ${riderName ? '(' + riderName + ')' : ''}`, time: isAssigned ? 'Assigned' : 'Searching...', done: isAssigned },
+                { step: 'Purchased / Picked Up', time: isPurchased ? 'Done' : 'Pending', done: isPurchased },
+                { step: 'Out for Delivery', time: isOutForDelivery ? 'On the way' : 'Pending', done: isOutForDelivery },
+                { step: 'Delivered & Completed', time: isDelivered ? 'Delivered' : 'Pending', done: isDelivered }
+              ],
+              proofOfDeliveryUrl: o.proof_of_delivery_url,
+              deliveryNotes: o.delivery_notes
+            };
+          });
+          setOrders(formatted);
+          if (formatted.length > 0 && !activeTrackingId) {
+            setActiveTrackingId(formatted[0].trackingNumber);
+          } else if (formatted.length === 0) {
+            setActiveTrackingId('');
           }
         }
       } catch (err) {
@@ -228,14 +240,14 @@ export function OrderProvider({ children }) {
 
     // Realtime subscriptions
     const orderChannel = supabase
-      .channel('public:orders')
+      .channel('public:orders:realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
         fetchSupabaseData();
       })
       .subscribe();
 
     const riderChannel = supabase
-      .channel('public:riders')
+      .channel('public:riders:realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'riders' }, () => {
         fetchSupabaseData();
       })
@@ -426,7 +438,6 @@ export function OrderProvider({ children }) {
       ]
     };
 
-    // 1. Instant local state update (Zero UI delay)
     setOrders(prev => [newOrder, ...prev]);
     setActiveTrackingId(trackingNumber);
     soundService.playSuccessFanfare();
@@ -436,7 +447,6 @@ export function OrderProvider({ children }) {
       confetti({ particleCount: 100, spread: 75, origin: { y: 0.6 } });
     } catch (_) {}
 
-    // 2. Asynchronous persist to Supabase in background
     if (isSupabaseConfigured && supabase) {
       supabase.from('orders').insert({
         tracking_number: trackingNumber,
@@ -495,7 +505,6 @@ export function OrderProvider({ children }) {
     soundService.playOrderChime();
     soundService.triggerVibrate([80]);
 
-    // Push chat messages to Supabase details->chat_messages so Rider/Customer sees it instantly!
     if (isSupabaseConfigured && supabase && updatedMessages.length > 0) {
       try {
         const orderIdentifier = targetOrder?.trackingNumber || orderId;
@@ -512,17 +521,20 @@ export function OrderProvider({ children }) {
     }
   };
 
-  // Assign Rider
+  // Assign Rider (Syncs rider name, phone, plate, and updates status in Supabase)
   const assignRider = async (orderId, riderId) => {
-    const rider = riders.find(r => r.id === riderId);
+    const rider = riders.find(r => r.id === riderId) || riders[0];
     if (!rider) return;
 
     setOrders(prev => prev.map(order => {
       if (order.id === orderId || order.trackingNumber === orderId) {
-        const updatedLogs = order.logs.map((log, idx) => {
-          if (idx === 1) return { ...log, step: `Rider Assigned (${rider.name})`, time: 'Just now', done: true };
-          return log;
-        });
+        const updatedLogs = [
+          { step: 'Booking Confirmed (Balamban)', time: 'Received', done: true },
+          { step: `Rider Assigned (${rider.name})`, time: 'Just now', done: true },
+          { step: 'Purchased / Picked Up', time: 'Pending', done: false },
+          { step: 'Out for Delivery', time: 'Pending', done: false },
+          { step: 'Delivered', time: 'Pending', done: false }
+        ];
 
         return {
           ...order,
@@ -540,10 +552,22 @@ export function OrderProvider({ children }) {
 
     if (isSupabaseConfigured && supabase) {
       try {
+        const currentOrder = orders.find(o => o.id === orderId || o.trackingNumber === orderId);
+        const currentDetails = currentOrder?.details || {};
+        
         await supabase.from('orders').update({
-          status: 'assigned'
+          status: 'assigned',
+          rider_id: rider.id,
+          details: {
+            ...currentDetails,
+            rider_name: rider.name,
+            rider_phone: rider.phone,
+            rider_plate: rider.plate
+          }
         }).eq('tracking_number', orderId);
-      } catch (_) {}
+      } catch (err) {
+        console.warn('Supabase assign rider error:', err);
+      }
     }
 
     soundService.playOrderChime();
@@ -593,14 +617,38 @@ export function OrderProvider({ children }) {
     setRiderOnlineStatus(riderId, newIsOnline);
   };
 
-  // Update order status
+  // Update order status workflow (Maps accurately to Supabase order_status ENUM)
   const updateOrderStatus = async (orderId, newStatus) => {
+    // Map JS status to PostgreSQL enum order_status
+    let dbStatus = newStatus;
+    if (newStatus === 'purchasing') dbStatus = 'at_pickup_purchasing';
+    if (newStatus === 'in_transit') dbStatus = 'out_for_delivery';
+
+    let statusText = 'In Progress';
+    if (dbStatus === 'at_pickup_purchasing') statusText = 'Purchasing / At Store';
+    if (dbStatus === 'out_for_delivery') statusText = 'Out for Delivery';
+    if (dbStatus === 'delivered') statusText = 'Delivered & Completed';
+
     setOrders(prev => prev.map(order => {
       if (order.id === orderId || order.trackingNumber === orderId) {
+        const isAssigned = dbStatus !== 'pending';
+        const isPurchased = dbStatus === 'at_pickup_purchasing' || dbStatus === 'out_for_delivery' || dbStatus === 'delivered';
+        const isOut = dbStatus === 'out_for_delivery' || dbStatus === 'delivered';
+        const isDeliv = dbStatus === 'delivered';
+
+        const updatedLogs = [
+          { step: 'Booking Confirmed (Balamban)', time: 'Received', done: true },
+          { step: `Rider Assigned (${order.riderName || 'Nigel'})`, time: 'Done', done: isAssigned },
+          { step: 'Purchased / Picked Up', time: isPurchased ? 'Done' : 'Pending', done: isPurchased },
+          { step: 'Out for Delivery', time: isOut ? 'On the way' : 'Pending', done: isOut },
+          { step: 'Delivered & Completed', time: isDeliv ? 'Delivered' : 'Pending', done: isDeliv }
+        ];
+
         return {
           ...order,
-          status: newStatus,
-          statusText: newStatus
+          status: dbStatus,
+          statusText,
+          logs: updatedLogs
         };
       }
       return order;
@@ -608,29 +656,42 @@ export function OrderProvider({ children }) {
 
     if (isSupabaseConfigured && supabase) {
       try {
-        await supabase.from('orders').update({ status: newStatus }).eq('tracking_number', orderId);
-      } catch (_) {}
+        await supabase.from('orders').update({
+          status: dbStatus
+        }).eq('tracking_number', orderId);
+      } catch (err) {
+        console.warn('Supabase status update error:', err);
+      }
     }
 
-    if (newStatus === 'delivered') {
+    if (dbStatus === 'delivered') {
       soundService.playSuccessFanfare();
       try { confetti({ particleCount: 120, spread: 80 }); } catch (_) {}
     } else {
       soundService.playOrderChime();
     }
-    showNotification(`Order: ${newStatus}`, 'info');
+    showNotification(`Order Status: ${statusText}`, 'info');
   };
 
   // Proof of delivery
   const uploadProofOfDelivery = async (orderId, photoUrl, notes) => {
     setOrders(prev => prev.map(order => {
       if (order.id === orderId || order.trackingNumber === orderId) {
+        const updatedLogs = [
+          { step: 'Booking Confirmed (Balamban)', time: 'Received', done: true },
+          { step: `Rider Assigned (${order.riderName || 'Nigel'})`, time: 'Done', done: true },
+          { step: 'Purchased / Picked Up', time: 'Done', done: true },
+          { step: 'Out for Delivery', time: 'Done', done: true },
+          { step: 'Delivered & Completed', time: 'Just now', done: true }
+        ];
+
         return {
           ...order,
           status: 'delivered',
-          statusText: 'Delivered (Proof Attached)',
+          statusText: 'Delivered & Completed',
           proofOfDeliveryUrl: photoUrl,
-          deliveryNotes: notes
+          deliveryNotes: notes,
+          logs: updatedLogs
         };
       }
       return order;
@@ -656,7 +717,6 @@ export function OrderProvider({ children }) {
     const newId = `rider-${Date.now()}`;
     const avatarToSave = newRiderData.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80';
     
-    // Save avatar locally to persist through reloads
     localStorage.setItem(`rider_avatar_${newId}`, avatarToSave);
 
     const newRider = {
