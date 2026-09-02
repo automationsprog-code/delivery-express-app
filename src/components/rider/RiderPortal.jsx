@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useOrder } from '../../context/OrderContext';
 import { ORDER_STATUSES } from '../../lib/constants';
 import OrderChatModal from '../common/OrderChatModal';

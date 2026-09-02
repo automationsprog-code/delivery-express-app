@@ -288,8 +288,6 @@ class ErrorBoundary extends React.Component {
         const regs = await navigator.serviceWorker.getRegistrations();
         await Promise.all(regs.map(r => r.unregister()));
       }
-      localStorage.clear();
-      sessionStorage.clear();
     } catch (_) {}
     window.location.href = window.location.origin + window.location.pathname + '?nocache=' + Date.now();
   };
