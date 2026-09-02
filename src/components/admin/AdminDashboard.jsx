@@ -101,8 +101,9 @@ export default function AdminDashboard() {
 
   // Store Management Modals
   const [showAddStoreModal, setShowAddStoreModal] = useState(false);
+  const [editingStore, setEditingStore] = useState(null);
   const [newStoreName, setNewStoreName] = useState('');
-  const [newStoreCategory, setNewStoreCategory] = useState('Balamban Specialties');
+  const [newStoreCategory, setNewStoreCategory] = useState('');
   const [newStoreZone, setNewStoreZone] = useState('Balamban Proper');
   const [newStoreTagline, setNewStoreTagline] = useState('');
   const [newStoreImage, setNewStoreImage] = useState('https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600&auto=format&fit=crop&q=80');
@@ -110,6 +111,7 @@ export default function AdminDashboard() {
 
   // Item Modal
   const [targetStoreForMenu, setTargetStoreForMenu] = useState(null);
+  const [editingMenuItem, setEditingMenuItem] = useState(null);
   const [newItemName, setNewItemName] = useState('');
   const [newItemPrice, setNewItemPrice] = useState('');
   const [newItemCategory, setNewItemCategory] = useState('Specialty');
@@ -874,6 +876,14 @@ export default function AdminDashboard() {
                     </button>
 
                     <button
+                      onClick={() => setEditingStore({ ...store })}
+                      className="p-2 bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 text-amber-600 dark:text-amber-400 rounded-xl border border-amber-200 dark:border-amber-800"
+                      title="Edit Store Details & Category"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+
+                    <button
                       onClick={() => {
                         if (confirm(`Remove store "${store.name}" and all its menu items?`)) {
                           deletePartnerStore(store.id);
@@ -925,13 +935,22 @@ export default function AdminDashboard() {
                             </div>
                           </div>
 
-                          <button
-                            onClick={() => deleteMenuItem(store.id, item.id)}
-                            className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg shrink-0"
-                            title="Remove item"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              onClick={() => setEditingMenuItem({ storeId: store.id, item: { ...item } })}
+                              className="p-1.5 text-slate-400 hover:text-amber-600 rounded-lg shrink-0"
+                              title="Edit dish name, price & photo"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => deleteMenuItem(store.id, item.id)}
+                              className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg shrink-0"
+                              title="Remove item"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -1664,19 +1683,15 @@ export default function AdminDashboard() {
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">Store Category</label>
-                <select
+                <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">Store Category (Type Any Custom Category) *</label>
+                <input
+                  type="text"
+                  required
                   value={newStoreCategory}
                   onChange={(e) => setNewStoreCategory(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white font-bold"
-                >
-                  <option value="Balamban Specialties">Balamban Specialties (Liempo/Lechon)</option>
-                  <option value="Fast Food & Burgers">Fast Food & Burgers</option>
-                  <option value="Filipino & Lutong Bahay">Grills & Lutong Bahay</option>
-                  <option value="Cakes, Pastries & Bakery">Cakes & Bakery</option>
-                  <option value="Beverages & Milk Tea">Beverages & Milk Tea</option>
-                  <option value="Convenience & Groceries">Convenience & Groceries</option>
-                </select>
+                  placeholder="e.g. Balamban Specialties, Fast Food, Milktea, Cakes, Grills, etc."
+                  className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white font-bold focus:outline-none focus:border-rose-500"
+                />
               </div>
 
               <div>
@@ -1731,6 +1746,114 @@ export default function AdminDashboard() {
                   className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl font-black shadow-md"
                 >
                   Save Store
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 3.5: EDIT PARTNER STORE */}
+      {editingStore && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4">
+            <div className="flex justify-between items-center">
+              <h4 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                <Edit2 className="w-5 h-5 text-amber-500" />
+                <span>Edit Partner Store</span>
+              </h4>
+              <button onClick={() => setEditingStore(null)} className="text-slate-400 hover:text-slate-700">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!editingStore.name) return alert('Store name is required.');
+                updatePartnerStore(editingStore.id, {
+                  name: editingStore.name,
+                  category: editingStore.category,
+                  zone: editingStore.zone,
+                  tagline: editingStore.tagline,
+                  image: editingStore.image
+                });
+                setEditingStore(null);
+              }}
+              className="space-y-3 text-xs"
+            >
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">Store / Restaurant Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={editingStore.name}
+                  onChange={(e) => setEditingStore({ ...editingStore, name: e.target.value })}
+                  className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">Store Category (Type Any Custom Category) *</label>
+                <input
+                  type="text"
+                  required
+                  value={editingStore.category || ''}
+                  onChange={(e) => setEditingStore({ ...editingStore, category: e.target.value })}
+                  placeholder="e.g. Milktea & Coffee, Fast Food, Liempo & Lechon, Bakery, etc."
+                  className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white font-bold focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">Location / Zone in Balamban</label>
+                <input
+                  type="text"
+                  value={editingStore.zone || ''}
+                  onChange={(e) => setEditingStore({ ...editingStore, zone: e.target.value })}
+                  className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">Store Tagline / Description</label>
+                <input
+                  type="text"
+                  value={editingStore.tagline || ''}
+                  onChange={(e) => setEditingStore({ ...editingStore, tagline: e.target.value })}
+                  className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">Store Banner Image (URL or Upload)</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={editingStore.image || ''}
+                    onChange={(e) => setEditingStore({ ...editingStore, image: e.target.value })}
+                    className="flex-1 bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white"
+                  />
+                  <label className="cursor-pointer px-3 py-2 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 rounded-xl border border-slate-300 dark:border-zinc-700 font-bold flex items-center gap-1">
+                    <Upload className="w-3.5 h-3.5" />
+                    <input type="file" accept="image/*" className="hidden" onChange={(e) => handlePhotoUpload(e, (url) => setEditingStore({ ...editingStore, image: url }), 'store')} />
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingStore(null)}
+                  className="flex-1 py-2.5 bg-slate-200 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 rounded-xl font-bold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-400 text-zinc-950 rounded-xl font-black shadow-md"
+                >
+                  Update Store Details
                 </button>
               </div>
             </form>
@@ -1851,6 +1974,119 @@ export default function AdminDashboard() {
                   className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl font-black shadow-md"
                 >
                   Save Dish
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 5: EDIT MENU ITEM / FOOD DISH */}
+      {editingMenuItem && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4">
+            <div className="flex justify-between items-center">
+              <div>
+                <h4 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                  <Edit2 className="w-5 h-5 text-amber-500" />
+                  <span>Edit Food Dish & Price</span>
+                </h4>
+              </div>
+              <button onClick={() => setEditingMenuItem(null)} className="text-slate-400 hover:text-slate-700">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!editingMenuItem.item.name || !editingMenuItem.item.price) return alert('Dish name and price are required.');
+                updateMenuItem(editingMenuItem.storeId, editingMenuItem.item.id, {
+                  name: editingMenuItem.item.name,
+                  price: parseFloat(editingMenuItem.item.price || 0),
+                  description: editingMenuItem.item.description,
+                  image: editingMenuItem.item.image,
+                  isPopular: editingMenuItem.item.isPopular
+                });
+                setEditingMenuItem(null);
+              }}
+              className="space-y-3 text-xs"
+            >
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">Dish / Product Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={editingMenuItem.item.name}
+                  onChange={(e) => setEditingMenuItem({ ...editingMenuItem, item: { ...editingMenuItem.item, name: e.target.value } })}
+                  className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">Price (₱) *</label>
+                <input
+                  type="number"
+                  required
+                  value={editingMenuItem.item.price}
+                  onChange={(e) => setEditingMenuItem({ ...editingMenuItem, item: { ...editingMenuItem.item, price: e.target.value } })}
+                  placeholder="e.g. 150"
+                  className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white font-black text-sm text-rose-600 focus:outline-none focus:border-rose-500"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">Description / Portion</label>
+                <textarea
+                  rows={2}
+                  value={editingMenuItem.item.description || ''}
+                  onChange={(e) => setEditingMenuItem({ ...editingMenuItem, item: { ...editingMenuItem.item, description: e.target.value } })}
+                  className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">Food Photo (URL or Upload)</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={editingMenuItem.item.image || ''}
+                    onChange={(e) => setEditingMenuItem({ ...editingMenuItem, item: { ...editingMenuItem.item, image: e.target.value } })}
+                    className="flex-1 bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white"
+                  />
+                  <label className="cursor-pointer px-3 py-2 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 rounded-xl border border-slate-300 dark:border-zinc-700 font-bold flex items-center gap-1">
+                    <Upload className="w-3.5 h-3.5" />
+                    <input type="file" accept="image/*" className="hidden" onChange={(e) => handlePhotoUpload(e, (url) => setEditingMenuItem({ ...editingMenuItem, item: { ...editingMenuItem.item, image: url } }), 'dish')} />
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  type="checkbox"
+                  id="editIsBestseller"
+                  checked={Boolean(editingMenuItem.item.isPopular)}
+                  onChange={(e) => setEditingMenuItem({ ...editingMenuItem, item: { ...editingMenuItem.item, isPopular: e.target.checked } })}
+                  className="w-4 h-4 text-rose-600 rounded"
+                />
+                <label htmlFor="editIsBestseller" className="font-bold text-slate-700 dark:text-zinc-300 cursor-pointer">
+                  Mark as ⭐ Bestseller / Popular Dish
+                </label>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingMenuItem(null)}
+                  className="flex-1 py-2.5 bg-slate-200 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 rounded-xl font-bold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-400 text-zinc-950 rounded-xl font-black shadow-md"
+                >
+                  Update Dish & Price
                 </button>
               </div>
             </form>
