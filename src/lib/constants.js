@@ -258,3 +258,225 @@ export const ORDER_STATUSES = {
   delivered: { label: "Delivered & Completed", color: "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/20" },
   cancelled: { label: "Cancelled", color: "bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-200 dark:border-rose-500/20" }
 };
+
+export const DEFAULT_PARTNER_STORES = [
+  {
+    id: "balamban_liempo_orig",
+    name: "Balamban Liempo & Lechon House",
+    category: "Balamban Specialties",
+    zone: "Balamban Proper / Highway Hub",
+    tagline: "The Home of the World-Famous Herb & Garlic Pork Liempo",
+    image: "https://images.unsplash.com/photo-1544025162-d76694265947?w=600&auto=format&fit=crop&q=80",
+    menuFlyerUrl: "",
+    rating: 4.9,
+    serviceType: "food_delivery",
+    openingHours: "9:00 AM - 9:00 PM",
+    items: [
+      {
+        id: "liempo_whole",
+        name: "Original Balamban Liempo (Whole Roll)",
+        price: 320,
+        description: "Signature crispy skin rolled pork belly stuffed with secret herbs, garlic & lemongrass.",
+        category: "Bestseller",
+        image: "https://images.unsplash.com/photo-1544025162-d76694265947?w=400&auto=format&fit=crop&q=80",
+        isPopular: true
+      },
+      {
+        id: "lechon_manok",
+        name: "Herbal Lechon Manok (Whole Roast Chicken)",
+        price: 310,
+        description: "Juicy, golden roasted whole chicken infused with native herbs.",
+        category: "Roasted Specialties",
+        image: "https://images.unsplash.com/photo-1626645738196-c2a7c87a8f58?w=400&auto=format&fit=crop&q=80",
+        isPopular: true
+      },
+      {
+        id: "spicy_liempo",
+        name: "Spicy Balamban Liempo (Whole Roll)",
+        price: 330,
+        description: "Extra spicy chili garlic stuffed liempo roll.",
+        category: "Spicy Specials",
+        image: "https://images.unsplash.com/photo-1529193591184-b1d58069ecdd?w=400&auto=format&fit=crop&q=80",
+        isPopular: false
+      }
+    ]
+  },
+  {
+    id: "jollibee_gaisano_balamban",
+    name: "Jollibee Gaisano Grand Balamban",
+    category: "Fast Food & Burgers",
+    zone: "Gaisano Grand Mall Balamban",
+    tagline: "Langhap-Sarap Favorites for the Whole Family",
+    image: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=600&auto=format&fit=crop&q=80",
+    menuFlyerUrl: "",
+    rating: 4.8,
+    serviceType: "food_delivery",
+    openingHours: "8:00 AM - 9:00 PM",
+    items: [
+      {
+        id: "chickenjoy_2pc",
+        name: "2-pc Chickenjoy with Rice & Drink",
+        price: 215,
+        description: "Crispylicious, juicylicious fried chicken with savory gravy.",
+        category: "Chickenjoy Meals",
+        image: "https://images.unsplash.com/photo-1626645738196-c2a7c87a8f58?w=400&auto=format&fit=crop&q=80",
+        isPopular: true
+      },
+      {
+        id: "jolly_spaghetti_pan",
+        name: "Jolly Spaghetti Family Pan",
+        price: 260,
+        description: "Sweet-style pasta with savory ham, hotdog slices, and melted cheese.",
+        category: "Family Meals",
+        image: "https://images.unsplash.com/photo-1551183053-bf91a1d81141?w=400&auto=format&fit=crop&q=80",
+        isPopular: true
+      },
+      {
+        id: "yumburger_cheese",
+        name: "Cheesy Yumburger with Fries",
+        price: 125,
+        description: "100% pure beef patty with signature dressing and melted cheese slice.",
+        category: "Burgers",
+        image: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400&auto=format&fit=crop&q=80",
+        isPopular: false
+      }
+    ]
+  },
+  {
+    id: "kusina_ni_nanay_grill",
+    name: "Kusina ni Nanay & Native Grill",
+    category: "Filipino & Lutong Bahay",
+    zone: "Balamban Town Plaza / Poblacion",
+    tagline: "Authentic Cebuano Dishes & Charcoal-Grilled Favorites",
+    image: "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=600&auto=format&fit=crop&q=80",
+    menuFlyerUrl: "",
+    rating: 4.9,
+    serviceType: "food_delivery",
+    openingHours: "10:00 AM - 10:00 PM",
+    items: [
+      {
+        id: "pork_bbq_5pcs",
+        name: "Pork BBQ Skewers (5 Sticks)",
+        price: 175,
+        description: "Tender, marinated pork grilled to perfection with sweet basting sauce.",
+        category: "Grill Specialties",
+        image: "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=400&auto=format&fit=crop&q=80",
+        isPopular: true
+      },
+      {
+        id: "sinigang_baboy",
+        name: "Sinigang na Baboy (Pork Belly Sour Broth)",
+        price: 240,
+        description: "Hot tamarind sour soup with kangkong, radish, and tender pork belly cuts.",
+        category: "Hot Soups",
+        image: "https://images.unsplash.com/photo-1547592180-85f173990554?w=400&auto=format&fit=crop&q=80",
+        isPopular: true
+      },
+      {
+        id: "pancit_canton_special",
+        name: "Pancit Canton Guisado Special",
+        price: 190,
+        description: "Stir-fried egg noodles with shredded pork, chicken liver, and crisp veggies.",
+        category: "Noodles",
+        image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=400&auto=format&fit=crop&q=80",
+        isPopular: false
+      }
+    ]
+  },
+  {
+    id: "red_ribbon_goldilocks_bakeshop",
+    name: "Red Ribbon & Bakeshop Hub",
+    category: "Cakes, Pastries & Bakery",
+    zone: "Gaisano Grand Mall Balamban",
+    tagline: "Celebration Cakes & Freshly Baked Sweets",
+    image: "https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=600&auto=format&fit=crop&q=80",
+    menuFlyerUrl: "",
+    rating: 4.9,
+    serviceType: "cake_flower",
+    openingHours: "9:00 AM - 8:30 PM",
+    items: [
+      {
+        id: "black_forest_cake",
+        name: "Classic Black Forest Cake (8-inch)",
+        price: 680,
+        description: "Rich chocolate sponge layered with cherry filling, whipped cream and chocolate shavings.",
+        category: "Round Cakes",
+        image: "https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=400&auto=format&fit=crop&q=80",
+        isPopular: true
+      },
+      {
+        id: "mango_dedication_cake",
+        name: "Mango Supreme Dedication Cake (8x12)",
+        price: 750,
+        description: "Moist sponge cake topped with fresh ripe mango slices and cream.",
+        category: "Celebration Cakes",
+        image: "https://images.unsplash.com/photo-1535141192574-5d4897c13136?w=400&auto=format&fit=crop&q=80",
+        isPopular: true
+      }
+    ]
+  },
+  {
+    id: "balamban_milktea_cafe",
+    name: "Balamban Milk Tea & Coffee Bar",
+    category: "Beverages & Milk Tea",
+    zone: "Balamban Town Proper",
+    tagline: "Freshly Brewed Boba Milk Tea & Ice Blended Coffee",
+    image: "https://images.unsplash.com/photo-1558857563-b37cfb4a0342?w=600&auto=format&fit=crop&q=80",
+    menuFlyerUrl: "",
+    rating: 4.8,
+    serviceType: "food_delivery",
+    openingHours: "10:00 AM - 10:00 PM",
+    items: [
+      {
+        id: "wintermelon_milktea",
+        name: "Wintermelon Milk Tea with Pearls (Large)",
+        price: 120,
+        description: "Classic sweet wintermelon tea base with brown sugar tapioca pearls.",
+        category: "Milk Tea",
+        image: "https://images.unsplash.com/photo-1558857563-b37cfb4a0342?w=400&auto=format&fit=crop&q=80",
+        isPopular: true
+      },
+      {
+        id: "iced_caramel_macchiato",
+        name: "Iced Caramel Macchiato (16oz)",
+        price: 135,
+        description: "Espresso shot poured over fresh cold milk and drizzled with buttery caramel.",
+        category: "Iced Coffee",
+        image: "https://images.unsplash.com/photo-1517701550927-30cf4ba1dba5?w=400&auto=format&fit=crop&q=80",
+        isPopular: true
+      }
+    ]
+  },
+  {
+    id: "seven_eleven_360_balamban",
+    name: "7-Eleven & 360 Convenience Hub",
+    category: "Convenience & Groceries",
+    zone: "Balamban Poblacion Highway",
+    tagline: "24/7 Snacks, Groceries, Beverages & Essentials",
+    image: "https://images.unsplash.com/photo-1604719312566-8912e9227c6a?w=600&auto=format&fit=crop&q=80",
+    menuFlyerUrl: "",
+    rating: 4.7,
+    serviceType: "pasabuy",
+    openingHours: "24 Hours Daily",
+    items: [
+      {
+        id: "siopao_asado_jumbo",
+        name: "Jumbo Asado Siopao (2 pcs)",
+        price: 110,
+        description: "Hot steamed buns packed with savory sweet pork asado filling.",
+        category: "Hot Snacks",
+        image: "https://images.unsplash.com/photo-1563245372-f21724e3856d?w=400&auto=format&fit=crop&q=80",
+        isPopular: true
+      },
+      {
+        id: "big_gulp_coke",
+        name: "Big Gulp 32oz Cold Beverage",
+        price: 55,
+        description: "Ice-cold refreshing soda in jumbo cup.",
+        category: "Beverages",
+        image: "https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=400&auto=format&fit=crop&q=80",
+        isPopular: false
+      }
+    ]
+  }
+];

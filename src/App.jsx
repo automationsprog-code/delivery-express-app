@@ -5,6 +5,7 @@ import ServiceGrid from './components/customer/ServiceGrid';
 import BookingModal from './components/customer/BookingModal';
 import LiveTracker from './components/customer/LiveTracker';
 import CustomerOrderHistory from './components/customer/CustomerOrderHistory';
+import StoreMenuCatalog from './components/customer/StoreMenuCatalog';
 import RiderPortal from './components/rider/RiderPortal';
 import AdminDashboard from './components/admin/AdminDashboard';
 import AuthModal from './components/common/AuthModal';
@@ -23,17 +24,20 @@ import {
   User, 
   Lock, 
   ArrowRight,
-  History
+  History,
+  UtensilsCrossed
 } from 'lucide-react';
 
 function MainContent() {
-  const { activeRole, currentUser, activeTrackingId, setActiveTrackingId, orders } = useOrder();
-  const [customerTab, setCustomerTab] = useState('services'); // 'services' | 'tracker' | 'history'
+  const { activeRole, currentUser, activeTrackingId, setActiveTrackingId, orders, storesList } = useOrder();
+  const [customerTab, setCustomerTab] = useState('services'); // 'services' | 'menus' | 'tracker' | 'history'
   const [selectedServiceForBooking, setSelectedServiceForBooking] = useState(null);
+  const [bookingInitialData, setBookingInitialData] = useState(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
 
   const handleBookingSuccess = (newOrder) => {
     setSelectedServiceForBooking(null);
+    setBookingInitialData(null);
     setActiveTrackingId(newOrder.trackingNumber);
     setCustomerTab('tracker');
   };
@@ -41,6 +45,11 @@ function MainContent() {
   const handleTrackFromHistory = (trackingNum) => {
     setActiveTrackingId(trackingNum);
     setCustomerTab('tracker');
+  };
+
+  const handleOrderFromMenu = (menuData) => {
+    setSelectedServiceForBooking(menuData.service);
+    setBookingInitialData(menuData);
   };
 
   // Count delivered items for customer badge
@@ -87,6 +96,21 @@ function MainContent() {
               </button>
 
               <button
+                onClick={() => setCustomerTab('menus')}
+                className={`flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-extrabold transition-all relative shrink-0 shadow-sm ${
+                  customerTab === 'menus'
+                    ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-zinc-950 shadow-amber-500/20 shadow-md font-black'
+                    : 'bg-white dark:bg-zinc-900 text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-zinc-800'
+                }`}
+              >
+                <UtensilsCrossed className="w-4 h-4" />
+                <span>Food & Store Menus</span>
+                <span className="bg-rose-600 text-white text-[9px] font-black px-1.5 py-0.2 rounded-full uppercase ml-0.5">
+                  {(storesList || []).length} Stores
+                </span>
+              </button>
+
+              <button
                 onClick={() => setCustomerTab('tracker')}
                 className={`flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-extrabold transition-all relative shrink-0 shadow-sm ${
                   customerTab === 'tracker'
@@ -121,10 +145,18 @@ function MainContent() {
 
             {/* Active Customer Tab Content */}
             {customerTab === 'services' ? (
-              <ServiceGrid onSelectService={(service) => setSelectedServiceForBooking(service)} />
+              <ServiceGrid onSelectService={(service) => {
+                setBookingInitialData(null);
+                setSelectedServiceForBooking(service);
+              }} />
+            ) : customerTab === 'menus' ? (
+              <StoreMenuCatalog onOrderFromMenu={handleOrderFromMenu} />
             ) : customerTab === 'history' ? (
               <CustomerOrderHistory 
-                onSelectService={(service) => setSelectedServiceForBooking(service)} 
+                onSelectService={(service) => {
+                  setBookingInitialData(null);
+                  setSelectedServiceForBooking(service);
+                }} 
                 onTrackOrder={handleTrackFromHistory}
               />
             ) : (
@@ -165,7 +197,11 @@ function MainContent() {
             {selectedServiceForBooking && (
               <BookingModal
                 service={selectedServiceForBooking}
-                onClose={() => setSelectedServiceForBooking(null)}
+                initialData={bookingInitialData}
+                onClose={() => {
+                  setSelectedServiceForBooking(null);
+                  setBookingInitialData(null);
+                }}
                 onBookingSuccess={handleBookingSuccess}
               />
             )}

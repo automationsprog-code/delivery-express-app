@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { SERVICES, BRAND } from '../lib/constants';
+import { SERVICES, BRAND, DEFAULT_PARTNER_STORES } from '../lib/constants';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { soundService } from '../lib/soundUtils';
 import { fetchPanahonWeather, MUNICIPALITY_COORDS } from '../services/weatherService';
@@ -29,6 +29,12 @@ export function OrderProvider({ children }) {
     isRainy: false,
     isWindy: true,
     timestamp: 'Live'
+  });
+
+  // Partner Stores & Food Menus (Balamban & West Cebu)
+  const [storesList, setStoresList] = useState(() => {
+    const saved = localStorage.getItem('delivery_express_partner_stores');
+    return saved ? JSON.parse(saved) : DEFAULT_PARTNER_STORES;
   });
 
   // Services & Rates
@@ -198,6 +204,11 @@ export function OrderProvider({ children }) {
             if (parsed.payment_settings) {
               setPaymentSettings(parsed.payment_settings);
               try { localStorage.setItem('delivery_express_payment_settings', JSON.stringify(parsed.payment_settings)); } catch (_) {}
+            }
+
+            if (parsed.stores_list && Array.isArray(parsed.stores_list)) {
+              setStoresList(parsed.stores_list);
+              try { localStorage.setItem('delivery_express_partner_stores', JSON.stringify(parsed.stores_list)); } catch (_) {}
             }
 
             if (parsed.services_rates && Array.isArray(parsed.services_rates)) {
@@ -634,6 +645,7 @@ export function OrderProvider({ children }) {
           payment_method: 'cash_on_delivery',
           details: {
             services_rates: ratesPayload,
+            stores_list: storesList,
             payment_settings: paymentSettings,
             admin_pass: localStorage.getItem('delivery_express_admin_password') || 'Pass123'
           },
@@ -643,6 +655,161 @@ export function OrderProvider({ children }) {
         console.warn('Supabase rate sync error:', err);
       }
     }
+  };
+
+  // Helper to persist Stores & Menus to Cloud
+  const syncStoresToCloud = async (updatedStores) => {
+    if (!isSupabaseConfigured || !supabase) return;
+    try {
+      const ratesPayload = servicesList.map(s => ({
+        id: s.id,
+        name: s.name,
+        baseFare: s.baseFare,
+        perKmRate: s.perKmRate,
+        errandFee: s.errandFee
+      }));
+
+      await supabase.from('orders').upsert({
+        tracking_number: 'SYS-CONFIG-RATES',
+        service_id: 'food_delivery',
+        service_type: 'food_delivery',
+        customer_name: 'SYSTEM_SETTINGS',
+        customer_phone: '0000000000',
+        pickup_address: 'System Config',
+        dropoff_address: 'System Config',
+        distance_km: 0,
+        estimated_fare: 0,
+        payment_method: 'cash_on_delivery',
+        details: {
+          services_rates: ratesPayload,
+          stores_list: updatedStores,
+          payment_settings: paymentSettings,
+          admin_pass: localStorage.getItem('delivery_express_admin_password') || 'Pass123'
+        },
+        status: 'pending'
+      }, { onConflict: 'tracking_number' });
+    } catch (err) {
+      console.warn('Cloud stores sync error:', err);
+    }
+  };
+
+  // Add Partner Store
+  const addPartnerStore = (storeData) => {
+    const newStore = {
+      id: `store_${Date.now()}`,
+      name: storeData.name,
+      category: storeData.category || 'Balamban Specialties',
+      zone: storeData.zone || 'Balamban Proper',
+      tagline: storeData.tagline || 'Partner Store in Balamban',
+      image: storeData.image || 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600&auto=format&fit=crop&q=80',
+      menuFlyerUrl: storeData.menuFlyerUrl || '',
+      rating: 5.0,
+      serviceType: storeData.serviceType || 'food_delivery',
+      openingHours: storeData.openingHours || '8:00 AM - 9:00 PM',
+      items: storeData.items || []
+    };
+
+    setStoresList(prev => {
+      const updated = [newStore, ...prev];
+      try { localStorage.setItem('delivery_express_partner_stores', JSON.stringify(updated)); } catch (_) {}
+      syncStoresToCloud(updated);
+      return updated;
+    });
+
+    showNotification(`Store "${newStore.name}" added & synced!`, 'success');
+    soundService.playOrderChime();
+  };
+
+  // Update Partner Store
+  const updatePartnerStore = (storeId, updatedFields) => {
+    setStoresList(prev => {
+      const updated = prev.map(s => s.id === storeId ? { ...s, ...updatedFields } : s);
+      try { localStorage.setItem('delivery_express_partner_stores', JSON.stringify(updated)); } catch (_) {}
+      syncStoresToCloud(updated);
+      return updated;
+    });
+    showNotification('Store details updated & synced!', 'success');
+    soundService.playOrderChime();
+  };
+
+  // Delete Partner Store
+  const deletePartnerStore = (storeId) => {
+    setStoresList(prev => {
+      const updated = prev.filter(s => s.id !== storeId);
+      try { localStorage.setItem('delivery_express_partner_stores', JSON.stringify(updated)); } catch (_) {}
+      syncStoresToCloud(updated);
+      return updated;
+    });
+    showNotification('Store removed from catalog.', 'info');
+  };
+
+  // Add Food Item to Store Menu
+  const addMenuItem = (storeId, itemData) => {
+    const newItem = {
+      id: `item_${Date.now()}`,
+      name: itemData.name,
+      price: parseFloat(itemData.price || 0),
+      description: itemData.description || '',
+      category: itemData.category || 'Specialty',
+      image: itemData.image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&auto=format&fit=crop&q=80',
+      isPopular: Boolean(itemData.isPopular)
+    };
+
+    setStoresList(prev => {
+      const updated = prev.map(s => {
+        if (s.id === storeId) {
+          return {
+            ...s,
+            items: [...(s.items || []), newItem]
+          };
+        }
+        return s;
+      });
+      try { localStorage.setItem('delivery_express_partner_stores', JSON.stringify(updated)); } catch (_) {}
+      syncStoresToCloud(updated);
+      return updated;
+    });
+
+    showNotification(`Menu item "${newItem.name}" added!`, 'success');
+    soundService.playOrderChime();
+  };
+
+  // Update Menu Item
+  const updateMenuItem = (storeId, itemId, updatedFields) => {
+    setStoresList(prev => {
+      const updated = prev.map(s => {
+        if (s.id === storeId) {
+          return {
+            ...s,
+            items: (s.items || []).map(it => it.id === itemId ? { ...it, ...updatedFields } : it)
+          };
+        }
+        return s;
+      });
+      try { localStorage.setItem('delivery_express_partner_stores', JSON.stringify(updated)); } catch (_) {}
+      syncStoresToCloud(updated);
+      return updated;
+    });
+    showNotification('Menu item updated!', 'success');
+  };
+
+  // Delete Menu Item
+  const deleteMenuItem = (storeId, itemId) => {
+    setStoresList(prev => {
+      const updated = prev.map(s => {
+        if (s.id === storeId) {
+          return {
+            ...s,
+            items: (s.items || []).filter(it => it.id !== itemId)
+          };
+        }
+        return s;
+      });
+      try { localStorage.setItem('delivery_express_partner_stores', JSON.stringify(updated)); } catch (_) {}
+      syncStoresToCloud(updated);
+      return updated;
+    });
+    showNotification('Menu item removed.', 'info');
   };
 
   // Create new order (Instant, Optimistic & Non-blocking)
@@ -1304,6 +1471,13 @@ export function OrderProvider({ children }) {
         broadcastWeatherAlert,
         servicesList,
         updateServiceRates,
+        storesList,
+        addPartnerStore,
+        updatePartnerStore,
+        deletePartnerStore,
+        addMenuItem,
+        updateMenuItem,
+        deleteMenuItem,
         paymentSettings,
         updatePaymentSettings,
         currentUser,

@@ -30,7 +30,12 @@ import {
   Droplets,
   Thermometer,
   RefreshCw,
-  Compass
+  Compass,
+  UtensilsCrossed,
+  Store,
+  Flame,
+  Tag,
+  FileImage
 } from 'lucide-react';
 import { fetchPanahonWeather, MUNICIPALITY_COORDS } from '../../services/weatherService';
 
@@ -53,6 +58,13 @@ export default function AdminDashboard() {
     broadcastWeatherAlert,
     servicesList, 
     updateServiceRates, 
+    storesList,
+    addPartnerStore,
+    updatePartnerStore,
+    deletePartnerStore,
+    addMenuItem,
+    updateMenuItem,
+    deleteMenuItem,
     paymentSettings, 
     updatePaymentSettings,
     addRider,
@@ -67,10 +79,28 @@ export default function AdminDashboard() {
     toggleRiderDuty
   } = useOrder();
 
-  const [activeTab, setActiveTab] = useState('dispatch'); // 'dispatch' | 'staff' | 'rates' | 'payments' | 'broadcast'
+  const [activeTab, setActiveTab] = useState('dispatch'); // 'dispatch' | 'staff' | 'menus' | 'rates' | 'payments' | 'broadcast'
   const [selectedStatusFilter, setSelectedStatusFilter] = useState('all');
   const [selectedWeatherTown, setSelectedWeatherTown] = useState('Balamban');
   const [isRefreshingWeather, setIsRefreshingWeather] = useState(false);
+
+  // Store Management Modals
+  const [showAddStoreModal, setShowAddStoreModal] = useState(false);
+  const [newStoreName, setNewStoreName] = useState('');
+  const [newStoreCategory, setNewStoreCategory] = useState('Balamban Specialties');
+  const [newStoreZone, setNewStoreZone] = useState('Balamban Proper');
+  const [newStoreTagline, setNewStoreTagline] = useState('');
+  const [newStoreImage, setNewStoreImage] = useState('https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600&auto=format&fit=crop&q=80');
+  const [newStoreFlyer, setNewStoreFlyer] = useState('');
+
+  // Item Modal
+  const [targetStoreForMenu, setTargetStoreForMenu] = useState(null);
+  const [newItemName, setNewItemName] = useState('');
+  const [newItemPrice, setNewItemPrice] = useState('');
+  const [newItemCategory, setNewItemCategory] = useState('Specialty');
+  const [newItemDescription, setNewItemDescription] = useState('');
+  const [newItemImage, setNewItemImage] = useState('https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&auto=format&fit=crop&q=80');
+  const [newItemIsPopular, setNewItemIsPopular] = useState(false);
 
   // Rates editing state
   const [editingRates, setEditingRates] = useState({});
@@ -279,6 +309,7 @@ export default function AdminDashboard() {
           {[
             { id: 'dispatch', label: 'Live Dispatch Board', icon: LayoutDashboard },
             { id: 'staff', label: `Staff & Riders (${riders.length})`, icon: Users },
+            { id: 'menus', label: `Food & Menus (${storesList.length})`, icon: UtensilsCrossed },
             { id: 'rates', label: 'Edit Rates & Base Fares', icon: Sliders },
             { id: 'payments', label: 'GCash / QR Payments', icon: QrCode },
             { id: 'broadcast', label: 'Radio Broadcast', icon: Radio }
@@ -302,13 +333,25 @@ export default function AdminDashboard() {
           })}
         </div>
 
-        <button
-          onClick={() => setShowAddRiderModal(true)}
-          className="px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-zinc-950 text-xs font-extrabold rounded-2xl flex items-center gap-1.5 shadow-md transition-all ml-auto"
-        >
-          <UserPlus className="w-3.5 h-3.5" />
-          <span>+ Add Staff / Rider</span>
-        </button>
+        <div className="flex items-center gap-2 ml-auto">
+          {activeTab === 'menus' ? (
+            <button
+              onClick={() => setShowAddStoreModal(true)}
+              className="px-4 py-2 bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 text-white text-xs font-extrabold rounded-2xl flex items-center gap-1.5 shadow-md transition-all"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>+ Add Partner Store</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => setShowAddRiderModal(true)}
+              className="px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-zinc-950 text-xs font-extrabold rounded-2xl flex items-center gap-1.5 shadow-md transition-all"
+            >
+              <UserPlus className="w-3.5 h-3.5" />
+              <span>+ Add Staff / Rider</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* TAB 1: Live Dispatch Kanban */}
@@ -320,107 +363,115 @@ export default function AdminDashboard() {
               <button
                 key={st}
                 onClick={() => setSelectedStatusFilter(st)}
-                className={`px-3 py-1.5 rounded-xl capitalize font-bold transition-all ${
-                  selectedStatusFilter === st 
-                    ? 'bg-slate-900 text-white dark:bg-white dark:text-zinc-950 shadow-sm' 
-                    : 'bg-white dark:bg-zinc-900 text-slate-600 dark:text-zinc-400 border border-slate-200 dark:border-zinc-800'
+                className={`px-3 py-1.5 rounded-xl font-bold uppercase text-[10px] transition-colors ${
+                  selectedStatusFilter === st
+                    ? 'bg-rose-600 text-white'
+                    : 'bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 hover:bg-slate-200'
                 }`}
               >
-                {st.replace('_', ' ')}
+                {st} ({st === 'all' ? orders.length : orders.filter(o => o.status === st).length})
               </button>
             ))}
           </div>
 
           <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl overflow-hidden shadow-sm">
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs text-slate-700 dark:text-zinc-300">
-                <thead className="bg-slate-50 dark:bg-zinc-950/80 text-slate-500 dark:text-zinc-400 uppercase text-[10px] tracking-wider border-b border-slate-200 dark:border-zinc-800">
-                  <tr>
-                    <th className="p-4">Tracking #</th>
-                    <th className="p-4">Service</th>
-                    <th className="p-4">Customer</th>
-                    <th className="p-4">Route Details</th>
-                    <th className="p-4">Fare</th>
-                    <th className="p-4">Assigned Staff</th>
-                    <th className="p-4">Status</th>
-                    <th className="p-4">Actions</th>
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="border-b border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950/60 text-slate-500 dark:text-zinc-400 font-bold">
+                    <th className="py-3 px-4">Tracking #</th>
+                    <th className="py-3 px-4">Customer</th>
+                    <th className="py-3 px-4">Service</th>
+                    <th className="py-3 px-4">Route</th>
+                    <th className="py-3 px-4">Fare (₱)</th>
+                    <th className="py-3 px-4">Status</th>
+                    <th className="py-3 px-4">Assigned Rider</th>
+                    <th className="py-3 px-4 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-zinc-800/80">
-                  {filteredOrders.map(order => (
-                    <tr key={order.id} className="hover:bg-slate-50/80 dark:hover:bg-zinc-800/40 transition-colors">
-                      <td className="p-4 font-mono font-bold text-slate-900 dark:text-white">
-                        {order.trackingNumber}
-                      </td>
-                      <td className="p-4 font-bold text-rose-600 dark:text-rose-400">
-                        {order.serviceName}
-                      </td>
-                      <td className="p-4">
-                        <div className="flex items-center gap-2.5">
-                          <img
-                            src={order.customerAvatar || order.details?.customer_avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'}
-                            alt={order.customerName}
-                            className="w-8 h-8 rounded-xl object-cover border border-rose-500 shadow-sm shrink-0"
-                          />
-                          <div>
-                            <div className="font-bold text-slate-800 dark:text-zinc-200">{order.customerName}</div>
-                            <div className="text-[10px] text-slate-400 dark:text-zinc-500">{order.customerPhone}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="p-4 max-w-xs">
-                        <div className="truncate text-slate-800 dark:text-zinc-300"><strong>From:</strong> {order.pickupAddress}</div>
-                        <div className="truncate text-slate-500 dark:text-zinc-400"><strong>To:</strong> {order.dropoffAddress}</div>
-                      </td>
-                      <td className="p-4 font-bold text-emerald-600 dark:text-emerald-400">
-                        ₱{order.estimatedFare}
-                      </td>
-                      <td className="p-4">
-                        {order.riderName ? (
-                          <span className="font-bold text-amber-600 dark:text-amber-400">{order.riderName}</span>
-                        ) : (
-                          <select
-                            onChange={(e) => {
-                              if (e.target.value) assignRider(order.id, e.target.value);
-                            }}
-                            defaultValue=""
-                            className="bg-slate-100 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 text-slate-800 dark:text-zinc-200 rounded-xl px-2.5 py-1 text-xs focus:outline-none focus:border-rose-500"
-                          >
-                            <option value="" disabled>Assign Courier...</option>
-                            {riders.map(r => (
-                              <option key={r.id} value={r.id}>{r.name} ({r.zone})</option>
-                            ))}
-                          </select>
-                        )}
-                      </td>
-                      <td className="p-4">
-                        <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${ORDER_STATUSES[order.status]?.color || 'bg-slate-100 text-slate-600'}`}>
-                          {ORDER_STATUSES[order.status]?.label || order.status}
-                        </span>
-                      </td>
-                      <td className="p-4">
-                        <div className="flex items-center gap-1.5">
-                          {order.status !== 'delivered' && (
-                            <button
-                              onClick={() => updateOrderStatus(order.id, 'delivered')}
-                              className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-600/20 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-500/30 rounded-xl text-[10px] font-bold transition-colors"
-                            >
-                              Mark Delivered
-                            </button>
-                          )}
-                          <button
-                            onClick={() => {
-                              if (confirm(`Delete Order #${order.trackingNumber}?`)) deleteOrder(order.id);
-                            }}
-                            className="p-1.5 bg-slate-100 dark:bg-zinc-800 hover:bg-rose-50 hover:text-rose-600 text-slate-500 rounded-xl"
-                            title="Delete Order"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
+                  {filteredOrders.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="text-center py-10 text-slate-400">
+                        No orders match the selected filter.
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    filteredOrders.map(order => {
+                      const statusBadge = ORDER_STATUSES[order.status] || { label: order.status, color: 'bg-slate-100' };
+                      const assignedRider = riders.find(r => r.id === order.riderId);
+
+                      return (
+                        <tr key={order.id || order.trackingNumber} className="hover:bg-slate-50/80 dark:hover:bg-zinc-800/40 transition-colors">
+                          <td className="py-3 px-4 font-mono font-bold text-rose-600 dark:text-rose-400">
+                            {order.trackingNumber}
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="flex items-center gap-2">
+                              {order.customerAvatar ? (
+                                <img
+                                  src={order.customerAvatar}
+                                  alt="Customer"
+                                  className="w-7 h-7 rounded-full object-cover border border-emerald-400 shadow-sm shrink-0"
+                                />
+                              ) : (
+                                <div className="w-7 h-7 rounded-full bg-slate-200 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 flex items-center justify-center font-bold text-[10px] shrink-0">
+                                  {order.customerName ? order.customerName.charAt(0).toUpperCase() : 'C'}
+                                </div>
+                              )}
+                              <div className="truncate max-w-[130px]">
+                                <span className="font-bold text-slate-900 dark:text-white block truncate">
+                                  {order.customerName}
+                                </span>
+                                <span className="text-[10px] text-slate-400 block">{order.customerPhone}</span>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-3 px-4 font-semibold text-slate-700 dark:text-zinc-300">
+                            {order.serviceName}
+                          </td>
+                          <td className="py-3 px-4 max-w-xs truncate text-[11px] text-slate-500">
+                            <span className="text-slate-800 dark:text-zinc-200">{order.pickupAddress}</span>
+                            <span className="mx-1 text-slate-400">→</span>
+                            <span className="text-slate-800 dark:text-zinc-200">{order.dropoffAddress}</span>
+                          </td>
+                          <td className="py-3 px-4 font-black text-slate-900 dark:text-white">
+                            ₱{((order.estimatedFare || 0) + (order.itemCost || 0)).toLocaleString()}
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${statusBadge.color}`}>
+                              {statusBadge.label}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4">
+                            <select
+                              value={order.riderId || ''}
+                              onChange={(e) => assignRider(order.id || order.trackingNumber, e.target.value)}
+                              className="bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-xl px-2 py-1 text-xs text-slate-900 dark:text-white font-medium"
+                            >
+                              <option value="">Unassigned</option>
+                              {riders.map(r => (
+                                <option key={r.id} value={r.id}>{r.name} ({r.zone})</option>
+                              ))}
+                            </select>
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            <button
+                              onClick={() => {
+                                if (confirm(`Cancel/Delete order #${order.trackingNumber}?`)) {
+                                  deleteOrder(order.trackingNumber || order.id);
+                                }
+                              }}
+                              className="p-1.5 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition-colors"
+                              title="Delete Order"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
                 </tbody>
               </table>
             </div>
@@ -1133,6 +1184,246 @@ export default function AdminDashboard() {
                   className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-400 text-zinc-950 rounded-xl font-extrabold shadow-md"
                 >
                   Update Profile
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 3: ADD PARTNER STORE / RESTAURANT */}
+      {showAddStoreModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4">
+            <div className="flex justify-between items-center">
+              <h4 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                <Store className="w-5 h-5 text-rose-500" />
+                <span>Add Partner Store / Restaurant</span>
+              </h4>
+              <button onClick={() => setShowAddStoreModal(false)} className="text-slate-400 hover:text-slate-700">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!newStoreName) return alert('Store name is required.');
+                addPartnerStore({
+                  name: newStoreName,
+                  category: newStoreCategory,
+                  zone: newStoreZone,
+                  tagline: newStoreTagline,
+                  image: newStoreImage,
+                  menuFlyerUrl: newStoreFlyer,
+                  serviceType: newStoreCategory.includes('Cake') ? 'cake_flower' : newStoreCategory.includes('Convenience') ? 'pasabuy' : 'food_delivery'
+                });
+                setNewStoreName('');
+                setNewStoreTagline('');
+                setShowAddStoreModal(false);
+              }}
+              className="space-y-3 text-xs"
+            >
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">Store / Restaurant Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={newStoreName}
+                  onChange={(e) => setNewStoreName(e.target.value)}
+                  placeholder="e.g. Mang Inasal Gaisano Balamban"
+                  className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">Store Category</label>
+                <select
+                  value={newStoreCategory}
+                  onChange={(e) => setNewStoreCategory(e.target.value)}
+                  className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white font-bold"
+                >
+                  <option value="Balamban Specialties">Balamban Specialties (Liempo/Lechon)</option>
+                  <option value="Fast Food & Burgers">Fast Food & Burgers</option>
+                  <option value="Filipino & Lutong Bahay">Grills & Lutong Bahay</option>
+                  <option value="Cakes, Pastries & Bakery">Cakes & Bakery</option>
+                  <option value="Beverages & Milk Tea">Beverages & Milk Tea</option>
+                  <option value="Convenience & Groceries">Convenience & Groceries</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">Location / Zone in Balamban</label>
+                <input
+                  type="text"
+                  value={newStoreZone}
+                  onChange={(e) => setNewStoreZone(e.target.value)}
+                  placeholder="e.g. Gaisano Grand Mall Balamban, Town Proper"
+                  className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">Store Tagline / Description</label>
+                <input
+                  type="text"
+                  value={newStoreTagline}
+                  onChange={(e) => setNewStoreTagline(e.target.value)}
+                  placeholder="e.g. 2-in-1 Unli Rice and Charcoal Grilled Chicken"
+                  className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">Store Banner Image (URL or Upload)</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newStoreImage}
+                    onChange={(e) => setNewStoreImage(e.target.value)}
+                    placeholder="Image URL"
+                    className="flex-1 bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white"
+                  />
+                  <label className="cursor-pointer px-3 py-2 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 rounded-xl border border-slate-300 dark:border-zinc-700 font-bold flex items-center gap-1">
+                    <Upload className="w-3.5 h-3.5" />
+                    <input type="file" accept="image/*" className="hidden" onChange={(e) => handlePhotoUpload(e, setNewStoreImage, 'store')} />
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAddStoreModal(false)}
+                  className="flex-1 py-2.5 bg-slate-200 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 rounded-xl font-bold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl font-black shadow-md"
+                >
+                  Save Store
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 4: ADD MENU ITEM / FOOD DISH TO STORE */}
+      {targetStoreForMenu && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4">
+            <div className="flex justify-between items-center">
+              <div>
+                <h4 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                  <UtensilsCrossed className="w-5 h-5 text-rose-500" />
+                  <span>Add Food Dish / Item</span>
+                </h4>
+                <p className="text-[11px] text-slate-500 dark:text-zinc-400">
+                  Adding to: <strong>{targetStoreForMenu.name}</strong>
+                </p>
+              </div>
+              <button onClick={() => setTargetStoreForMenu(null)} className="text-slate-400 hover:text-slate-700">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!newItemName || !newItemPrice) return alert('Dish name and price are required.');
+                addMenuItem(targetStoreForMenu.id, {
+                  name: newItemName,
+                  price: newItemPrice,
+                  description: newItemDescription,
+                  category: newItemCategory,
+                  image: newItemImage,
+                  isPopular: newItemIsPopular
+                });
+                setTargetStoreForMenu(null);
+              }}
+              className="space-y-3 text-xs"
+            >
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">Dish / Product Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={newItemName}
+                  onChange={(e) => setNewItemName(e.target.value)}
+                  placeholder="e.g. 1 Whole Crispy Balamban Liempo"
+                  className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">Price (₱) *</label>
+                <input
+                  type="number"
+                  required
+                  value={newItemPrice}
+                  onChange={(e) => setNewItemPrice(e.target.value)}
+                  placeholder="e.g. 320"
+                  className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white font-black text-sm text-rose-600"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">Description / Portion</label>
+                <textarea
+                  rows={2}
+                  value={newItemDescription}
+                  onChange={(e) => setNewItemDescription(e.target.value)}
+                  placeholder="e.g. Rolled pork belly infused with lemongrass & garlic. Good for 3-4 persons."
+                  className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">Food Photo (URL or Upload)</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newItemImage}
+                    onChange={(e) => setNewItemImage(e.target.value)}
+                    placeholder="Image URL"
+                    className="flex-1 bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white"
+                  />
+                  <label className="cursor-pointer px-3 py-2 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 rounded-xl border border-slate-300 dark:border-zinc-700 font-bold flex items-center gap-1">
+                    <Upload className="w-3.5 h-3.5" />
+                    <input type="file" accept="image/*" className="hidden" onChange={(e) => handlePhotoUpload(e, setNewItemImage, 'dish')} />
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  type="checkbox"
+                  id="isBestseller"
+                  checked={newItemIsPopular}
+                  onChange={(e) => setNewItemIsPopular(e.target.checked)}
+                  className="w-4 h-4 text-rose-600 rounded"
+                />
+                <label htmlFor="isBestseller" className="font-bold text-slate-700 dark:text-zinc-300 cursor-pointer">
+                  Mark as ⭐ Bestseller / Popular Dish
+                </label>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setTargetStoreForMenu(null)}
+                  className="flex-1 py-2.5 bg-slate-200 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 rounded-xl font-bold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl font-black shadow-md"
+                >
+                  Save Dish
                 </button>
               </div>
             </form>

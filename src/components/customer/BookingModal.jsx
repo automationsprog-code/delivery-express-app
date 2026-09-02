@@ -21,7 +21,7 @@ import {
   Compass
 } from 'lucide-react';
 
-export default function BookingModal({ service, onClose, onBookingSuccess }) {
+export default function BookingModal({ service, initialData = null, onClose, onBookingSuccess }) {
   const { createOrder, paymentSettings, servicesList, currentUser } = useOrder();
 
   // Find latest active service rates
@@ -29,16 +29,30 @@ export default function BookingModal({ service, onClose, onBookingSuccess }) {
 
   const [customerName, setCustomerName] = useState(currentUser?.name || '');
   const [customerPhone, setCustomerPhone] = useState(currentUser?.phone || '');
-  const [pickupAddress, setPickupAddress] = useState('Balamban Public Market, Cebu');
-  const [pickupLandmark, setPickupLandmark] = useState('Palengke Town Proper');
+  const [pickupAddress, setPickupAddress] = useState(initialData?.pickupAddress || 'Balamban Public Market, Cebu');
+  const [pickupLandmark, setPickupLandmark] = useState(initialData?.pickupLandmark || 'Palengke Town Proper');
   const [pickupCoords, setPickupCoords] = useState([10.5015, 123.7150]);
   const [dropoffAddress, setDropoffAddress] = useState('');
   const [dropoffLandmark, setDropoffLandmark] = useState('');
   const [dropoffCoords, setDropoffCoords] = useState([10.4720, 123.7060]);
   const [paymentMethod, setPaymentMethod] = useState('Cash on Delivery');
   const [customerNotes, setCustomerNotes] = useState('');
-  const [dynamicFields, setDynamicFields] = useState({});
-  const [itemCostInput, setItemCostInput] = useState(0);
+  const [dynamicFields, setDynamicFields] = useState(() => {
+    if (initialData) {
+      return {
+        restaurantName: initialData.storeName || '',
+        storeName: initialData.storeName || '',
+        bakeshopName: initialData.storeName || '',
+        foodOrders: initialData.foodOrders || '',
+        shoppingList: initialData.shoppingList || '',
+        itemSpecs: initialData.foodOrders || '',
+        estimatedCost: initialData.estimatedCost || 0,
+        budgetLimit: initialData.estimatedCost || 0
+      };
+    }
+    return {};
+  });
+  const [itemCostInput, setItemCostInput] = useState(initialData?.estimatedCost || 0);
 
   // Map Picker State
   const [mapPickerTarget, setMapPickerTarget] = useState(null); // 'pickup' | 'dropoff' | null
