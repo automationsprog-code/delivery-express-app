@@ -41,6 +41,7 @@ export default function Header() {
     resetSampleData, 
     notification,
     announcement,
+    clearAnnouncement,
     weather
   } = useOrder();
   
@@ -95,16 +96,25 @@ export default function Header() {
         </div>
       </div>
 
-      {/* Admin Radio Broadcast Announcement Banner */}
+      {/* Admin Radio Broadcast Announcement Banner with Dismiss X Button */}
       {announcement && (
-        <div className="bg-amber-500 text-zinc-950 px-4 sm:px-8 py-2 text-xs font-bold flex items-center justify-between gap-3 shadow-md animate-bounce">
+        <div className="bg-amber-500 text-zinc-950 px-3.5 sm:px-8 py-2 text-xs font-bold flex items-center justify-between gap-2 shadow-md">
           <div className="flex items-center gap-2 truncate">
-            <Radio className="w-4 h-4 animate-spin shrink-0" />
+            <Radio className="w-4 h-4 animate-spin shrink-0 text-rose-900" />
             <span className="truncate">RADIO ({announcement.time}): {announcement.msg}</span>
           </div>
-          <span className="text-[10px] bg-zinc-950 text-amber-400 px-2 py-0.5 rounded-full uppercase shrink-0">
-            Staff Alert
-          </span>
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-[10px] bg-zinc-950 text-amber-400 px-2 py-0.5 rounded-full uppercase hidden sm:inline">
+              Staff Alert
+            </span>
+            <button
+              onClick={clearAnnouncement}
+              title="Dismiss Broadcast"
+              className="px-2 py-1 bg-zinc-950/10 hover:bg-zinc-950/25 rounded-lg text-zinc-950 font-black text-xs flex items-center gap-1 border border-zinc-950/20 cursor-pointer"
+            >
+              <span>✕ Stop</span>
+            </button>
+          </div>
         </div>
       )}
 

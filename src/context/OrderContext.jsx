@@ -1138,6 +1138,11 @@ export function OrderProvider({ children }) {
     showNotification(`Radio: "${msg}"`, 'success');
   };
 
+  const clearAnnouncement = () => {
+    setAnnouncement(null);
+    showNotification('Radio broadcast stopped & cleared', 'info');
+  };
+
   const broadcastWeatherAlert = async (targetTown = 'Balamban') => {
     const data = await refreshWeather(targetTown);
     if (data) {
@@ -1191,6 +1196,7 @@ export function OrderProvider({ children }) {
         showNotification,
         announcement,
         broadcastAdminAnnouncement,
+        clearAnnouncement,
         isWithinOperatingHours,
         createOrder,
         cancelOrder,

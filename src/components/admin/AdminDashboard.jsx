@@ -61,7 +61,9 @@ export default function AdminDashboard() {
     deleteOrder,
     assignRider,
     updateOrderStatus,
+    announcement,
     broadcastAdminAnnouncement,
+    clearAnnouncement,
     toggleRiderDuty
   } = useOrder();
 
@@ -876,13 +878,25 @@ export default function AdminDashboard() {
                   />
                 </div>
 
-                <button
-                  type="submit"
-                  className="w-full py-3 bg-gradient-to-r from-rose-600 via-amber-500 to-amber-600 hover:from-rose-500 hover:to-amber-500 text-white font-extrabold rounded-2xl text-xs sm:text-sm shadow-md shadow-rose-600/20 flex items-center justify-center gap-2"
-                >
-                  <Send className="w-4 h-4" />
-                  <span>Transmit Radio Announcement</span>
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    type="submit"
+                    className="flex-1 py-3 bg-gradient-to-r from-rose-600 via-amber-500 to-amber-600 hover:from-rose-500 hover:to-amber-500 text-white font-extrabold rounded-2xl text-xs sm:text-sm shadow-md shadow-rose-600/20 flex items-center justify-center gap-2"
+                  >
+                    <Send className="w-4 h-4" />
+                    <span>Transmit Radio Announcement</span>
+                  </button>
+                  {announcement && (
+                    <button
+                      type="button"
+                      onClick={clearAnnouncement}
+                      className="px-4 py-3 bg-rose-100 hover:bg-rose-200 dark:bg-rose-950/60 dark:hover:bg-rose-900 text-rose-700 dark:text-rose-300 font-extrabold rounded-2xl text-xs flex items-center gap-1.5 border border-rose-300 dark:border-rose-800 transition-colors"
+                    >
+                      <Power className="w-3.5 h-3.5" />
+                      <span>Stop Broadcast</span>
+                    </button>
+                  )}
+                </div>
               </form>
             </div>
 
