@@ -601,7 +601,153 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* TAB 3: EDIT RATES & BASE FARES (ADMIN ONLY) */}
+      {/* TAB 3: PARTNER STORES & FOOD MENUS CATALOG */}
+      {activeTab === 'menus' && (
+        <div className="space-y-6">
+          <div className="bg-gradient-to-r from-rose-500/10 via-amber-500/10 to-transparent p-4 sm:p-5 rounded-3xl border border-rose-500/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-rose-600 text-white rounded-2xl shadow-sm">
+                <UtensilsCrossed className="w-6 h-6" />
+              </div>
+              <div>
+                <h4 className="font-extrabold text-slate-900 dark:text-white text-base">
+                  Partner Stores & Food Menus Management
+                </h4>
+                <p className="text-xs text-slate-500 dark:text-zinc-400">
+                  Manage Balamban restaurants, upload dishes, prices, and high-res food menus.
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setShowAddStoreModal(true)}
+              className="px-4 py-2.5 bg-rose-600 hover:bg-rose-500 text-white text-xs font-black rounded-2xl shadow-md transition-all inline-flex items-center gap-1.5 shrink-0"
+            >
+              <Plus className="w-4 h-4" />
+              <span>+ Add Partner Store</span>
+            </button>
+          </div>
+
+          {/* Stores List Grid */}
+          <div className="space-y-5">
+            {storesList.map((store) => (
+              <div 
+                key={store.id}
+                className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl p-5 sm:p-6 shadow-sm space-y-4"
+              >
+                {/* Store Header Row */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-zinc-800 pb-4">
+                  <div className="flex items-center gap-3.5">
+                    <img
+                      src={store.image}
+                      alt={store.name}
+                      className="w-14 h-14 rounded-2xl object-cover border border-slate-200 dark:border-zinc-800 shadow-sm shrink-0"
+                    />
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 text-[9px] font-black px-2 py-0.5 rounded-md uppercase">
+                          {store.category}
+                        </span>
+                        <span className="text-xs text-slate-400 font-medium">⭐ {store.rating || 5.0}</span>
+                      </div>
+                      <h3 className="text-base sm:text-lg font-black text-slate-900 dark:text-white font-heading mt-0.5">
+                        {store.name}
+                      </h3>
+                      <p className="text-xs text-slate-500 dark:text-zinc-400">
+                        {store.zone} • {store.openingHours}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Actions for Store */}
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        setTargetStoreForMenu(store);
+                        setNewItemName('');
+                        setNewItemPrice('');
+                        setNewItemDescription('');
+                        setNewItemCategory('Specialty');
+                        setNewItemImage('https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&auto=format&fit=crop&q=80');
+                        setNewItemIsPopular(false);
+                      }}
+                      className="px-3.5 py-2 bg-rose-50 dark:bg-rose-500/10 hover:bg-rose-100 text-rose-600 dark:text-rose-400 font-bold rounded-xl text-xs flex items-center gap-1.5 border border-rose-200 dark:border-rose-500/30"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>+ Add Food Dish / Item</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        if (confirm(`Remove store "${store.name}" and all its menu items?`)) {
+                          deletePartnerStore(store.id);
+                        }
+                      }}
+                      className="p-2 bg-slate-100 dark:bg-zinc-800 hover:bg-rose-50 hover:text-rose-600 text-slate-500 rounded-xl"
+                      title="Delete Store"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Items Grid for this Store */}
+                <div>
+                  <h4 className="text-xs font-bold text-slate-400 uppercase mb-2.5">
+                    Food Dishes / Products ({(store.items || []).length}):
+                  </h4>
+
+                  {(store.items || []).length === 0 ? (
+                    <div className="p-4 text-center text-slate-400 text-xs bg-slate-50 dark:bg-zinc-950 rounded-2xl">
+                      No menu items yet. Click "+ Add Food Dish / Item" to add dishes.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {(store.items || []).map((item) => (
+                        <div
+                          key={item.id}
+                          className="p-3 bg-slate-50 dark:bg-zinc-950 rounded-2xl border border-slate-200 dark:border-zinc-800/80 flex items-start justify-between gap-3"
+                        >
+                          <div className="flex gap-2.5 min-w-0">
+                            <img
+                              src={item.image}
+                              alt={item.name}
+                              className="w-12 h-12 rounded-xl object-cover border border-slate-200 dark:border-zinc-800 shrink-0"
+                            />
+                            <div className="space-y-0.5 min-w-0">
+                              <h5 className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                                {item.name}
+                              </h5>
+                              <span className="text-xs font-black text-rose-600 dark:text-rose-400 block">
+                                ₱{item.price}
+                              </span>
+                              {item.isPopular && (
+                                <span className="text-[9px] font-extrabold text-amber-500">
+                                  ⭐ Bestseller
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          <button
+                            onClick={() => deleteMenuItem(store.id, item.id)}
+                            className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg shrink-0"
+                            title="Remove item"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* TAB 4: EDIT RATES & BASE FARES (ADMIN ONLY) */}
       {activeTab === 'rates' && (
         <div className="space-y-4">
           <div className="bg-gradient-to-r from-amber-500/10 via-rose-500/10 to-transparent p-4 rounded-2xl border border-amber-500/20 flex items-center gap-3">

@@ -66,21 +66,23 @@ export default function OrderChatModal({ order, onClose, senderRole = 'customer'
         "Salamat kaayo!"
       ];
 
-  // Merge messages helper
+  // Bulletproof de-duplication merge helper
   const mergeMessages = (incoming) => {
     if (!Array.isArray(incoming) || incoming.length === 0) return;
     setLocalMessages(prev => {
-      const merged = [...prev];
+      const result = [...prev];
       incoming.forEach(m => {
-        const alreadyExists = merged.some(e => 
-          e.id === m.id || 
-          (e.text === m.text && e.senderRole === m.senderRole && Math.abs(new Date(e.timestamp || 0) - new Date(m.timestamp || 0)) < 3000)
-        );
-        if (!alreadyExists) {
-          merged.push(m);
+        if (!m || !m.text) return;
+        const exists = result.some(e => {
+          if (e.id && m.id && e.id === m.id) return true;
+          if (e.text?.trim() === m.text?.trim() && e.senderRole === m.senderRole && e.time === m.time) return true;
+          return false;
+        });
+        if (!exists) {
+          result.push(m);
         }
       });
-      return merged;
+      return result;
     });
   };
 
@@ -207,8 +209,8 @@ export default function OrderChatModal({ order, onClose, senderRole = 'customer'
       });
     }
 
-    // Persist to Supabase Database
-    sendMessage(orderTracking, senderRole, myName, textToSend.trim());
+    // Persist to Supabase Database with exact same ID
+    sendMessage(orderTracking, newMsg);
 
     setInputText('');
   };

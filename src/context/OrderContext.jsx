@@ -966,22 +966,28 @@ export function OrderProvider({ children }) {
   };
 
   // In-App Realtime Chat Sync across all devices
-  const sendMessage = async (orderId, senderRole, senderName, text) => {
-    if (!text || !text.trim()) return;
-
-    const newMsg = {
-      id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-      senderRole,
-      senderName,
-      text: text.trim(),
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    };
+  const sendMessage = async (orderId, senderRoleOrObj, senderName, text, customMsgId) => {
+    let newMsg;
+    if (typeof senderRoleOrObj === 'object' && senderRoleOrObj !== null) {
+      newMsg = senderRoleOrObj;
+    } else {
+      if (!text || !text.trim()) return;
+      newMsg = {
+        id: customMsgId || `msg-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+        senderRole: senderRoleOrObj,
+        senderName: senderName || 'User',
+        text: text.trim(),
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
+    }
 
     // 1. Optimistically update local React state
     setOrders(prev => prev.map(o => {
       if (o.id === orderId || o.trackingNumber === orderId) {
         const currentMsgs = Array.isArray(o.messages) ? o.messages : [];
-        if (currentMsgs.some(m => m.id === newMsg.id)) return o;
+        if (currentMsgs.some(m => m.id === newMsg.id || (m.text === newMsg.text && m.senderRole === newMsg.senderRole && m.time === newMsg.time))) {
+          return o;
+        }
         return {
           ...o,
           messages: [...currentMsgs, newMsg]
