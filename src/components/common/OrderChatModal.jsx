@@ -135,11 +135,11 @@ export default function OrderChatModal({ order, onClose, senderRole = 'customer'
     // 2-second background poll from DB while chat modal is active
     const syncFromDatabase = async () => {
       try {
-        const { data, error } = await supabase
-          .from('orders')
-          .select('details')
-          .or(`tracking_number.eq.${orderTracking},id.eq.${orderTracking}`)
-          .limit(1);
+        const isTrackingUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(orderTracking);
+        let query = supabase.from('orders').select('details');
+        const { data, error } = isTrackingUuid
+          ? await query.eq('id', orderTracking).limit(1)
+          : await query.eq('tracking_number', orderTracking).limit(1);
 
         if (!error && data && data.length > 0 && data[0].details?.chat_messages) {
           mergeMessages(data[0].details.chat_messages);

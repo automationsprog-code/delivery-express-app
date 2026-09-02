@@ -917,6 +917,9 @@ export function OrderProvider({ children }) {
     return newOrder;
   };
 
+  // Helper to check if string is valid UUID
+  const isUuid = (val) => typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+
   // Customer Cancel Order
   const cancelOrder = async (orderId, reason = 'Cancelled by Customer') => {
     const cancelMsg = {
@@ -933,11 +936,11 @@ export function OrderProvider({ children }) {
           ...order,
           status: 'cancelled',
           statusText: 'Cancelled by Customer',
-          messages: [...(order.messages || []), cancelMsg],
           logs: [
-            { step: 'Booking Submitted', time: 'Received', done: true },
-            { step: `Order Cancelled (${reason})`, time: 'Just now', done: true }
-          ]
+            { step: 'Booking Submitted', time: 'Done', done: true },
+            { step: `Cancelled: ${reason}`, time: 'Just now', done: true }
+          ],
+          messages: [...(order.messages || []), cancelMsg]
         };
       }
       return order;
@@ -949,13 +952,19 @@ export function OrderProvider({ children }) {
         const tracking = targetOrder?.trackingNumber || orderId;
         const currentDetails = targetOrder?.details || {};
 
-        await supabase.from('orders').update({
+        let cancelQuery = supabase.from('orders').update({
           status: 'cancelled',
           details: {
             ...currentDetails,
             cancel_reason: reason
           }
-        }).or(`tracking_number.eq.${tracking},id.eq.${orderId}`);
+        });
+
+        if (isUuid(orderId)) {
+          await cancelQuery.eq('id', orderId);
+        } else {
+          await cancelQuery.eq('tracking_number', tracking);
+        }
       } catch (err) {
         console.warn('Supabase cancel order warning:', err);
       }
@@ -1002,11 +1011,10 @@ export function OrderProvider({ children }) {
     // 2. Safely append to Supabase Database
     if (isSupabaseConfigured && supabase) {
       try {
-        const { data: dbOrders, error: fetchErr } = await supabase
-          .from('orders')
-          .select('id, tracking_number, details')
-          .or(`tracking_number.eq.${orderId},id.eq.${orderId}`)
-          .limit(1);
+        let fetchQuery = supabase.from('orders').select('id, tracking_number, details');
+        const { data: dbOrders, error: fetchErr } = isUuid(orderId) 
+          ? await fetchQuery.eq('id', orderId).limit(1)
+          : await fetchQuery.eq('tracking_number', orderId).limit(1);
 
         if (!fetchErr && dbOrders && dbOrders.length > 0) {
           const row = dbOrders[0];
@@ -1069,7 +1077,7 @@ export function OrderProvider({ children }) {
         const tracking = targetOrder?.trackingNumber || orderId;
         const currentDetails = targetOrder?.details || {};
         
-        await supabase.from('orders').update({
+        let assignQuery = supabase.from('orders').update({
           status: 'assigned',
           rider_id: rider.id,
           details: {
@@ -1078,7 +1086,13 @@ export function OrderProvider({ children }) {
             rider_phone: rider.phone,
             rider_plate: rider.plate
           }
-        }).or(`tracking_number.eq.${tracking},id.eq.${orderId}`);
+        });
+
+        if (isUuid(orderId)) {
+          await assignQuery.eq('id', orderId);
+        } else {
+          await assignQuery.eq('tracking_number', tracking);
+        }
       } catch (err) {
         console.warn('Supabase assign rider error:', err);
       }
@@ -1172,9 +1186,15 @@ export function OrderProvider({ children }) {
         const targetOrder = orders.find(o => o.id === orderId || o.trackingNumber === orderId);
         const tracking = targetOrder?.trackingNumber || orderId;
 
-        await supabase.from('orders').update({
+        let statusQuery = supabase.from('orders').update({
           status: dbStatus
-        }).or(`tracking_number.eq.${tracking},id.eq.${orderId}`);
+        });
+
+        if (isUuid(orderId)) {
+          await statusQuery.eq('id', orderId);
+        } else {
+          await statusQuery.eq('tracking_number', tracking);
+        }
       } catch (err) {
         console.warn('Supabase status update error:', err);
       }
@@ -1218,11 +1238,17 @@ export function OrderProvider({ children }) {
         const targetOrder = orders.find(o => o.id === orderId || o.trackingNumber === orderId);
         const tracking = targetOrder?.trackingNumber || orderId;
 
-        await supabase.from('orders').update({
+        let podQuery = supabase.from('orders').update({
           status: 'delivered',
           proof_of_delivery_url: photoUrl,
           delivery_notes: notes
-        }).or(`tracking_number.eq.${tracking},id.eq.${orderId}`);
+        });
+
+        if (isUuid(orderId)) {
+          await podQuery.eq('id', orderId);
+        } else {
+          await podQuery.eq('tracking_number', tracking);
+        }
       } catch (_) {}
     }
 
