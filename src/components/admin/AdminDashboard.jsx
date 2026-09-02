@@ -356,8 +356,17 @@ export default function AdminDashboard() {
                         {order.serviceName}
                       </td>
                       <td className="p-4">
-                        <div className="font-semibold text-slate-800 dark:text-zinc-200">{order.customerName}</div>
-                        <div className="text-[10px] text-slate-400 dark:text-zinc-500">{order.customerPhone}</div>
+                        <div className="flex items-center gap-2.5">
+                          <img
+                            src={order.customerAvatar || order.details?.customer_avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'}
+                            alt={order.customerName}
+                            className="w-8 h-8 rounded-xl object-cover border border-rose-500 shadow-sm shrink-0"
+                          />
+                          <div>
+                            <div className="font-bold text-slate-800 dark:text-zinc-200">{order.customerName}</div>
+                            <div className="text-[10px] text-slate-400 dark:text-zinc-500">{order.customerPhone}</div>
+                          </div>
+                        </div>
                       </td>
                       <td className="p-4 max-w-xs">
                         <div className="truncate text-slate-800 dark:text-zinc-300"><strong>From:</strong> {order.pickupAddress}</div>

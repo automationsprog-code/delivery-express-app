@@ -350,20 +350,36 @@ export default function RiderPortal() {
                   className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 hover:border-amber-500/50 rounded-3xl p-5 sm:p-6 shadow-sm space-y-4 card-float transition-all"
                 >
                   {/* Header with Tracking & Fare */}
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <span className="bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-500/20 text-[10px] font-bold px-2.5 py-0.5 rounded-full">
-                        {order.serviceName}
-                      </span>
-                      <h4 className="text-base font-black text-slate-900 dark:text-white font-mono mt-1">
-                        {order.trackingNumber}
-                      </h4>
-                      <p className="text-xs text-slate-500 dark:text-zinc-400">
-                        Customer: <strong className="text-slate-800 dark:text-zinc-200">{order.customerName}</strong> ({order.customerPhone})
-                      </p>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-start gap-3">
+                      {/* Customer Photo / Avatar */}
+                      <div className="relative shrink-0 mt-0.5">
+                        <img
+                          src={order.customerAvatar || order.details?.customer_avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'}
+                          alt={order.customerName}
+                          className="w-10 h-10 rounded-2xl object-cover border-2 border-rose-500 shadow-sm"
+                        />
+                        <span className="absolute -bottom-1 -right-1 bg-emerald-500 text-white rounded-full p-0.5 shadow-sm" title="Verified Customer">
+                          <CheckCircle2 className="w-2.5 h-2.5" />
+                        </span>
+                      </div>
+
+                      <div>
+                        <span className="bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-500/20 text-[10px] font-bold px-2.5 py-0.5 rounded-full">
+                          {order.serviceName}
+                        </span>
+                        <h4 className="text-base font-black text-slate-900 dark:text-white font-mono mt-0.5">
+                          {order.trackingNumber}
+                        </h4>
+                        <p className="text-xs text-slate-600 dark:text-zinc-300 font-bold mt-0.5 flex items-center gap-1">
+                          <span>Customer:</span>
+                          <strong className="text-slate-900 dark:text-white font-black">{order.customerName}</strong>
+                          <span className="text-slate-400 font-normal">({order.customerPhone})</span>
+                        </p>
+                      </div>
                     </div>
 
-                    <div className="text-right">
+                    <div className="text-right shrink-0">
                       <span className="text-[10px] text-slate-400 dark:text-zinc-500 block font-bold">Courier Payout</span>
                       <span className="text-lg font-black text-emerald-600 dark:text-emerald-400">₱{order.estimatedFare}</span>
                       <span className="text-[10px] text-slate-400 dark:text-zinc-500 block font-semibold">{order.paymentMethod}</span>

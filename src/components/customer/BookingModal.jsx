@@ -22,13 +22,13 @@ import {
 } from 'lucide-react';
 
 export default function BookingModal({ service, onClose, onBookingSuccess }) {
-  const { createOrder, paymentSettings, servicesList } = useOrder();
+  const { createOrder, paymentSettings, servicesList, currentUser } = useOrder();
 
   // Find latest active service rates
   const currentService = servicesList?.find(s => s.id === service.id) || service;
 
-  const [customerName, setCustomerName] = useState('');
-  const [customerPhone, setCustomerPhone] = useState('');
+  const [customerName, setCustomerName] = useState(currentUser?.name || '');
+  const [customerPhone, setCustomerPhone] = useState(currentUser?.phone || '');
   const [pickupAddress, setPickupAddress] = useState('Balamban Public Market, Cebu');
   const [pickupLandmark, setPickupLandmark] = useState('Palengke Town Proper');
   const [pickupCoords, setPickupCoords] = useState([10.5015, 123.7150]);
@@ -105,6 +105,7 @@ export default function BookingModal({ service, onClose, onBookingSuccess }) {
       serviceId: currentService.id,
       customerName,
       customerPhone,
+      customerAvatar: currentUser?.avatar || null,
       pickupAddress,
       pickupLandmark,
       pickupCoords,

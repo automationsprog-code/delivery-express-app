@@ -307,6 +307,7 @@ export function OrderProvider({ children }) {
               serviceName: o.service_id ? (SERVICES.find(s => s.id === o.service_id)?.name || 'Delivery') : 'Food Delivery',
               customerName: o.customer_name,
               customerPhone: o.customer_phone,
+              customerAvatar: o.details?.customer_avatar || null,
               pickupAddress: o.pickup_address,
               pickupLandmark: o.pickup_landmark,
               pickupCoords: [parseFloat(o.pickup_lat || 10.5015), parseFloat(o.pickup_lng || 123.7150)],
@@ -372,13 +373,16 @@ export function OrderProvider({ children }) {
     };
   }, []);
 
-  // Customer Account Register & Login
+  // Customer Account Register & Login (With Anti-Scam Avatar Verification)
   const registerCustomer = (customerData) => {
     const userObj = {
       role: 'customer',
       name: customerData.name,
+      firstName: customerData.firstName || customerData.name.split(' ')[0],
+      lastName: customerData.lastName || customerData.name.split(' ').slice(1).join(' '),
       email: customerData.email,
       phone: customerData.phone,
+      avatar: customerData.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
       password: customerData.password
     };
     const existing = JSON.parse(localStorage.getItem('delivery_express_registered_customers') || '[]');
@@ -388,7 +392,7 @@ export function OrderProvider({ children }) {
     setCurrentUser(userObj);
     setActiveRole('customer');
     soundService.playSuccessFanfare();
-    showNotification(`Account created! Welcome, ${userObj.name}`, 'success');
+    showNotification(`Account verified & created! Welcome, ${userObj.name}`, 'success');
   };
 
   const loginCustomerWithPassword = (emailOrPhone, password) => {
@@ -554,6 +558,7 @@ export function OrderProvider({ children }) {
   const createOrder = async (orderInput) => {
     const service = servicesList.find(s => s.id === orderInput.serviceId) || servicesList[0];
     const trackingNumber = `DE-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+    const custAvatar = orderInput.customerAvatar || currentUser?.avatar || null;
 
     const newOrder = {
       id: trackingNumber,
@@ -562,6 +567,7 @@ export function OrderProvider({ children }) {
       serviceName: service.name,
       customerName: orderInput.customerName,
       customerPhone: orderInput.customerPhone,
+      customerAvatar: custAvatar,
       pickupAddress: orderInput.pickupAddress,
       pickupLandmark: orderInput.pickupLandmark || '',
       pickupCoords: orderInput.pickupCoords || [10.5015, 123.7150],
@@ -577,7 +583,10 @@ export function OrderProvider({ children }) {
       riderId: null,
       riderName: null,
       riderPhone: null,
-      details: orderInput.details || {},
+      details: {
+        ...(orderInput.details || {}),
+        customer_avatar: custAvatar
+      },
       customerNotes: orderInput.customerNotes || '',
       messages: [
         {

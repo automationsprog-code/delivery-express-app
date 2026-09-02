@@ -10,7 +10,10 @@ import {
   CheckCircle2, 
   Eye, 
   EyeOff, 
-  Sparkles
+  Sparkles,
+  Camera,
+  Upload,
+  Image as ImageIcon
 } from 'lucide-react';
 
 export default function AuthModal({ onClose, defaultTab = 'customer' }) {
@@ -39,15 +42,53 @@ export default function AuthModal({ onClose, defaultTab = 'customer' }) {
   const [googleEmail, setGoogleEmail] = useState('');
   const [googleName, setGoogleName] = useState('');
 
-  // Customer Sign Up Form (NO DROPDOWN - Clean & Fast)
-  const [name, setName] = useState('');
+  // Customer Sign Up Form (Strict First Name, Last Name, Phone, and Photo Upload)
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [customerPassword, setCustomerPassword] = useState('');
+  const [customerAvatar, setCustomerAvatar] = useState('');
 
   // Customer Sign In Form
   const [loginIdentifier, setLoginIdentifier] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
+
+  // Handle Photo Upload with Image Compression (Canvas)
+  const handleCustomerPhotoUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const maxDim = 400;
+          let width = img.width;
+          let height = img.height;
+          if (width > height) {
+            if (width > maxDim) {
+              height *= maxDim / width;
+              width = maxDim;
+            }
+          } else {
+            if (height > maxDim) {
+              width *= maxDim / height;
+              height = maxDim;
+            }
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          const compressed = canvas.toDataURL('image/jpeg', 0.85);
+          setCustomerAvatar(compressed);
+        };
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   // Handle Google Login Form Submission
   const handleGoogleSubmit = (e) => {
@@ -67,14 +108,19 @@ export default function AuthModal({ onClose, defaultTab = 'customer' }) {
 
   const handleCustomerSignUp = (e) => {
     e.preventDefault();
-    if (!name.trim() || !phone.trim() || !customerPassword.trim()) {
-      setErrorMsg('Please fill in your name, mobile number, and password.');
+    if (!firstName.trim() || !lastName.trim() || !phone.trim() || !customerPassword.trim()) {
+      setErrorMsg('Please fill in your First Name, Last Name, Mobile Number, and Password.');
       return;
     }
+
+    const fullName = `${firstName.trim()} ${lastName.trim()}`;
     registerCustomer({
-      name: name.trim(),
+      name: fullName,
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
       phone: phone.trim(),
-      email: email.trim() || `${name.toLowerCase().replace(/\s+/g, '')}@gmail.com`,
+      email: email.trim() || `${firstName.toLowerCase().trim()}${lastName.toLowerCase().trim()}@gmail.com`,
+      avatar: customerAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
       password: customerPassword.trim()
     });
     onClose();
@@ -314,47 +360,118 @@ export default function AuthModal({ onClose, defaultTab = 'customer' }) {
                 </button>
               </div>
 
-              {/* CREATE ACCOUNT FORM (NO DROPDOWN) */}
+              {/* CREATE ACCOUNT FORM (STRICT ANTI-SCAM VERIFICATION) */}
               {customerMode === 'signup' && (
-                <form onSubmit={handleCustomerSignUp} className="space-y-3 text-xs">
-                  <div>
-                    <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">Full Name *</label>
-                    <input
-                      type="text"
-                      required
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder="e.g. Maria Clara"
-                      className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-2xl px-3.5 py-2.5 text-slate-900 dark:text-white focus:outline-none focus:border-rose-500"
-                    />
+                <form onSubmit={handleCustomerSignUp} className="space-y-3.5 text-xs">
+                  
+                  {/* Anti-Scam Profile Picture Upload Card */}
+                  <div className="bg-rose-50/70 dark:bg-rose-950/40 p-3.5 rounded-2xl border border-rose-200 dark:border-rose-900/60 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <label className="font-black text-slate-800 dark:text-zinc-200 text-xs flex items-center gap-1.5">
+                        <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                        <span>Profile Picture (Anti-Scam Verification) *</span>
+                      </label>
+                      <span className="text-[9px] font-extrabold uppercase bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-300 dark:border-emerald-800">
+                        Required
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-3.5">
+                      <div className="relative shrink-0">
+                        <img
+                          src={customerAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'}
+                          alt="Customer Avatar"
+                          className="w-14 h-14 rounded-2xl object-cover border-2 border-rose-500 shadow-md bg-white dark:bg-zinc-800"
+                        />
+                        {customerAvatar && (
+                          <span className="absolute -top-1 -right-1 bg-emerald-500 text-white rounded-full p-0.5 shadow-sm">
+                            <CheckCircle2 className="w-3 h-3" />
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex-1 space-y-1">
+                        <label className="cursor-pointer px-3 py-2 bg-rose-600 hover:bg-rose-500 text-white font-black rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all">
+                          <Camera className="w-3.5 h-3.5" />
+                          <span>{customerAvatar ? 'Change Photo' : '📷 Snap / Upload Face Photo'}</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            capture="user"
+                            className="hidden"
+                            onChange={handleCustomerPhotoUpload}
+                          />
+                        </label>
+                        <p className="text-[10px] text-slate-500 dark:text-zinc-400 leading-tight">
+                          Real face photo prevents scamming and helps rider verify customer upon delivery.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Required First Name & Last Name */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
+                        First Name *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={firstName}
+                        onChange={(e) => setFirstName(e.target.value)}
+                        placeholder="e.g. Maria"
+                        className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-2xl px-3 py-2.5 text-slate-900 dark:text-white focus:outline-none focus:border-rose-500 font-medium"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
+                        Last Name *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={lastName}
+                        onChange={(e) => setLastName(e.target.value)}
+                        placeholder="e.g. Clara"
+                        className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-2xl px-3 py-2.5 text-slate-900 dark:text-white focus:outline-none focus:border-rose-500 font-medium"
+                      />
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">Mobile Number *</label>
+                      <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
+                        Mobile Number *
+                      </label>
                       <input
                         type="tel"
                         required
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
                         placeholder="0917-123-4567"
-                        className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-2xl px-3.5 py-2.5 text-slate-900 dark:text-white focus:outline-none focus:border-rose-500"
+                        className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-2xl px-3 py-2.5 text-slate-900 dark:text-white focus:outline-none focus:border-rose-500 font-medium"
                       />
                     </div>
                     <div>
-                      <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">Email (Optional)</label>
+                      <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
+                        Email (Optional)
+                      </label>
                       <input
                         type="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="gmail@example.com"
-                        className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-2xl px-3.5 py-2.5 text-slate-900 dark:text-white focus:outline-none focus:border-rose-500"
+                        className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-2xl px-3 py-2.5 text-slate-900 dark:text-white focus:outline-none focus:border-rose-500 font-medium"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">Create Password *</label>
+                    <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
+                      Create Password *
+                    </label>
                     <div className="relative">
                       <input
                         type={showCustomerPassword ? 'text' : 'password'}
@@ -379,7 +496,7 @@ export default function AuthModal({ onClose, defaultTab = 'customer' }) {
                     type="submit"
                     className="w-full py-3.5 px-4 bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-black rounded-2xl text-xs sm:text-sm shadow-md flex items-center justify-center gap-2 transition-all"
                   >
-                    <span>Create Account & Start Booking</span>
+                    <span>Create Verified Customer Account</span>
                     <ArrowRight className="w-4 h-4" />
                   </button>
                 </form>
