@@ -863,6 +863,64 @@ export function OrderProvider({ children }) {
     try { confetti({ particleCount: 140, spread: 90 }); } catch (_) {}
   };
 
+  // Customer Star Rating & Review for Courier
+  const rateRider = async (orderId, riderId, ratingValue, reviewFeedback = '') => {
+    // 1. Update order locally
+    setOrders(prev => prev.map(o => {
+      if (o.id === orderId || o.trackingNumber === orderId) {
+        return {
+          ...o,
+          customerRating: ratingValue,
+          customerReview: reviewFeedback
+        };
+      }
+      return o;
+    }));
+
+    // 2. Update rider rating average
+    const targetRider = riders.find(r => r.id === riderId || r.name === riderId) || riders[0];
+    if (targetRider) {
+      const currentRating = targetRider.rating || 5.0;
+      const currentTrips = targetRider.trips || 1;
+      const newAverage = parseFloat(((currentRating * currentTrips + ratingValue) / (currentTrips + 1)).toFixed(1));
+
+      setRiders(prev => prev.map(r => {
+        if (r.id === targetRider.id) {
+          return {
+            ...r,
+            rating: newAverage,
+            trips: currentTrips + 1
+          };
+        }
+        return r;
+      }));
+
+      if (isSupabaseConfigured && supabase) {
+        try {
+          await supabase.from('riders').update({
+            rating: newAverage,
+            total_completed_trips: currentTrips + 1
+          }).eq('id', targetRider.id);
+
+          const targetOrder = orders.find(o => o.id === orderId || o.trackingNumber === orderId);
+          const tracking = targetOrder?.trackingNumber || orderId;
+          const currentDetails = targetOrder?.details || {};
+          await supabase.from('orders').update({
+            details: {
+              ...currentDetails,
+              customer_rating: ratingValue,
+              customer_review: reviewFeedback
+            }
+          }).or(`tracking_number.eq.${tracking},id.eq.${orderId}`);
+        } catch (_) {}
+      }
+    }
+
+    soundService.playSuccessFanfare();
+    try { confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } }); } catch (_) {}
+    showNotification(`Thank you for rating ${ratingValue} ⭐ stars!`, 'success');
+  };
+
   // Staff Management (Preserves Profile Picture & Syncs across all devices)
   const addRider = async (newRiderData) => {
     const newId = `rider-${Date.now()}`;
@@ -1080,6 +1138,7 @@ export function OrderProvider({ children }) {
         toggleRiderDuty,
         updateOrderStatus,
         uploadProofOfDelivery,
+        rateRider,
         addRider,
         updateRider,
         deleteRider,

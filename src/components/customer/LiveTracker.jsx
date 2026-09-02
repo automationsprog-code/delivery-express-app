@@ -21,15 +21,25 @@ import {
   MessagesSquare,
   XCircle,
   X,
-  Layers
+  Layers,
+  Star,
+  Sparkles,
+  ThumbsUp
 } from 'lucide-react';
 
 export default function LiveTracker() {
-  const { orders, riders, activeTrackingId, setActiveTrackingId, cancelOrder } = useOrder();
+  const { orders, riders, activeTrackingId, setActiveTrackingId, cancelOrder, rateRider } = useOrder();
   const [searchInput, setSearchInput] = useState('');
   const [showChatModal, setShowChatModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelReason, setCancelReason] = useState('Change of mind / plans');
+
+  // Customer Star Rating State
+  const [ratingStars, setRatingStars] = useState(5);
+  const [hoverStars, setHoverStars] = useState(0);
+  const [ratingFeedback, setRatingFeedback] = useState('');
+  const [selectedChips, setSelectedChips] = useState([]);
+  const [hasSubmittedRating, setHasSubmittedRating] = useState(false);
 
   const activeOrder = orders.find(o => o.trackingNumber === activeTrackingId || o.id === activeTrackingId) || orders[0];
 
@@ -52,7 +62,7 @@ export default function LiveTracker() {
   };
 
   const assignedRider = riders.find(r => r.id === activeOrder?.riderId || r.name === activeOrder?.riderName) || riders[0];
-  const riderAvatar = assignedRider?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80';
+  const riderAvatar = assignedRider?.avatar || '/rider-nigel.jpg';
 
   const pickupCoords = activeOrder?.pickupCoords || [10.5015, 123.7150];
   const dropoffCoords = activeOrder?.dropoffCoords || [10.4720, 123.7060];
@@ -64,6 +74,36 @@ export default function LiveTracker() {
     if (!activeOrder) return;
     cancelOrder(activeOrder.trackingNumber || activeOrder.id, cancelReason);
     setShowCancelModal(false);
+  };
+
+  const reviewChipsList = [
+    'Very Fast 🚀',
+    'Polite & Friendly 🤝',
+    'Handled with Care 📦',
+    '100% Correct Order 🛍️',
+    'Affordable Fare 💰',
+    'Responsive in Chat 💬'
+  ];
+
+  const toggleChip = (chip) => {
+    if (selectedChips.includes(chip)) {
+      setSelectedChips(prev => prev.filter(c => c !== chip));
+    } else {
+      setSelectedChips(prev => [...prev, chip]);
+    }
+  };
+
+  const handleSubmitReview = (e) => {
+    e.preventDefault();
+    if (!activeOrder) return;
+
+    const fullComment = [
+      selectedChips.join(', '),
+      ratingFeedback.trim()
+    ].filter(Boolean).join(' - ') || 'Great delivery service in Balamban!';
+
+    rateRider(activeOrder.id, activeOrder.riderId || assignedRider?.id, ratingStars, fullComment);
+    setHasSubmittedRating(true);
   };
 
   return (
@@ -110,7 +150,10 @@ export default function LiveTracker() {
             return (
               <button
                 key={o.id || o.trackingNumber}
-                onClick={() => setActiveTrackingId(o.trackingNumber)}
+                onClick={() => {
+                  setActiveTrackingId(o.trackingNumber);
+                  setHasSubmittedRating(false);
+                }}
                 className={`px-3.5 py-2 rounded-2xl font-bold flex items-center gap-2 shrink-0 transition-all shadow-sm ${
                   isSelected
                     ? 'bg-rose-600 text-white shadow-rose-600/30'
@@ -164,7 +207,7 @@ export default function LiveTracker() {
                     <img
                       src={riderAvatar}
                       alt={activeOrder.riderName || 'Rider Avatar'}
-                      className="w-14 h-14 rounded-2xl object-cover border-2 border-amber-500 shadow-md"
+                      className="w-14 h-14 rounded-2xl object-cover border-2 border-amber-500 shadow-md bg-white dark:bg-zinc-800"
                     />
                     <div className="absolute -bottom-1 -right-1 bg-emerald-500 text-white p-0.5 rounded-full">
                       <ShieldCheck className="w-3.5 h-3.5" />
@@ -178,7 +221,7 @@ export default function LiveTracker() {
                       </h4>
                       {activeOrder.riderName && (
                         <span className="bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 text-[10px] font-bold px-2 py-0.5 rounded-md border border-amber-200 dark:border-amber-500/20">
-                          ⭐ 5.0
+                          ⭐ {assignedRider?.rating || 5.0}
                         </span>
                       )}
                     </div>
@@ -206,12 +249,12 @@ export default function LiveTracker() {
               <button
                 type="button"
                 onClick={() => setShowChatModal(true)}
-                className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-rose-600 to-amber-500 hover:from-rose-500 hover:to-amber-400 text-white text-xs sm:text-sm font-black flex items-center justify-center gap-2.5 transition-all shadow-lg shadow-rose-600/20"
+                className="w-full py-3.5 px-4 rounded-2xl bg-[#00B14F] hover:bg-emerald-600 text-white text-xs sm:text-sm font-black flex items-center justify-center gap-2.5 transition-all shadow-lg shadow-emerald-500/20"
               >
                 <MessagesSquare className="w-4 h-4 text-white" />
-                <span>Open In-App Direct Chat with Courier</span>
+                <span>Open Zero-Delay Chat with Courier</span>
                 {activeOrder.messages && activeOrder.messages.length > 0 && (
-                  <span className="bg-white text-rose-600 font-extrabold text-[10px] px-2 py-0.5 rounded-full ml-1">
+                  <span className="bg-white text-[#00B14F] font-extrabold text-[10px] px-2 py-0.5 rounded-full ml-1">
                     {activeOrder.messages.length}
                   </span>
                 )}
@@ -240,6 +283,122 @@ export default function LiveTracker() {
                   <p className="text-xs text-slate-700 dark:text-zinc-300">
                     <strong>Rider Notes:</strong> {activeOrder.deliveryNotes}
                   </p>
+                )}
+              </div>
+            )}
+
+            {/* CUSTOMER 5-STAR RATING & REVIEW CARD (SHOWN UPON DELIVERY) */}
+            {activeOrder.status === 'delivered' && (
+              <div className="p-5 rounded-3xl bg-white dark:bg-zinc-900 border-2 border-amber-400 dark:border-amber-500/40 shadow-lg space-y-4 card-float">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 rounded-2xl bg-amber-50 dark:bg-amber-500/10 text-amber-500">
+                      <Star className="w-5 h-5 fill-amber-400 text-amber-400" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm sm:text-base font-black text-slate-900 dark:text-white">
+                        Rate Your Courier: {activeOrder.riderName || 'Nigel'}
+                      </h4>
+                      <p className="text-xs text-slate-500 dark:text-zinc-400">
+                        How was your delivery experience in Balamban?
+                      </p>
+                    </div>
+                  </div>
+                  <span className="bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-400 text-[10px] font-black px-2.5 py-1 rounded-full uppercase">
+                    ⭐ Feedback
+                  </span>
+                </div>
+
+                {hasSubmittedRating || activeOrder.customerRating ? (
+                  <div className="p-4 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-2xl text-center space-y-1">
+                    <div className="flex justify-center gap-1 text-amber-400">
+                      {[1, 2, 3, 4, 5].map((s) => (
+                        <Star 
+                          key={s} 
+                          className={`w-5 h-5 ${s <= (activeOrder.customerRating || ratingStars) ? 'fill-amber-400 text-amber-400' : 'text-slate-300'}`} 
+                        />
+                      ))}
+                    </div>
+                    <p className="text-xs font-black text-emerald-700 dark:text-emerald-300">
+                      Thank you for your rating! ⭐
+                    </p>
+                    <p className="text-[11px] text-slate-500 dark:text-zinc-400">
+                      Your feedback helps keep Delivery Express couriers top-rated in West Cebu.
+                    </p>
+                  </div>
+                ) : (
+                  <form onSubmit={handleSubmitReview} className="space-y-3.5">
+                    {/* Interactive Star Picker */}
+                    <div className="flex items-center justify-center gap-2 py-2">
+                      {[1, 2, 3, 4, 5].map((star) => {
+                        const isFilled = star <= (hoverStars || ratingStars);
+                        return (
+                          <button
+                            key={star}
+                            type="button"
+                            onMouseEnter={() => setHoverStars(star)}
+                            onMouseLeave={() => setHoverStars(0)}
+                            onClick={() => setRatingStars(star)}
+                            className="p-1 transition-transform hover:scale-125 focus:outline-none"
+                          >
+                            <Star 
+                              className={`w-8 h-8 transition-colors ${
+                                isFilled 
+                                  ? 'fill-amber-400 text-amber-400 drop-shadow-md' 
+                                  : 'text-slate-300 dark:text-zinc-700'
+                              }`} 
+                            />
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <div className="text-center">
+                      <span className="text-xs font-black text-amber-600 dark:text-amber-400">
+                        {ratingStars === 5 ? '⭐⭐⭐⭐⭐ Excellent Service!' : ratingStars === 4 ? '⭐⭐⭐⭐ Very Good!' : ratingStars === 3 ? '⭐⭐⭐ Good / Average' : '⭐⭐ Needs Improvement'}
+                      </span>
+                    </div>
+
+                    {/* Quick Feedback Chips */}
+                    <div className="flex flex-wrap gap-1.5 justify-center pt-1">
+                      {reviewChipsList.map((chip) => {
+                        const isSelected = selectedChips.includes(chip);
+                        return (
+                          <button
+                            key={chip}
+                            type="button"
+                            onClick={() => toggleChip(chip)}
+                            className={`text-[11px] px-3 py-1 rounded-xl font-bold transition-all border ${
+                              isSelected
+                                ? 'bg-amber-500 text-zinc-950 border-amber-600 shadow-xs'
+                                : 'bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 border-slate-200 dark:border-zinc-700 hover:border-amber-400'
+                            }`}
+                          >
+                            {chip}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Optional Comment */}
+                    <div>
+                      <input
+                        type="text"
+                        value={ratingFeedback}
+                        onChange={(e) => setRatingFeedback(e.target.value)}
+                        placeholder="Say something to Kuya rider... (Optional)"
+                        className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-2xl px-4 py-2.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-amber-500"
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      className="w-full py-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-zinc-950 font-black rounded-2xl text-xs sm:text-sm shadow-md transition-all flex items-center justify-center gap-1.5"
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      <span>Submit ⭐ Rating</span>
+                    </button>
+                  </form>
                 )}
               </div>
             )}
