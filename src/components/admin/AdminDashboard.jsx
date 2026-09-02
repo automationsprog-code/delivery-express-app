@@ -26,34 +26,14 @@ import {
   Loader2
 } from 'lucide-react';
 
-const MUNICIPALITIES_AND_ZONES = [
-  {
-    municipality: 'Balamban',
-    zones: [
-      'Balamban Proper / Public Palengke',
-      'Gaisano Grand Mall & Town Center',
-      'Aliwanay & Buanoy Industrial (Tsuneishi)',
-      'Pondol & Cantuod Coastal Area',
-      'Arpili & Mataliao',
-      'Gaas & Cantipla (Transcentral Highway)'
-    ]
-  },
-  {
-    municipality: 'Asturias',
-    zones: ['Poblacion Asturias', 'Tubigagmanok', 'Owac', 'Bago']
-  },
-  {
-    municipality: 'Toledo City',
-    zones: ['Toledo Poblacion / Port', 'Lutopan / DAS', 'Ibo & Matab-ang', 'Poog']
-  },
-  {
-    municipality: 'Tuburan',
-    zones: ['Tuburan Proper', 'Colonia', 'Caridad', 'Fortuna']
-  },
-  {
-    municipality: 'Pinamungajan',
-    zones: ['Pinamungajan Poblacion', 'Pandacan', 'Lut-od', 'Tajao']
-  }
+const MUNICIPALITIES = [
+  'Balamban',
+  'Asturias',
+  'Toledo City',
+  'Tuburan',
+  'Pinamungajan',
+  'Tabuelan',
+  'Other Cebu Municipality'
 ];
 
 export default function AdminDashboard() {
@@ -96,7 +76,7 @@ export default function AdminDashboard() {
   const [newRiderName, setNewRiderName] = useState('');
   const [newRiderPhone, setNewRiderPhone] = useState('');
   const [newRiderPlate, setNewRiderPlate] = useState('');
-  const [newRiderZone, setNewRiderZone] = useState('Balamban Proper / Public Palengke');
+  const [newRiderZone, setNewRiderZone] = useState('Balamban');
   const [newRiderAvatar, setNewRiderAvatar] = useState('/rider-nigel.jpg');
 
   // Filtered orders
@@ -835,19 +815,15 @@ export default function AdminDashboard() {
 
               <div>
                 <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
-                  Assigned Municipality & Zone
+                  Assigned Municipality
                 </label>
                 <select
                   value={newRiderZone}
                   onChange={(e) => setNewRiderZone(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white focus:outline-none focus:border-rose-500"
+                  className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white font-bold focus:outline-none focus:border-rose-500"
                 >
-                  {MUNICIPALITIES_AND_ZONES.map(m => (
-                    <optgroup key={m.municipality} label={m.municipality}>
-                      {m.zones.map(z => (
-                        <option key={z} value={z}>{z}</option>
-                      ))}
-                    </optgroup>
+                  {MUNICIPALITIES.map(m => (
+                    <option key={m} value={m}>{m}</option>
                   ))}
                 </select>
               </div>
@@ -958,18 +934,14 @@ export default function AdminDashboard() {
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">Assigned Zone</label>
+                <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">Assigned Municipality</label>
                 <select
-                  value={editingRider.zone}
+                  value={editingRider.zone || 'Balamban'}
                   onChange={(e) => setEditingRider({ ...editingRider, zone: e.target.value })}
-                  className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white"
+                  className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white font-bold"
                 >
-                  {MUNICIPALITIES_AND_ZONES.map(m => (
-                    <optgroup key={m.municipality} label={m.municipality}>
-                      {m.zones.map(z => (
-                        <option key={z} value={z}>{z}</option>
-                      ))}
-                    </optgroup>
+                  {MUNICIPALITIES.map(m => (
+                    <option key={m} value={m}>{m}</option>
                   ))}
                 </select>
               </div>
