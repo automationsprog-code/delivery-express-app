@@ -768,27 +768,6 @@ export default function AdminDashboard() {
                             </span>
                           </div>
                         )}
-
-                        {/* Customer Password - Masked by default */}
-                        <div className="flex items-center justify-between text-slate-600 dark:text-zinc-400 pt-1 border-t border-slate-200/60 dark:border-zinc-800">
-                          <span className="flex items-center gap-1.5">
-                            <Lock className="w-3.5 h-3.5 text-indigo-500" />
-                            <span>Password:</span>
-                          </span>
-                          <div className="flex items-center gap-1.5 font-mono">
-                            <span className="font-bold text-slate-900 dark:text-white text-xs">
-                              {showPass ? cust.password || 'Pass123' : '••••••••'}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => setShowCustomerPassMap(prev => ({ ...prev, [cust.id || cust.email || idx]: !showPass }))}
-                              className="text-slate-400 hover:text-slate-600"
-                              title={showPass ? 'Hide password' : 'View password'}
-                            >
-                              {showPass ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                            </button>
-                          </div>
-                        </div>
                       </div>
 
                       {/* Orders Stat Footer */}
