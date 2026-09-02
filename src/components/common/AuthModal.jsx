@@ -31,6 +31,8 @@ export default function AuthModal({ onClose, defaultTab = 'customer' }) {
   // Passwords
   const [passwordInput, setPasswordInput] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showCustomerPassword, setShowCustomerPassword] = useState(false);
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
   // Google Input Form
@@ -353,14 +355,24 @@ export default function AuthModal({ onClose, defaultTab = 'customer' }) {
 
                   <div>
                     <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">Create Password *</label>
-                    <input
-                      type="password"
-                      required
-                      value={customerPassword}
-                      onChange={(e) => setCustomerPassword(e.target.value)}
-                      placeholder="Enter a secure password"
-                      className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-2xl px-3.5 py-2.5 text-slate-900 dark:text-white focus:outline-none focus:border-rose-500"
-                    />
+                    <div className="relative">
+                      <input
+                        type={showCustomerPassword ? 'text' : 'password'}
+                        required
+                        value={customerPassword}
+                        onChange={(e) => setCustomerPassword(e.target.value)}
+                        placeholder="Enter a secure password"
+                        className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-2xl px-3.5 py-2.5 pr-10 text-slate-900 dark:text-white focus:outline-none focus:border-rose-500 font-medium"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowCustomerPassword(!showCustomerPassword)}
+                        className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200"
+                        title={showCustomerPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {showCustomerPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
                   </div>
 
                   <button
@@ -384,20 +396,30 @@ export default function AuthModal({ onClose, defaultTab = 'customer' }) {
                       value={loginIdentifier}
                       onChange={(e) => setLoginIdentifier(e.target.value)}
                       placeholder="0917-xxx-xxxx or email"
-                      className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-2xl px-3.5 py-2.5 text-slate-900 dark:text-white focus:outline-none focus:border-rose-500"
+                      className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-2xl px-3.5 py-2.5 text-slate-900 dark:text-white focus:outline-none focus:border-rose-500 font-medium"
                     />
                   </div>
 
                   <div>
                     <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">Password *</label>
-                    <input
-                      type="password"
-                      required
-                      value={loginPassword}
-                      onChange={(e) => setLoginPassword(e.target.value)}
-                      placeholder="Enter password"
-                      className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-2xl px-3.5 py-2.5 text-slate-900 dark:text-white focus:outline-none focus:border-rose-500"
-                    />
+                    <div className="relative">
+                      <input
+                        type={showLoginPassword ? 'text' : 'password'}
+                        required
+                        value={loginPassword}
+                        onChange={(e) => setLoginPassword(e.target.value)}
+                        placeholder="Enter password"
+                        className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-2xl px-3.5 py-2.5 pr-10 text-slate-900 dark:text-white focus:outline-none focus:border-rose-500 font-medium"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowLoginPassword(!showLoginPassword)}
+                        className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200"
+                        title={showLoginPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {showLoginPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
                   </div>
 
                   <button
