@@ -14,6 +14,12 @@ export function OrderProvider({ children }) {
   const [soundActive, setSoundActive] = useState(true);
   const [vibrationActive, setVibrationActive] = useState(true);
 
+  // Editable Services and Rates
+  const [servicesList, setServicesList] = useState(() => {
+    const saved = localStorage.getItem('delivery_express_services_rates');
+    return saved ? JSON.parse(saved) : SERVICES;
+  });
+
   // GCash & Maya QR Payment Settings
   const [paymentSettings, setPaymentSettings] = useState(() => {
     const saved = localStorage.getItem('delivery_express_payment_settings');
@@ -66,6 +72,11 @@ export function OrderProvider({ children }) {
       document.documentElement.classList.remove('dark');
     }
   }, [theme]);
+
+  // Persist services rates
+  useEffect(() => {
+    localStorage.setItem('delivery_express_services_rates', JSON.stringify(servicesList));
+  }, [servicesList]);
 
   // Persist settings
   useEffect(() => {
@@ -185,9 +196,25 @@ export function OrderProvider({ children }) {
     soundService.playOrderChime();
   };
 
+  const updateServiceRates = (serviceId, updatedRates) => {
+    setServicesList(prev => prev.map(s => {
+      if (s.id === serviceId) {
+        return {
+          ...s,
+          baseFare: parseFloat(updatedRates.baseFare),
+          perKmRate: parseFloat(updatedRates.perKmRate),
+          errandFee: parseFloat(updatedRates.errandFee || 0)
+        };
+      }
+      return s;
+    }));
+    showNotification(`Rates updated for ${serviceId}!`, 'success');
+    soundService.playOrderChime();
+  };
+
   // Create new order
   const createOrder = async (orderInput) => {
-    const service = SERVICES.find(s => s.id === orderInput.serviceId) || SERVICES[0];
+    const service = servicesList.find(s => s.id === orderInput.serviceId) || servicesList[0];
     const trackingNumber = `DE-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
     const newOrder = {
@@ -464,7 +491,6 @@ export function OrderProvider({ children }) {
     const rider = riders.find(r => r.id === riderId);
     setRiders(prev => prev.filter(r => r.id !== riderId));
     
-    // Cleanly unassign any order assigned to this deleted rider
     setOrders(prev => prev.map(o => {
       if (o.riderId === riderId) {
         return {
@@ -498,8 +524,9 @@ export function OrderProvider({ children }) {
   const resetSampleData = () => {
     setOrders(INITIAL_ORDERS);
     setRiders(MOCK_RIDERS);
+    setServicesList(SERVICES);
     setActiveTrackingId('DE-2026-001');
-    showNotification('Sample data refreshed!', 'info');
+    showNotification('Sample data & rates refreshed!', 'info');
   };
 
   return (
@@ -511,6 +538,8 @@ export function OrderProvider({ children }) {
         toggleSound,
         vibrationActive,
         toggleVibration,
+        servicesList,
+        updateServiceRates,
         paymentSettings,
         updatePaymentSettings,
         currentUser,

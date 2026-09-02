@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useOrder } from '../../context/OrderContext';
-import { SERVICES, BRAND, ORDER_STATUSES, MUNICIPALITIES_AND_ZONES } from '../../lib/constants';
+import { BRAND, ORDER_STATUSES, MUNICIPALITIES_AND_ZONES } from '../../lib/constants';
 import { isSupabaseConfigured } from '../../lib/supabase';
 import { 
   LayoutDashboard, 
@@ -27,7 +27,8 @@ import {
   MapPin,
   QrCode,
   Upload,
-  Image as ImageIcon
+  Save,
+  Check
 } from 'lucide-react';
 
 export default function AdminDashboard() {
@@ -41,6 +42,8 @@ export default function AdminDashboard() {
     toggleRiderDuty,
     deleteRider,
     deleteOrder,
+    servicesList,
+    updateServiceRates,
     paymentSettings,
     updatePaymentSettings,
     broadcastAdminAnnouncement,
@@ -48,7 +51,7 @@ export default function AdminDashboard() {
     showNotification
   } = useOrder();
 
-  const [activeTab, setActiveTab] = useState('dispatch'); // 'dispatch' | 'staff' | 'payments' | 'broadcast' | 'rates'
+  const [activeTab, setActiveTab] = useState('dispatch'); // 'dispatch' | 'staff' | 'payments' | 'rates' | 'broadcast'
   const [selectedStatusFilter, setSelectedStatusFilter] = useState('all');
   
   // Modals
@@ -68,6 +71,9 @@ export default function AdminDashboard() {
   const [gcashNumber, setGcashNumber] = useState(paymentSettings.gcashNumber || '0917-882-1923');
   const [gcashQrUrl, setGcashQrUrl] = useState(paymentSettings.gcashQrUrl || '');
 
+  // Rate Editing State
+  const [editingRates, setEditingRates] = useState({});
+
   const totalRevenue = orders.reduce((sum, o) => sum + (o.estimatedFare || 0), 0);
   const activeOrdersCount = orders.filter(o => o.status !== 'delivered' && o.status !== 'cancelled').length;
   const completedOrdersCount = orders.filter(o => o.status === 'delivered').length;
@@ -78,7 +84,6 @@ export default function AdminDashboard() {
     return o.status === selectedStatusFilter;
   });
 
-  // Handle Image File Upload for Rider Profile Picture
   const handlePhotoUpload = (e, targetSetter) => {
     const file = e.target.files[0];
     if (file) {
@@ -90,7 +95,6 @@ export default function AdminDashboard() {
     }
   };
 
-  // Handle QR Code Image File Upload
   const handleQrUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -142,6 +146,26 @@ export default function AdminDashboard() {
       gcashNumber,
       gcashQrUrl
     });
+  };
+
+  const handleRateChange = (serviceId, field, value) => {
+    setEditingRates(prev => ({
+      ...prev,
+      [serviceId]: {
+        ...(prev[serviceId] || {}),
+        [field]: value
+      }
+    }));
+  };
+
+  const handleSaveRate = (service) => {
+    const currentEdits = editingRates[service.id] || {};
+    const updated = {
+      baseFare: currentEdits.baseFare !== undefined ? currentEdits.baseFare : service.baseFare,
+      perKmRate: currentEdits.perKmRate !== undefined ? currentEdits.perKmRate : service.perKmRate,
+      errandFee: currentEdits.errandFee !== undefined ? currentEdits.errandFee : service.errandFee
+    };
+    updateServiceRates(service.id, updated);
   };
 
   const handleSendBroadcast = (e) => {
@@ -216,9 +240,9 @@ export default function AdminDashboard() {
           {[
             { id: 'dispatch', label: 'Live Dispatch Board', icon: LayoutDashboard },
             { id: 'staff', label: `Staff & Riders (${riders.length})`, icon: Users },
+            { id: 'rates', label: 'Edit Rates & Base Fares', icon: Sliders },
             { id: 'payments', label: 'GCash / QR Payments', icon: QrCode },
-            { id: 'broadcast', label: 'Radio Broadcast', icon: Radio },
-            { id: 'rates', label: 'Rates Config', icon: Sliders }
+            { id: 'broadcast', label: 'Radio Broadcast', icon: Radio }
           ].map(tab => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -457,7 +481,92 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* TAB 3: GCASH / QR PAYMENTS MANAGER */}
+      {/* TAB 3: EDIT RATES & BASE FARES (ADMIN ONLY) */}
+      {activeTab === 'rates' && (
+        <div className="space-y-4">
+          <div className="bg-gradient-to-r from-amber-500/10 via-rose-500/10 to-transparent p-4 rounded-2xl border border-amber-500/20 flex items-center gap-3">
+            <Sliders className="w-6 h-6 text-amber-500 shrink-0" />
+            <div>
+              <h4 className="font-extrabold text-slate-900 dark:text-white text-sm sm:text-base">
+                Admin Courier Rates Configuration
+              </h4>
+              <p className="text-xs text-slate-500 dark:text-zinc-400">
+                You can customize the Base Fare (₱), Per-Kilometer Rate (₱/km), and Errand Handling Fee for each service.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {servicesList.map(service => {
+              const edits = editingRates[service.id] || {};
+              const currentBase = edits.baseFare !== undefined ? edits.baseFare : service.baseFare;
+              const currentPerKm = edits.perKmRate !== undefined ? edits.perKmRate : service.perKmRate;
+              const currentErrand = edits.errandFee !== undefined ? edits.errandFee : service.errandFee;
+
+              return (
+                <div 
+                  key={service.id} 
+                  className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl p-5 shadow-sm space-y-4 card-float"
+                >
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h5 className="font-black text-slate-900 dark:text-white text-sm">{service.name}</h5>
+                      <span className="text-[10px] text-rose-600 dark:text-rose-400 font-bold">{service.badge}</span>
+                    </div>
+                    <button
+                      onClick={() => handleSaveRate(service)}
+                      className="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-extrabold shadow-md flex items-center gap-1 transition-all"
+                    >
+                      <Save className="w-3.5 h-3.5" />
+                      <span>Save Rate</span>
+                    </button>
+                  </div>
+
+                  <div className="space-y-2.5 text-xs">
+                    <div>
+                      <label className="block text-slate-500 dark:text-zinc-400 font-bold mb-1">
+                        Base Fare (₱)
+                      </label>
+                      <input
+                        type="number"
+                        value={currentBase}
+                        onChange={(e) => handleRateChange(service.id, 'baseFare', e.target.value)}
+                        className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-xl px-3 py-1.5 text-slate-900 dark:text-white font-bold"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-slate-500 dark:text-zinc-400 font-bold mb-1">
+                        Per Km Distance Rate (₱/km)
+                      </label>
+                      <input
+                        type="number"
+                        value={currentPerKm}
+                        onChange={(e) => handleRateChange(service.id, 'perKmRate', e.target.value)}
+                        className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-xl px-3 py-1.5 text-slate-900 dark:text-white font-bold"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-slate-500 dark:text-zinc-400 font-bold mb-1">
+                        Special Handling / Errand Fee (₱)
+                      </label>
+                      <input
+                        type="number"
+                        value={currentErrand}
+                        onChange={(e) => handleRateChange(service.id, 'errandFee', e.target.value)}
+                        className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-xl px-3 py-1.5 text-slate-900 dark:text-white font-bold"
+                      />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* TAB 4: GCASH / QR PAYMENTS MANAGER */}
       {activeTab === 'payments' && (
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
           
@@ -552,7 +661,7 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* TAB 4: RADIO BROADCAST TO STAFF */}
+      {/* TAB 5: RADIO BROADCAST TO STAFF */}
       {activeTab === 'broadcast' && (
         <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl p-6 shadow-sm space-y-4 max-w-xl">
           <div className="flex items-center gap-3">
@@ -589,47 +698,6 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* TAB 5: Services & Rates Config */}
-      {activeTab === 'rates' && (
-        <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl p-6 shadow-sm space-y-4">
-          <div>
-            <h4 className="font-extrabold text-slate-900 dark:text-white text-base">
-              Standard Rate Card (West Cebu)
-            </h4>
-            <p className="text-xs text-slate-500 dark:text-zinc-400">
-              Configured base rates and per-kilometer distance fee
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {SERVICES.map(service => (
-              <div key={service.id} className="p-4 bg-slate-50 dark:bg-zinc-950 rounded-2xl border border-slate-200 dark:border-zinc-800 space-y-2">
-                <div className="flex justify-between items-start">
-                  <span className="font-bold text-slate-900 dark:text-white text-xs">{service.name}</span>
-                  <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold bg-amber-50 dark:bg-amber-400/10 px-2 py-0.5 rounded-md">
-                    {service.badge}
-                  </span>
-                </div>
-                <div className="text-xs text-slate-600 dark:text-zinc-400 space-y-1 pt-1 border-t border-slate-200 dark:border-zinc-800/80">
-                  <div className="flex justify-between">
-                    <span>Base Fare:</span>
-                    <strong className="text-slate-900 dark:text-zinc-200">₱{service.baseFare}</strong>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Per Km Rate:</span>
-                    <strong className="text-slate-900 dark:text-zinc-200">₱{service.perKmRate}/km</strong>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Handling / Errand:</span>
-                    <strong className="text-slate-900 dark:text-zinc-200">₱{service.errandFee}</strong>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* MODAL 1: ADD NEW RIDER WITH PHOTO UPLOAD */}
       {showAddRiderModal && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
@@ -646,7 +714,6 @@ export default function AdminDashboard() {
 
             <form onSubmit={handleCreateRider} className="space-y-3 text-xs">
               
-              {/* Photo Upload & Preview */}
               <div>
                 <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
                   Rider Profile Picture
@@ -756,7 +823,6 @@ export default function AdminDashboard() {
 
             <form onSubmit={handleEditRiderSubmit} className="space-y-3 text-xs">
               
-              {/* Photo Edit */}
               <div>
                 <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
                   Change Profile Picture
