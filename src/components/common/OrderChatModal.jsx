@@ -18,26 +18,36 @@ import {
 } from 'lucide-react';
 
 export default function OrderChatModal({ order, onClose, senderRole = 'customer' }) {
-  const { sendMessage, riders } = useOrder();
+  const { sendMessage, orders, riders } = useOrder();
   const [inputText, setInputText] = useState('');
   const [isOtherTyping, setIsOtherTyping] = useState(false);
-  const [localMessages, setLocalMessages] = useState(order?.messages || []);
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const channelRef = useRef(null);
 
+  // Always use the uniform tracking number for guaranteed channel matching
+  const orderTracking = (order?.trackingNumber || order?.id || 'DE-BALAMBAN').trim().toUpperCase();
+
+  // Find live order from global context
+  const liveOrder = orders.find(o => 
+    (o.trackingNumber && o.trackingNumber.toUpperCase() === orderTracking) || 
+    (o.id && String(o.id).toUpperCase() === orderTracking)
+  ) || order;
+
+  const [localMessages, setLocalMessages] = useState(() => {
+    return Array.isArray(liveOrder?.messages) ? liveOrder.messages : [];
+  });
+
   const myName = senderRole === 'customer' 
-    ? (order?.customerName || 'Customer') 
-    : (order?.riderName || 'Courier');
+    ? (liveOrder?.customerName || 'Customer') 
+    : (liveOrder?.riderName || 'Nigel');
 
   const otherPersonName = senderRole === 'customer' 
-    ? (order?.riderName || 'Nigel') 
-    : (order?.customerName || 'Customer');
+    ? (liveOrder?.riderName || 'Nigel') 
+    : (liveOrder?.customerName || 'Customer');
 
-  const assignedRiderObj = riders.find(r => r.id === order?.riderId || r.name === order?.riderName);
-  const riderAvatar = assignedRiderObj?.avatar || localStorage.getItem(`rider_avatar_${order?.riderId}`) || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80';
-
-  const orderTracking = order?.trackingNumber || order?.id || 'DE-BALAMBAN';
+  const assignedRiderObj = riders.find(r => r.id === liveOrder?.riderId || r.name === liveOrder?.riderName);
+  const riderAvatar = assignedRiderObj?.avatar || localStorage.getItem(`rider_avatar_${liveOrder?.riderId}`) || '/rider-nigel.jpg';
 
   // Grab-Style Canned Quick Chips
   const quickReplies = senderRole === 'customer' 
@@ -56,48 +66,90 @@ export default function OrderChatModal({ order, onClose, senderRole = 'customer'
         "Salamat kaayo!"
       ];
 
-  // Sync initial and context messages
-  useEffect(() => {
-    if (order?.messages) {
-      setLocalMessages(order.messages);
-    }
-  }, [order?.messages]);
+  // Merge messages helper
+  const mergeMessages = (incoming) => {
+    if (!Array.isArray(incoming) || incoming.length === 0) return;
+    setLocalMessages(prev => {
+      const merged = [...prev];
+      incoming.forEach(m => {
+        const alreadyExists = merged.some(e => 
+          e.id === m.id || 
+          (e.text === m.text && e.senderRole === m.senderRole && Math.abs(new Date(e.timestamp || 0) - new Date(m.timestamp || 0)) < 3000)
+        );
+        if (!alreadyExists) {
+          merged.push(m);
+        }
+      });
+      return merged;
+    });
+  };
 
-  // Realtime Supabase Broadcast Channel for Zero-Delay Chat & Live Typing Indicator
+  // Sync when context live order messages change
+  useEffect(() => {
+    if (liveOrder?.messages && Array.isArray(liveOrder.messages)) {
+      mergeMessages(liveOrder.messages);
+    }
+  }, [liveOrder?.messages]);
+
+  // Realtime Supabase Broadcast Channel + Periodic Polling Backup
   useEffect(() => {
     if (!isSupabaseConfigured || !supabase) return;
 
-    const channelName = `order-chat-instant-${orderTracking}`;
+    // Strict uniform channel name
+    const cleanId = orderTracking.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const channelName = `order_chat_${cleanId}`;
+
     const channel = supabase.channel(channelName, {
       config: { broadcast: { self: false } }
     });
 
     channel
       .on('broadcast', { event: 'instant_message' }, ({ payload }) => {
-        setLocalMessages(prev => {
-          if (prev.some(m => m.id === payload.id)) return prev;
-          return [...prev, payload];
-        });
+        if (!payload || !payload.text) return;
+        mergeMessages([payload]);
         setIsOtherTyping(false);
         soundService.playOrderChime();
         soundService.triggerVibrate([60]);
       })
       .on('broadcast', { event: 'typing_state' }, ({ payload }) => {
-        if (payload.senderRole !== senderRole) {
-          setIsOtherTyping(payload.isTyping);
+        if (payload && payload.senderRole !== senderRole) {
+          setIsOtherTyping(Boolean(payload.isTyping));
           if (payload.isTyping) {
             clearTimeout(typingTimeoutRef.current);
             typingTimeoutRef.current = setTimeout(() => {
               setIsOtherTyping(false);
-            }, 3000);
+            }, 3500);
           }
         }
       })
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('Realtime chat channel active:', channelName);
+        }
+      });
 
     channelRef.current = channel;
 
+    // 2-second background poll from DB while chat modal is active
+    const syncFromDatabase = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('orders')
+          .select('details')
+          .or(`tracking_number.eq.${orderTracking},id.eq.${orderTracking}`)
+          .limit(1);
+
+        if (!error && data && data.length > 0 && data[0].details?.chat_messages) {
+          mergeMessages(data[0].details.chat_messages);
+        }
+      } catch (_) {}
+    };
+
+    syncFromDatabase();
+    const pollInterval = setInterval(syncFromDatabase, 2000);
+
     return () => {
+      clearInterval(pollInterval);
       supabase.removeChannel(channel);
       clearTimeout(typingTimeoutRef.current);
     };
@@ -130,15 +182,16 @@ export default function OrderChatModal({ order, onClose, senderRole = 'customer'
     if (!textToSend.trim()) return;
 
     const newMsg = {
-      id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+      id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
       senderRole,
       senderName: myName,
       text: textToSend.trim(),
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      timestamp: Date.now()
     };
 
     // Instant local optimistic update
-    setLocalMessages(prev => [...prev, newMsg]);
+    mergeMessages([newMsg]);
 
     // Zero-delay WebSocket Broadcast to recipient device
     if (channelRef.current) {
@@ -154,8 +207,8 @@ export default function OrderChatModal({ order, onClose, senderRole = 'customer'
       });
     }
 
-    // Persist to Supabase Database in background
-    sendMessage(order.id, senderRole, myName, textToSend.trim());
+    // Persist to Supabase Database
+    sendMessage(orderTracking, senderRole, myName, textToSend.trim());
 
     setInputText('');
   };

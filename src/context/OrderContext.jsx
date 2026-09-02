@@ -967,22 +967,25 @@ export function OrderProvider({ children }) {
 
   // In-App Realtime Chat Sync across all devices
   const sendMessage = async (orderId, senderRole, senderName, text) => {
+    if (!text || !text.trim()) return;
+
     const newMsg = {
-      id: `msg-${Date.now()}`,
+      id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
       senderRole,
       senderName,
-      text,
+      text: text.trim(),
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
 
-    let updatedMessages = [];
-    let targetOrder = null;
-
+    // 1. Optimistically update local React state
     setOrders(prev => prev.map(o => {
       if (o.id === orderId || o.trackingNumber === orderId) {
-        updatedMessages = [...(o.messages || []), newMsg];
-        targetOrder = { ...o, messages: updatedMessages };
-        return targetOrder;
+        const currentMsgs = Array.isArray(o.messages) ? o.messages : [];
+        if (currentMsgs.some(m => m.id === newMsg.id)) return o;
+        return {
+          ...o,
+          messages: [...currentMsgs, newMsg]
+        };
       }
       return o;
     }));
@@ -990,16 +993,35 @@ export function OrderProvider({ children }) {
     soundService.playOrderChime();
     soundService.triggerVibrate([80]);
 
-    if (isSupabaseConfigured && supabase && updatedMessages.length > 0) {
+    // 2. Safely append to Supabase Database
+    if (isSupabaseConfigured && supabase) {
       try {
-        const orderIdentifier = targetOrder?.trackingNumber || orderId;
-        const currentDetails = targetOrder?.details || {};
-        await supabase.from('orders').update({
-          details: {
-            ...currentDetails,
-            chat_messages: updatedMessages
+        const { data: dbOrders, error: fetchErr } = await supabase
+          .from('orders')
+          .select('id, tracking_number, details')
+          .or(`tracking_number.eq.${orderId},id.eq.${orderId}`)
+          .limit(1);
+
+        if (!fetchErr && dbOrders && dbOrders.length > 0) {
+          const row = dbOrders[0];
+          const curDetails = row.details || {};
+          const curMsgs = Array.isArray(curDetails.chat_messages) ? curDetails.chat_messages : [];
+
+          // Avoid duplicates
+          if (!curMsgs.some(m => m.id === newMsg.id || (m.text === newMsg.text && m.time === newMsg.time && m.senderRole === newMsg.senderRole))) {
+            const updatedChat = [...curMsgs, newMsg];
+            await supabase
+              .from('orders')
+              .update({
+                details: {
+                  ...curDetails,
+                  chat_messages: updatedChat
+                },
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', row.id);
           }
-        }).or(`tracking_number.eq.${orderIdentifier},id.eq.${orderId}`);
+        }
       } catch (err) {
         console.warn('Supabase chat sync error:', err);
       }
