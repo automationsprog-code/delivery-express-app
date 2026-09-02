@@ -264,14 +264,34 @@ class ErrorBoundary extends React.Component {
     console.error("App Crash caught by ErrorBoundary:", error, errorInfo);
   }
 
-  handleResetAndReload = () => {
+  handleHardRefresh = async () => {
     try {
-      localStorage.removeItem('delivery_express_services_rates');
-      localStorage.removeItem('delivery_express_show_breakdown');
-      localStorage.removeItem('delivery_express_partner_stores');
-      localStorage.removeItem('delivery_express_orders_balamban');
+      if ('caches' in window) {
+        const names = await window.caches.keys();
+        await Promise.all(names.map(name => window.caches.delete(name)));
+      }
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map(r => r.unregister()));
+      }
     } catch (_) {}
-    window.location.reload();
+    window.location.href = window.location.origin + window.location.pathname + '?v=' + Date.now();
+  };
+
+  handleResetAndReload = async () => {
+    try {
+      if ('caches' in window) {
+        const names = await window.caches.keys();
+        await Promise.all(names.map(name => window.caches.delete(name)));
+      }
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map(r => r.unregister()));
+      }
+      localStorage.clear();
+      sessionStorage.clear();
+    } catch (_) {}
+    window.location.href = window.location.origin + window.location.pathname + '?nocache=' + Date.now();
   };
 
   render() {
@@ -288,7 +308,7 @@ class ErrorBoundary extends React.Component {
 
           <div className="flex flex-col sm:flex-row gap-2 w-full max-w-xs">
             <button
-              onClick={() => window.location.reload()}
+              onClick={this.handleHardRefresh}
               className="flex-1 px-5 py-3 bg-rose-600 hover:bg-rose-500 text-white font-black rounded-2xl text-xs shadow-lg transition-all"
             >
               🔄 Refresh Now
