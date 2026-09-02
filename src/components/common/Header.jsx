@@ -40,7 +40,8 @@ export default function Header() {
     isWithinOperatingHours, 
     resetSampleData, 
     notification,
-    announcement 
+    announcement,
+    weather
   } = useOrder();
   
   const [showAuthModal, setShowAuthModal] = useState(false);
