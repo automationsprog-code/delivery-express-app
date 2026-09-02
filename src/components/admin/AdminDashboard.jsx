@@ -35,7 +35,11 @@ import {
   Store,
   Flame,
   Tag,
-  FileImage
+  FileImage,
+  Eye,
+  EyeOff,
+  Lock,
+  Key
 } from 'lucide-react';
 import { fetchPanahonWeather, MUNICIPALITY_COORDS } from '../../services/weatherService';
 
@@ -124,6 +128,9 @@ export default function AdminDashboard() {
   const [newRiderPhone, setNewRiderPhone] = useState('');
   const [newRiderPlate, setNewRiderPlate] = useState('');
   const [newRiderZone, setNewRiderZone] = useState('Balamban');
+  const [newRiderPassword, setNewRiderPassword] = useState('Pass123');
+  const [showNewRiderPass, setShowNewRiderPass] = useState(false);
+  const [showEditStaffPass, setShowEditStaffPass] = useState(false);
   const [newRiderAvatar, setNewRiderAvatar] = useState('https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80');
 
   // Filtered orders
@@ -188,11 +195,13 @@ export default function AdminDashboard() {
       phone: newRiderPhone,
       plate: newRiderPlate,
       zone: newRiderZone,
+      password: newRiderPassword || 'Pass123',
       avatar: newRiderAvatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'
     });
     setNewRiderName('');
     setNewRiderPhone('');
     setNewRiderPlate('');
+    setNewRiderPassword('Pass123');
     setNewRiderAvatar('https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80');
     setShowAddRiderModal(false);
   };
@@ -205,6 +214,7 @@ export default function AdminDashboard() {
       phone: editingRider.phone,
       plate: editingRider.plate,
       zone: editingRider.zone,
+      password: editingRider.password || 'Pass123',
       avatar: editingRider.avatar || '/rider-nigel.jpg'
     });
     setEditingRider(null);
@@ -1238,6 +1248,33 @@ export default function AdminDashboard() {
                 </select>
               </div>
 
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1 flex items-center justify-between">
+                  <span className="flex items-center gap-1">
+                    <Key className="w-3.5 h-3.5 text-rose-500" />
+                    <span>Courier Login Password *</span>
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-normal">Customizable password for Rider login</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type={showNewRiderPass ? "text" : "password"}
+                    required
+                    value={newRiderPassword}
+                    onChange={(e) => setNewRiderPassword(e.target.value)}
+                    placeholder="e.g. Pass123"
+                    className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white font-mono font-bold focus:outline-none focus:border-rose-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewRiderPass(!showNewRiderPass)}
+                    className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600"
+                  >
+                    {showNewRiderPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
               <div className="flex gap-2 pt-2">
                 <button
                   type="button"
@@ -1250,7 +1287,7 @@ export default function AdminDashboard() {
                   type="submit"
                   className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl font-extrabold shadow-md"
                 >
-                  Save & Add
+                  Save & Add Courier
                 </button>
               </div>
             </form>
@@ -1356,6 +1393,32 @@ export default function AdminDashboard() {
                 </select>
               </div>
 
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1 flex items-center justify-between">
+                  <span className="flex items-center gap-1">
+                    <Key className="w-3.5 h-3.5 text-amber-500" />
+                    <span>Courier Login Password</span>
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-normal">For courier login portal</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type={showEditStaffPass ? "text" : "password"}
+                    value={editingRider.password || ''}
+                    onChange={(e) => setEditingRider({ ...editingRider, password: e.target.value })}
+                    placeholder="e.g. Pass123"
+                    className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white font-mono font-bold"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowEditStaffPass(!showEditStaffPass)}
+                    className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600"
+                  >
+                    {showEditStaffPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
               <div className="flex gap-2 pt-2">
                 <button
                   type="button"
@@ -1368,7 +1431,7 @@ export default function AdminDashboard() {
                   type="submit"
                   className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-400 text-zinc-950 rounded-xl font-extrabold shadow-md"
                 >
-                  Update Profile
+                  Update Profile & Password
                 </button>
               </div>
             </form>

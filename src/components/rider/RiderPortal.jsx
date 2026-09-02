@@ -26,7 +26,12 @@ import {
   ToggleRight,
   Upload,
   Image as ImageIcon,
-  Check
+  Check,
+  Key,
+  Eye,
+  EyeOff,
+  Lock,
+  X
 } from 'lucide-react';
 
 export default function RiderPortal() {
@@ -42,12 +47,16 @@ export default function RiderPortal() {
     setRiderOnlineStatus,
     toggleRiderDuty,
     uploadProofOfDelivery,
+    updateRiderPassword,
     currentUser,
     showNotification
   } = useOrder();
 
   const [selectedOrderForPod, setSelectedOrderForPod] = useState(null);
   const [selectedOrderForChat, setSelectedOrderForChat] = useState(null);
+  const [showChangePassModal, setShowChangePassModal] = useState(false);
+  const [newCourierPass, setNewCourierPass] = useState('');
+  const [showPassText, setShowPassText] = useState(false);
   const [podPhotoUrl, setPodPhotoUrl] = useState('');
   const [podNotes, setPodNotes] = useState('');
   const [isSimulatingMove, setIsSimulatingMove] = useState(false);
@@ -267,6 +276,19 @@ export default function RiderPortal() {
             <span>
               {isLocationSharing && isOnline ? '📍 Location: ON 🟢' : '📍 Location: OFF ⚪'}
             </span>
+          </button>
+
+          {/* Change Password Button */}
+          <button
+            onClick={() => {
+              setNewCourierPass(localStorage.getItem(`rider_pass_${currentRider.id}`) || currentRider.password || 'Pass123');
+              setShowChangePassModal(true);
+            }}
+            className="px-3.5 py-2.5 bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 text-slate-700 dark:text-zinc-300 rounded-2xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-sm border border-slate-200 dark:border-zinc-700"
+            title="Change My Login Password"
+          >
+            <Key className="w-3.5 h-3.5 text-amber-500" />
+            <span>🔑 Password</span>
           </button>
         </div>
 
@@ -680,6 +702,88 @@ export default function RiderPortal() {
                 >
                   <CheckCircle2 className="w-4 h-4" />
                   <span>Submit Proof & Finish</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: CHANGE COURIER PASSWORD */}
+      {showChangePassModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl p-6 max-w-sm w-full shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-zinc-800 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center">
+                  <Key className="w-4 h-4" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-black text-slate-900 dark:text-white">
+                    Change Password
+                  </h4>
+                  <p className="text-[11px] text-slate-500">
+                    Courier: {currentRider.name}
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowChangePassModal(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!newCourierPass.trim()) return alert('Password cannot be empty.');
+                updateRiderPassword(currentRider.id, newCourierPass.trim());
+                showNotification(`Password for ${currentRider.name} updated!`, 'success');
+                setShowChangePassModal(false);
+              }}
+              className="space-y-3.5 text-xs"
+            >
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
+                  New Portal Password
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPassText ? "text" : "password"}
+                    required
+                    value={newCourierPass}
+                    onChange={(e) => setNewCourierPass(e.target.value)}
+                    placeholder="Enter new password"
+                    className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white font-mono font-bold focus:outline-none focus:border-amber-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassText(!showPassText)}
+                    className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600"
+                  >
+                    {showPassText ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                <p className="text-[10px] text-slate-400 mt-1">
+                  Use this password whenever logging in to the Courier Portal.
+                </p>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowChangePassModal(false)}
+                  className="flex-1 py-2.5 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 rounded-xl font-bold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-400 text-zinc-950 font-black rounded-xl shadow-md transition-all"
+                >
+                  Save Password
                 </button>
               </div>
             </form>
