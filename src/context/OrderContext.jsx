@@ -39,6 +39,18 @@ export function OrderProvider({ children }) {
     return saved ? JSON.parse(saved) : null;
   });
 
+  // Active Role: PERSIST ON REFRESH based on currentUser
+  const [activeRole, setActiveRole] = useState(() => {
+    const savedUser = localStorage.getItem('delivery_express_current_user');
+    if (savedUser) {
+      try {
+        const parsed = JSON.parse(savedUser);
+        return parsed.role || 'customer';
+      } catch (_) {}
+    }
+    return 'customer';
+  });
+
   const [orders, setOrders] = useState(() => {
     const saved = localStorage.getItem('delivery_express_orders_balamban');
     return saved ? JSON.parse(saved) : [];
@@ -66,8 +78,17 @@ export function OrderProvider({ children }) {
     ];
   });
 
-  const [activeRole, setActiveRole] = useState('customer');
-  const [selectedRiderId, setSelectedRiderId] = useState('rider-nigel-1');
+  const [selectedRiderId, setSelectedRiderId] = useState(() => {
+    const savedUser = localStorage.getItem('delivery_express_current_user');
+    if (savedUser) {
+      try {
+        const parsed = JSON.parse(savedUser);
+        if (parsed.role === 'rider' && parsed.id) return parsed.id;
+      } catch (_) {}
+    }
+    return 'rider-nigel-1';
+  });
+
   const [activeTrackingId, setActiveTrackingId] = useState('');
   const [notification, setNotification] = useState(null);
   const [announcement, setAnnouncement] = useState(null);
@@ -112,23 +133,6 @@ export function OrderProvider({ children }) {
   // ========================================================
   useEffect(() => {
     if (!isSupabaseConfigured || !supabase) return;
-
-    // Listen to Google Auth OAuth redirect
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user) {
-        const userMeta = session.user.user_metadata || {};
-        const customerObj = {
-          role: 'customer',
-          id: session.user.id,
-          name: userMeta.full_name || userMeta.name || session.user.email?.split('@')[0] || 'Google User',
-          email: session.user.email,
-          avatar: userMeta.avatar_url || userMeta.picture || null
-        };
-        setCurrentUser(customerObj);
-        setActiveRole('customer');
-        showNotification(`Welcome, ${customerObj.name}!`, 'success');
-      }
-    });
 
     const fetchSupabaseData = async () => {
       try {
@@ -203,7 +207,7 @@ export function OrderProvider({ children }) {
             lng: parseFloat(r.current_lng || 123.7150)
           }));
           setRiders(formattedRiders);
-          if (formattedRiders.length > 0) {
+          if (formattedRiders.length > 0 && !currentUser) {
             setSelectedRiderId(formattedRiders[0].id);
           }
         }
@@ -230,35 +234,10 @@ export function OrderProvider({ children }) {
       .subscribe();
 
     return () => {
-      authListener?.subscription?.unsubscribe();
       supabase.removeChannel(orderChannel);
       supabase.removeChannel(riderChannel);
     };
   }, []);
-
-  // Google OAuth Login Trigger
-  const signInWithGoogleOAuth = async () => {
-    if (isSupabaseConfigured && supabase) {
-      try {
-        const { error } = await supabase.auth.signInWithOAuth({
-          provider: 'google',
-          options: {
-            redirectTo: window.location.origin,
-            queryParams: {
-              prompt: 'select_account',
-              access_type: 'offline'
-            }
-          }
-        });
-        if (error) throw error;
-      } catch (err) {
-        console.warn('Google OAuth error, using direct selector:', err);
-        // Fallback for direct Google user selection modal
-        return false;
-      }
-    }
-    return true;
-  };
 
   // Customer Account Register & Login
   const registerCustomer = (customerData) => {
@@ -270,7 +249,6 @@ export function OrderProvider({ children }) {
       password: customerData.password,
       zone: customerData.zone || 'Balamban Proper'
     };
-    // Save to registered customers list
     const existing = JSON.parse(localStorage.getItem('delivery_express_registered_customers') || '[]');
     existing.push(userObj);
     localStorage.setItem('delivery_express_registered_customers', JSON.stringify(existing));
@@ -326,10 +304,7 @@ export function OrderProvider({ children }) {
     showNotification('Admin Dispatcher Authorized', 'success');
   };
 
-  const logout = async () => {
-    if (isSupabaseConfigured && supabase) {
-      try { await supabase.auth.signOut(); } catch (_) {}
-    }
+  const logout = () => {
     setCurrentUser(null);
     setActiveRole('customer');
     showNotification('Logged out', 'info');
@@ -779,7 +754,6 @@ export function OrderProvider({ children }) {
         paymentSettings,
         updatePaymentSettings,
         currentUser,
-        signInWithGoogleOAuth,
         registerCustomer,
         loginCustomerWithPassword,
         loginAsCustomer,
