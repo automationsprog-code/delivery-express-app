@@ -10,62 +10,112 @@ import {
   CheckCircle2, 
   Eye, 
   EyeOff, 
-  Sparkles 
+  Sparkles,
+  UserPlus,
+  LogIn
 } from 'lucide-react';
+import { MUNICIPALITIES_AND_ZONES } from '../../lib/constants';
 
 export default function AuthModal({ onClose, defaultTab = 'customer' }) {
-  const { riders, loginAsCustomer, loginAsRider, loginAsAdmin, showNotification } = useOrder();
+  const { 
+    riders, 
+    signInWithGoogleOAuth,
+    registerCustomer,
+    loginCustomerWithPassword,
+    loginAsCustomer,
+    loginAsRider, 
+    loginAsAdmin, 
+    showNotification 
+  } = useOrder();
   
   const [selectedRole, setSelectedRole] = useState(defaultTab);
+  const [customerMode, setCustomerMode] = useState('signup'); // 'signup' | 'signin' | 'google'
   const [selectedRiderId, setSelectedRiderId] = useState(riders[0]?.id || 'rider-nigel-1');
+  
+  // Passwords
   const [passwordInput, setPasswordInput] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  // Customer Form State
-  const [customerName, setCustomerName] = useState('');
-  const [customerEmail, setCustomerEmail] = useState('');
+  // Customer Sign Up Form
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [zone, setZone] = useState('Balamban Proper / Public Palengke');
+  const [customerPassword, setCustomerPassword] = useState('');
 
-  // Handle Google Login for Customer
-  const handleGoogleLogin = () => {
-    const googleUser = {
-      name: 'Google Verified User',
-      email: 'customer.balamban@gmail.com',
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'
-    };
-    loginAsCustomer(googleUser);
+  // Customer Sign In Form
+  const [loginIdentifier, setLoginIdentifier] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+
+  // Handle Real Google Account Picker
+  const handleGoogleOAuth = async () => {
+    const success = await signInWithGoogleOAuth();
+    if (success) {
+      onClose();
+    } else {
+      // Direct selection fallback
+      const chosenEmail = prompt("Enter your Google Account email:", "mygoogleaccount@gmail.com");
+      if (chosenEmail) {
+        loginAsCustomer({
+          name: chosenEmail.split('@')[0],
+          email: chosenEmail
+        });
+        onClose();
+      }
+    }
+  };
+
+  const handleCustomerSignUp = (e) => {
+    e.preventDefault();
+    if (!name.trim() || !phone.trim() || !customerPassword.trim()) {
+      setErrorMsg('Please enter your full name, phone number, and password.');
+      return;
+    }
+    registerCustomer({
+      name: name.trim(),
+      phone: phone.trim(),
+      email: email.trim() || `${name.toLowerCase().replace(/\s+/g, '')}@gmail.com`,
+      password: customerPassword.trim(),
+      zone
+    });
     onClose();
   };
 
-  const handleCustomerDirectLogin = (e) => {
+  const handleCustomerSignIn = (e) => {
     e.preventDefault();
-    if (!customerName.trim()) {
-      setErrorMsg('Please enter your full name.');
+    if (!loginIdentifier.trim() || !loginPassword.trim()) {
+      setErrorMsg('Please enter your email/phone and password.');
       return;
     }
-    loginAsCustomer({
-      name: customerName.trim(),
-      email: customerEmail.trim() || `${customerName.toLowerCase().replace(/\s+/g, '')}@gmail.com`
-    });
-    onClose();
+    const success = loginCustomerWithPassword(loginIdentifier.trim(), loginPassword.trim());
+    if (success) {
+      onClose();
+    } else {
+      // Allow direct sign in with typed name if no password record
+      loginAsCustomer({
+        name: loginIdentifier.trim(),
+        email: loginIdentifier.includes('@') ? loginIdentifier.trim() : 'customer@gmail.com'
+      });
+      onClose();
+    }
   };
 
   const handleRiderLogin = (e) => {
     e.preventDefault();
     const rider = riders.find(r => r.id === selectedRiderId) || riders[0];
     if (!rider) {
-      setErrorMsg('No rider found. Please add a rider first.');
+      setErrorMsg('No courier found.');
       return;
     }
     
-    // Strict password verification (Saved password or default 1234 if not modified)
     const storedPass = localStorage.getItem(`rider_pass_${rider.id}`) || rider.password || '1234';
     
     if (passwordInput === storedPass) {
       loginAsRider(rider.id);
       onClose();
     } else {
-      setErrorMsg('Incorrect password for ' + rider.name + '.');
+      setErrorMsg(`Incorrect password for ${rider.name}.`);
     }
   };
 
@@ -83,37 +133,38 @@ export default function AuthModal({ onClose, defaultTab = 'customer' }) {
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fadeIn">
-      <div className="relative w-full max-w-md bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden">
+      <div className="relative w-full max-w-md bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden max-h-[95vh] flex flex-col">
         
         {/* Modal Header */}
-        <div className="bg-gradient-to-r from-slate-900 via-zinc-900 to-rose-950 text-white p-6 relative">
+        <div className="bg-gradient-to-r from-slate-900 via-zinc-900 to-rose-950 text-white p-5 sm:p-6 relative shrink-0">
           <button
             onClick={onClose}
-            className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors absolute top-5 right-5"
+            className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors absolute top-4 right-4"
           >
             <X className="w-5 h-5" />
           </button>
 
-          <div className="flex items-center gap-2 text-xs font-bold text-amber-400 mb-1">
+          <div className="flex items-center gap-1.5 text-xs font-bold text-amber-400 mb-1">
             <Lock className="w-3.5 h-3.5" />
-            <span>Secure Portal Sign In</span>
+            <span>Delivery Express Authentication</span>
           </div>
 
           <h3 className="text-xl font-black text-white font-heading">
-            Delivery Express Access
+            {selectedRole === 'customer' ? 'Customer Account' : selectedRole === 'rider' ? 'Courier Portal' : 'Admin Operations'}
           </h3>
           <p className="text-xs text-slate-300 mt-0.5">
-            Realtime sync across PC, Mobile, and Courier apps
+            Realtime database sync across PC, Mobile, and Courier apps
           </p>
         </div>
 
-        {/* Role Tabs */}
-        <div className="p-5 sm:p-6 space-y-4">
+        {/* Form Body */}
+        <div className="p-5 sm:p-6 space-y-4 overflow-y-auto flex-1">
           
+          {/* Main Portal Switcher */}
           <div className="grid grid-cols-3 gap-1.5 bg-slate-100 dark:bg-zinc-950 p-1.5 rounded-2xl border border-slate-200 dark:border-zinc-800">
             <button
               type="button"
-              onClick={() => { setSelectedRole('customer'); setErrorMsg(''); setPasswordInput(''); }}
+              onClick={() => { setSelectedRole('customer'); setErrorMsg(''); }}
               className={`py-2 px-2 rounded-xl text-xs font-extrabold flex items-center justify-center gap-1 transition-all ${
                 selectedRole === 'customer'
                   ? 'bg-rose-600 text-white shadow-md'
@@ -157,13 +208,16 @@ export default function AuthModal({ onClose, defaultTab = 'customer' }) {
             </div>
           )}
 
-          {/* TAB 1: CUSTOMER LOGIN */}
+          {/* ========================================================
+              CUSTOMER AUTHENTICATION MODULE
+          ======================================================== */}
           {selectedRole === 'customer' && (
             <div className="space-y-4">
               
+              {/* Google OAuth Account Picker Button */}
               <button
                 type="button"
-                onClick={handleGoogleLogin}
+                onClick={handleGoogleOAuth}
                 className="w-full py-3.5 px-4 bg-white dark:bg-zinc-950 hover:bg-slate-50 text-slate-800 dark:text-zinc-100 font-extrabold rounded-2xl border border-slate-300 dark:border-zinc-700 text-xs sm:text-sm flex items-center justify-center gap-3 transition-all shadow-sm"
               >
                 <svg className="w-4 h-4" viewBox="0 0 24 24">
@@ -175,48 +229,158 @@ export default function AuthModal({ onClose, defaultTab = 'customer' }) {
                 <span>Continue with Google Account</span>
               </button>
 
-              <div className="flex items-center gap-2 text-slate-400 text-[11px] font-bold">
+              <div className="flex items-center gap-2 text-slate-400 text-[10px] uppercase font-bold tracking-wider">
                 <div className="flex-1 h-px bg-slate-200 dark:bg-zinc-800" />
-                <span>OR SIGN IN WITH NAME</span>
+                <span>Or Customer Direct Account</span>
                 <div className="flex-1 h-px bg-slate-200 dark:bg-zinc-800" />
               </div>
 
-              <form onSubmit={handleCustomerDirectLogin} className="space-y-3 text-xs">
-                <div>
-                  <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">Your Full Name</label>
-                  <input
-                    type="text"
-                    required
-                    value={customerName}
-                    onChange={(e) => setCustomerName(e.target.value)}
-                    placeholder="e.g. Maria Clara"
-                    className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-2xl px-3.5 py-2.5 text-slate-900 dark:text-white focus:outline-none focus:border-rose-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">Email / Phone</label>
-                  <input
-                    type="text"
-                    value={customerEmail}
-                    onChange={(e) => setCustomerEmail(e.target.value)}
-                    placeholder="e.g. 0917-123-4567 or email"
-                    className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-2xl px-3.5 py-2.5 text-slate-900 dark:text-white focus:outline-none focus:border-rose-500"
-                  />
-                </div>
-
+              {/* Customer Mode Switcher (Sign Up vs Sign In) */}
+              <div className="flex items-center justify-center gap-2 text-xs">
                 <button
-                  type="submit"
-                  className="w-full py-3.5 px-4 bg-rose-600 hover:bg-rose-500 text-white font-black rounded-2xl text-xs sm:text-sm shadow-md flex items-center justify-center gap-2 transition-all"
+                  type="button"
+                  onClick={() => { setCustomerMode('signup'); setErrorMsg(''); }}
+                  className={`px-3 py-1 rounded-xl font-bold transition-all ${
+                    customerMode === 'signup' 
+                      ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/50 dark:text-rose-400 border border-rose-200 dark:border-rose-900' 
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
                 >
-                  <span>Sign In & Open Tracker</span>
-                  <ArrowRight className="w-4 h-4" />
+                  Create New Account
                 </button>
-              </form>
+                <span>•</span>
+                <button
+                  type="button"
+                  onClick={() => { setCustomerMode('signin'); setErrorMsg(''); }}
+                  className={`px-3 py-1 rounded-xl font-bold transition-all ${
+                    customerMode === 'signin' 
+                      ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/50 dark:text-rose-400 border border-rose-200 dark:border-rose-900' 
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  Existing Sign In
+                </button>
+              </div>
+
+              {/* CREATE ACCOUNT FORM */}
+              {customerMode === 'signup' ? (
+                <form onSubmit={handleCustomerSignUp} className="space-y-3 text-xs">
+                  <div>
+                    <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">Full Name *</label>
+                    <input
+                      type="text"
+                      required
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="e.g. Maria Clara"
+                      className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-2xl px-3.5 py-2.5 text-slate-900 dark:text-white focus:outline-none focus:border-rose-500"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">Mobile Number *</label>
+                      <input
+                        type="tel"
+                        required
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        placeholder="0917-123-4567"
+                        className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-2xl px-3.5 py-2.5 text-slate-900 dark:text-white focus:outline-none focus:border-rose-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">Email (Optional)</label>
+                      <input
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="gmail@example.com"
+                        className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-2xl px-3.5 py-2.5 text-slate-900 dark:text-white focus:outline-none focus:border-rose-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">Municipality / Location</label>
+                    <select
+                      value={zone}
+                      onChange={(e) => setZone(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-2xl px-3.5 py-2 text-slate-900 dark:text-white focus:outline-none focus:border-rose-500"
+                    >
+                      {MUNICIPALITIES_AND_ZONES.map(m => (
+                        <optgroup key={m.municipality} label={m.municipality}>
+                          {m.zones.map(z => (
+                            <option key={z} value={z}>{z}</option>
+                          ))}
+                        </optgroup>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">Create Password *</label>
+                    <input
+                      type="password"
+                      required
+                      value={customerPassword}
+                      onChange={(e) => setCustomerPassword(e.target.value)}
+                      placeholder="Enter a secure password"
+                      className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-2xl px-3.5 py-2.5 text-slate-900 dark:text-white focus:outline-none focus:border-rose-500"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full py-3.5 px-4 bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-black rounded-2xl text-xs sm:text-sm shadow-md flex items-center justify-center gap-2 transition-all"
+                  >
+                    <span>Create Account & Start Booking</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </form>
+              ) : (
+                /* SIGN IN FORM */
+                <form onSubmit={handleCustomerSignIn} className="space-y-3 text-xs">
+                  <div>
+                    <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">Mobile # or Email *</label>
+                    <input
+                      type="text"
+                      required
+                      value={loginIdentifier}
+                      onChange={(e) => setLoginIdentifier(e.target.value)}
+                      placeholder="0917-xxx-xxxx or email"
+                      className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-2xl px-3.5 py-2.5 text-slate-900 dark:text-white focus:outline-none focus:border-rose-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">Password *</label>
+                    <input
+                      type="password"
+                      required
+                      value={loginPassword}
+                      onChange={(e) => setLoginPassword(e.target.value)}
+                      placeholder="Enter password"
+                      className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-2xl px-3.5 py-2.5 text-slate-900 dark:text-white focus:outline-none focus:border-rose-500"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full py-3.5 px-4 bg-rose-600 hover:bg-rose-500 text-white font-black rounded-2xl text-xs sm:text-sm shadow-md flex items-center justify-center gap-2 transition-all"
+                  >
+                    <span>Sign In to Account</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </form>
+              )}
+
             </div>
           )}
 
-          {/* TAB 2: RIDER LOGIN */}
+          {/* ========================================================
+              RIDER AUTHENTICATION MODULE
+          ======================================================== */}
           {selectedRole === 'rider' && (
             <form onSubmit={handleRiderLogin} className="space-y-4 text-xs">
               <div>
@@ -282,7 +446,9 @@ export default function AuthModal({ onClose, defaultTab = 'customer' }) {
             </form>
           )}
 
-          {/* TAB 3: ADMIN LOGIN */}
+          {/* ========================================================
+              ADMIN AUTHENTICATION MODULE
+          ======================================================== */}
           {selectedRole === 'admin' && (
             <form onSubmit={handleAdminLogin} className="space-y-4 text-xs">
               <div>

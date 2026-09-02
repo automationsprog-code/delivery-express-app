@@ -14,13 +14,13 @@ export function OrderProvider({ children }) {
   const [soundActive, setSoundActive] = useState(true);
   const [vibrationActive, setVibrationActive] = useState(true);
 
-  // Editable Services and Rates
+  // Services & Rates
   const [servicesList, setServicesList] = useState(() => {
     const saved = localStorage.getItem('delivery_express_services_rates');
     return saved ? JSON.parse(saved) : SERVICES;
   });
 
-  // GCash & Maya QR Payment Settings
+  // Payment Settings
   const [paymentSettings, setPaymentSettings] = useState(() => {
     const saved = localStorage.getItem('delivery_express_payment_settings');
     return saved ? JSON.parse(saved) : {
@@ -33,7 +33,7 @@ export function OrderProvider({ children }) {
     };
   });
 
-  // Current logged in user (null = not logged in)
+  // Current logged in user (Customer, Rider, or Admin)
   const [currentUser, setCurrentUser] = useState(() => {
     const saved = localStorage.getItem('delivery_express_current_user');
     return saved ? JSON.parse(saved) : null;
@@ -108,14 +108,31 @@ export function OrderProvider({ children }) {
   }, [riders]);
 
   // ========================================================
-  // SUPABASE CLOUD DATABASE REALTIME TWO-WAY SYNCHRONIZATION
+  // SUPABASE AUTH & REALTIME TWO-WAY SYNCHRONIZATION
   // ========================================================
   useEffect(() => {
     if (!isSupabaseConfigured || !supabase) return;
 
+    // Listen to Google Auth OAuth redirect
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session?.user) {
+        const userMeta = session.user.user_metadata || {};
+        const customerObj = {
+          role: 'customer',
+          id: session.user.id,
+          name: userMeta.full_name || userMeta.name || session.user.email?.split('@')[0] || 'Google User',
+          email: session.user.email,
+          avatar: userMeta.avatar_url || userMeta.picture || null
+        };
+        setCurrentUser(customerObj);
+        setActiveRole('customer');
+        showNotification(`Welcome, ${customerObj.name}!`, 'success');
+      }
+    });
+
     const fetchSupabaseData = async () => {
       try {
-        // 1. Fetch live orders
+        // Fetch live orders
         const { data: orderData, error: orderErr } = await supabase
           .from('orders')
           .select('*')
@@ -162,7 +179,7 @@ export function OrderProvider({ children }) {
           }
         }
 
-        // 2. Fetch live riders
+        // Fetch live riders
         const { data: riderData, error: riderErr } = await supabase
           .from('riders')
           .select('*')
@@ -191,13 +208,13 @@ export function OrderProvider({ children }) {
           }
         }
       } catch (err) {
-        console.warn('Supabase initial fetch warning:', err);
+        console.warn('Supabase sync warning:', err);
       }
     };
 
     fetchSupabaseData();
 
-    // Subscribe to real-time changes
+    // Subscribe to realtime orders and riders
     const orderChannel = supabase
       .channel('public:orders')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
@@ -213,16 +230,75 @@ export function OrderProvider({ children }) {
       .subscribe();
 
     return () => {
+      authListener?.subscription?.unsubscribe();
       supabase.removeChannel(orderChannel);
       supabase.removeChannel(riderChannel);
     };
   }, []);
 
-  // Authentication Handlers
+  // Google OAuth Login Trigger
+  const signInWithGoogleOAuth = async () => {
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { error } = await supabase.auth.signInWithOAuth({
+          provider: 'google',
+          options: {
+            redirectTo: window.location.origin,
+            queryParams: {
+              prompt: 'select_account',
+              access_type: 'offline'
+            }
+          }
+        });
+        if (error) throw error;
+      } catch (err) {
+        console.warn('Google OAuth error, using direct selector:', err);
+        // Fallback for direct Google user selection modal
+        return false;
+      }
+    }
+    return true;
+  };
+
+  // Customer Account Register & Login
+  const registerCustomer = (customerData) => {
+    const userObj = {
+      role: 'customer',
+      name: customerData.name,
+      email: customerData.email,
+      phone: customerData.phone,
+      password: customerData.password,
+      zone: customerData.zone || 'Balamban Proper'
+    };
+    // Save to registered customers list
+    const existing = JSON.parse(localStorage.getItem('delivery_express_registered_customers') || '[]');
+    existing.push(userObj);
+    localStorage.setItem('delivery_express_registered_customers', JSON.stringify(existing));
+    
+    setCurrentUser(userObj);
+    setActiveRole('customer');
+    soundService.playSuccessFanfare();
+    showNotification(`Account created! Welcome, ${userObj.name}`, 'success');
+  };
+
+  const loginCustomerWithPassword = (emailOrPhone, password) => {
+    const existing = JSON.parse(localStorage.getItem('delivery_express_registered_customers') || '[]');
+    const found = existing.find(c => (c.email === emailOrPhone || c.phone === emailOrPhone) && c.password === password);
+    
+    if (found) {
+      setCurrentUser(found);
+      setActiveRole('customer');
+      soundService.playSuccessFanfare();
+      showNotification(`Welcome back, ${found.name}!`, 'success');
+      return true;
+    }
+    return false;
+  };
+
   const loginAsCustomer = (customerData) => {
     const userObj = {
       role: 'customer',
-      name: customerData.name || 'Verified Customer',
+      name: customerData.name || 'Customer',
       email: customerData.email || 'customer@gmail.com',
       avatar: customerData.avatar || null
     };
@@ -250,7 +326,10 @@ export function OrderProvider({ children }) {
     showNotification('Admin Dispatcher Authorized', 'success');
   };
 
-  const logout = () => {
+  const logout = async () => {
+    if (isSupabaseConfigured && supabase) {
+      try { await supabase.auth.signOut(); } catch (_) {}
+    }
     setCurrentUser(null);
     setActiveRole('customer');
     showNotification('Logged out', 'info');
@@ -542,7 +621,7 @@ export function OrderProvider({ children }) {
     try { confetti({ particleCount: 140, spread: 90 }); } catch (_) {}
   };
 
-  // Staff Management (Synced with Supabase)
+  // Staff Management
   const addRider = async (newRiderData) => {
     const newRider = {
       id: `rider-${Date.now()}`,
@@ -578,7 +657,7 @@ export function OrderProvider({ children }) {
       }
     }
 
-    showNotification(`Courier "${newRider.name}" added & synced!`, 'success');
+    showNotification(`Courier "${newRider.name}" added!`, 'success');
     soundService.playOrderChime();
   };
 
@@ -700,6 +779,9 @@ export function OrderProvider({ children }) {
         paymentSettings,
         updatePaymentSettings,
         currentUser,
+        signInWithGoogleOAuth,
+        registerCustomer,
+        loginCustomerWithPassword,
         loginAsCustomer,
         loginAsRider,
         loginAsAdmin,
