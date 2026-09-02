@@ -66,7 +66,7 @@ export function OrderProvider({ children }) {
         plate: 'MIO GEAR - G629MC',
         zone: 'Balamban Proper / Public Palengke',
         municipality: 'Balamban',
-        avatar: localStorage.getItem('rider_avatar_b2c77a52-42ae-4f07-a8fa-540722d74fae') || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+        avatar: localStorage.getItem('rider_avatar_b2c77a52-42ae-4f07-a8fa-540722d74fae') || '/rider-nigel.jpg',
         rating: 5.0,
         trips: 1,
         isOnline: true,
@@ -167,7 +167,7 @@ export function OrderProvider({ children }) {
           currentRiderList = (riderData || []).map(r => {
             const cloudAvatar = cloudRiderAvatars[r.id];
             const localAvatar = localStorage.getItem(`rider_avatar_${r.id}`);
-            const finalAvatar = cloudAvatar || localAvatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80';
+            const finalAvatar = cloudAvatar || localAvatar || '/rider-nigel.jpg';
             
             if (cloudAvatar) {
               localStorage.setItem(`rider_avatar_${r.id}`, cloudAvatar);
