@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useOrder } from '../../context/OrderContext';
-import { SERVICES, BRAND, ORDER_STATUSES, BALAMBAN_LANDMARKS } from '../../lib/constants';
+import { SERVICES, BRAND, ORDER_STATUSES, MUNICIPALITIES_AND_ZONES } from '../../lib/constants';
 import { isSupabaseConfigured } from '../../lib/supabase';
 import { 
   LayoutDashboard, 
@@ -23,7 +23,8 @@ import {
   Edit2,
   Phone,
   ShieldCheck,
-  X
+  X,
+  MapPin
 } from 'lucide-react';
 
 export default function AdminDashboard() {
@@ -41,19 +42,17 @@ export default function AdminDashboard() {
     showNotification
   } = useOrder();
 
-  const [activeTab, setActiveTab] = useState('dispatch'); // 'dispatch' | 'staff' | 'rates' | 'broadcast'
+  const [activeTab, setActiveTab] = useState('dispatch');
   const [selectedStatusFilter, setSelectedStatusFilter] = useState('all');
   
-  // Modals
   const [showAddRiderModal, setShowAddRiderModal] = useState(false);
   const [editingRider, setEditingRider] = useState(null);
   const [broadcastText, setBroadcastText] = useState('');
 
-  // Add Rider Form State
   const [newRiderName, setNewRiderName] = useState('');
   const [newRiderPhone, setNewRiderPhone] = useState('');
   const [newRiderPlate, setNewRiderPlate] = useState('');
-  const [newRiderZone, setNewRiderZone] = useState('Balamban Proper / Palengke');
+  const [newRiderZone, setNewRiderZone] = useState('Balamban Proper / Public Palengke');
 
   const totalRevenue = orders.reduce((sum, o) => sum + (o.estimatedFare || 0), 0);
   const activeOrdersCount = orders.filter(o => o.status !== 'delivered' && o.status !== 'cancelled').length;
@@ -104,10 +103,7 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-6 pb-20 md:pb-8">
-      
-      {/* Top Operations Metric Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        
         <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 p-4 sm:p-5 rounded-3xl shadow-sm card-float">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-500 dark:text-zinc-400">Total Bookings</span>
@@ -117,7 +113,7 @@ export default function AdminDashboard() {
           </div>
           <div className="mt-3">
             <span className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">{orders.length}</span>
-            <span className="text-[11px] text-slate-400 dark:text-zinc-500 block">Balamban delivery volume</span>
+            <span className="text-[11px] text-slate-400 dark:text-zinc-500 block">West Cebu delivery volume</span>
           </div>
         </div>
 
@@ -156,13 +152,11 @@ export default function AdminDashboard() {
           </div>
           <div className="mt-3">
             <span className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-amber-400">₱{totalRevenue.toLocaleString()}</span>
-            <span className="text-[11px] text-slate-400 dark:text-zinc-500 block">Courier revenue in Balamban</span>
+            <span className="text-[11px] text-slate-400 dark:text-zinc-500 block">Total revenue across Cebu</span>
           </div>
         </div>
-
       </div>
 
-      {/* Admin Subnav Tabs */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 dark:border-zinc-800 pb-3">
         <div className="flex flex-wrap items-center gap-2">
           {[
@@ -190,7 +184,6 @@ export default function AdminDashboard() {
           })}
         </div>
 
-        {/* Add Staff Quick Action */}
         <button
           onClick={() => setShowAddRiderModal(true)}
           className="px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-zinc-950 text-xs font-extrabold rounded-2xl flex items-center gap-1.5 shadow-md transition-all ml-auto"
@@ -200,11 +193,8 @@ export default function AdminDashboard() {
         </button>
       </div>
 
-      {/* TAB 1: Live Dispatch Kanban */}
       {activeTab === 'dispatch' && (
         <div className="space-y-4">
-          
-          {/* Filter Bar */}
           <div className="flex items-center gap-2 overflow-x-auto pb-2 text-xs">
             <span className="text-slate-400 dark:text-zinc-500 font-semibold">Filter:</span>
             {['all', 'pending', 'assigned', 'purchasing', 'in_transit', 'delivered'].map(st => (
@@ -222,7 +212,6 @@ export default function AdminDashboard() {
             ))}
           </div>
 
-          {/* Orders Table */}
           <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl overflow-hidden shadow-sm">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs text-slate-700 dark:text-zinc-300">
@@ -231,7 +220,7 @@ export default function AdminDashboard() {
                     <th className="p-4">Tracking #</th>
                     <th className="p-4">Service</th>
                     <th className="p-4">Customer</th>
-                    <th className="p-4">Balamban Route</th>
+                    <th className="p-4">Route Details</th>
                     <th className="p-4">Fare</th>
                     <th className="p-4">Assigned Staff</th>
                     <th className="p-4">Status</th>
@@ -269,9 +258,9 @@ export default function AdminDashboard() {
                             defaultValue=""
                             className="bg-slate-100 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 text-slate-800 dark:text-zinc-200 rounded-xl px-2.5 py-1 text-xs focus:outline-none focus:border-rose-500"
                           >
-                            <option value="" disabled>Assign Staff/Rider...</option>
+                            <option value="" disabled>Assign Courier...</option>
                             {riders.map(r => (
-                              <option key={r.id} value={r.id}>{r.name} ({r.zone || 'Balamban'})</option>
+                              <option key={r.id} value={r.id}>{r.name} ({r.zone})</option>
                             ))}
                           </select>
                         )}
@@ -310,11 +299,9 @@ export default function AdminDashboard() {
               </table>
             </div>
           </div>
-
         </div>
       )}
 
-      {/* TAB 2: STAFF & RIDERS MANAGEMENT SUITE */}
       {activeTab === 'staff' && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
@@ -323,7 +310,7 @@ export default function AdminDashboard() {
                 Delivery Express Courier & Staff Roster
               </h4>
               <p className="text-xs text-slate-500 dark:text-zinc-400">
-                Manage riders, toggle duty status, edit vehicles, and view completed trips
+                Manage couriers across Balamban, Asturias, Toledo, Tuburan, and Pinamungajan
               </p>
             </div>
           </div>
@@ -349,7 +336,7 @@ export default function AdminDashboard() {
                         <img
                           src={rider.avatar}
                           alt={rider.name}
-                          className="w-12 h-12 rounded-2xl object-cover border-2 border-amber-500"
+                          className="w-12 h-12 rounded-2xl object-cover border-2 border-amber-500 shadow-sm"
                         />
                         <span className={`absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border-2 border-white dark:border-zinc-900 ${currentStatus === 'active' ? 'bg-emerald-500' : currentStatus === 'break' ? 'bg-amber-500' : 'bg-slate-400'}`} />
                       </div>
@@ -373,7 +360,7 @@ export default function AdminDashboard() {
                     </div>
                     <div className="flex justify-between text-slate-600 dark:text-zinc-400">
                       <span>Assigned Zone:</span>
-                      <strong className="text-rose-600 dark:text-rose-400">{rider.zone || 'Balamban Proper'}</strong>
+                      <strong className="text-rose-600 dark:text-rose-400 truncate max-w-[170px]">{rider.zone}</strong>
                     </div>
                     <div className="flex justify-between text-slate-600 dark:text-zinc-400">
                       <span>Rating & Trips:</span>
@@ -381,7 +368,6 @@ export default function AdminDashboard() {
                     </div>
                   </div>
 
-                  {/* Staff Action Controls */}
                   <div className="pt-1 flex items-center justify-between gap-1.5">
                     <button
                       onClick={() => toggleRiderDuty(rider.id)}
@@ -416,7 +402,6 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* TAB 3: RADIO BROADCAST TO STAFF */}
       {activeTab === 'broadcast' && (
         <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl p-6 shadow-sm space-y-4 max-w-xl">
           <div className="flex items-center gap-3">
@@ -428,7 +413,7 @@ export default function AdminDashboard() {
                 Radio Announcement Broadcast
               </h4>
               <p className="text-xs text-slate-500 dark:text-zinc-400">
-                Send an audio chime and banner announcement to all active riders on duty
+                Send an audio chime and banner announcement to all active couriers
               </p>
             </div>
           </div>
@@ -439,7 +424,7 @@ export default function AdminDashboard() {
               required
               value={broadcastText}
               onChange={(e) => setBroadcastText(e.target.value)}
-              placeholder="e.g. Heavy rain alert in Balamban town proper. Drive safely! All riders prioritize cake delivery orders."
+              placeholder="e.g. Heavy rain alert in Balamban & Toledo proper. Drive safely! All riders prioritize cake deliveries."
               className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-800 rounded-2xl p-3 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-rose-500 resize-none"
             />
             <button
@@ -453,12 +438,11 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* TAB 4: Services & Rates Config */}
       {activeTab === 'rates' && (
         <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl p-6 shadow-sm space-y-4">
           <div>
             <h4 className="font-extrabold text-slate-900 dark:text-white text-base">
-              Standard Rate Card (Balamban, Cebu)
+              Standard Rate Card (West Cebu)
             </h4>
             <p className="text-xs text-slate-500 dark:text-zinc-400">
               Configured base rates and per-kilometer distance fee
@@ -494,14 +478,13 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* MODAL 1: ADD NEW RIDER / STAFF */}
       {showAddRiderModal && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4">
             <div className="flex justify-between items-center">
               <h4 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
                 <UserPlus className="w-5 h-5 text-rose-500" />
-                <span>Add Staff / Courier</span>
+                <span>Add Courier / Staff</span>
               </h4>
               <button onClick={() => setShowAddRiderModal(false)} className="text-slate-400 hover:text-slate-700">
                 <X className="w-5 h-5" />
@@ -516,7 +499,7 @@ export default function AdminDashboard() {
                   required
                   value={newRiderName}
                   onChange={(e) => setNewRiderName(e.target.value)}
-                  placeholder="e.g. Kuya Reynante (Balamban)"
+                  placeholder="e.g. Kuya Reynante"
                   className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white focus:outline-none focus:border-rose-500"
                 />
               </div>
@@ -540,24 +523,27 @@ export default function AdminDashboard() {
                   required
                   value={newRiderPlate}
                   onChange={(e) => setNewRiderPlate(e.target.value)}
-                  placeholder="e.g. 7C-4321 (Honda Click 125)"
+                  placeholder="e.g. MIO GEAR - G629MC"
                   className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white focus:outline-none focus:border-rose-500"
                 />
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">Assigned Zone in Balamban</label>
+                <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
+                  Assigned Municipality & Zone
+                </label>
                 <select
                   value={newRiderZone}
                   onChange={(e) => setNewRiderZone(e.target.value)}
                   className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white focus:outline-none focus:border-rose-500"
                 >
-                  <option value="Balamban Proper / Palengke">Balamban Proper / Palengke</option>
-                  <option value="Gaisano Grand Mall Hub">Gaisano Grand Mall Hub</option>
-                  <option value="Buanoy / Tsuneishi Sector">Buanoy / Tsuneishi Sector</option>
-                  <option value="Cantuod / Aliwan Sector">Cantuod / Aliwan Sector</option>
-                  <option value="Prenza / Pondol Boundary">Prenza / Pondol Boundary</option>
-                  <option value="Asturias Boundary">Asturias Boundary</option>
+                  {MUNICIPALITIES_AND_ZONES.map(m => (
+                    <optgroup key={m.municipality} label={m.municipality}>
+                      {m.zones.map(z => (
+                        <option key={z} value={z}>{z}</option>
+                      ))}
+                    </optgroup>
+                  ))}
                 </select>
               </div>
 
@@ -581,7 +567,6 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* MODAL 2: EDIT RIDER */}
       {editingRider && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4">
@@ -626,6 +611,23 @@ export default function AdminDashboard() {
                 />
               </div>
 
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">Assigned Zone</label>
+                <select
+                  value={editingRider.zone}
+                  onChange={(e) => setEditingRider({ ...editingRider, zone: e.target.value })}
+                  className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white"
+                >
+                  {MUNICIPALITIES_AND_ZONES.map(m => (
+                    <optgroup key={m.municipality} label={m.municipality}>
+                      {m.zones.map(z => (
+                        <option key={z} value={z}>{z}</option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+              </div>
+
               <div className="flex gap-2 pt-2">
                 <button
                   type="button"
@@ -645,7 +647,6 @@ export default function AdminDashboard() {
           </div>
         </div>
       )}
-
     </div>
   );
 }

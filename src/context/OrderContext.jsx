@@ -14,6 +14,12 @@ export function OrderProvider({ children }) {
   const [soundActive, setSoundActive] = useState(true);
   const [vibrationActive, setVibrationActive] = useState(true);
 
+  // Current logged in user (null = customer by default, no login required)
+  const [currentUser, setCurrentUser] = useState(() => {
+    const saved = localStorage.getItem('delivery_express_current_user');
+    return saved ? JSON.parse(saved) : null;
+  });
+
   const [orders, setOrders] = useState(() => {
     const saved = localStorage.getItem('delivery_express_orders_balamban');
     return saved ? JSON.parse(saved) : INITIAL_ORDERS;
@@ -24,13 +30,21 @@ export function OrderProvider({ children }) {
     return saved ? JSON.parse(saved) : MOCK_RIDERS;
   });
 
-  const [activeRole, setActiveRole] = useState('customer'); // 'customer' | 'rider' | 'admin'
+  const [activeRole, setActiveRole] = useState(() => {
+    const savedUser = localStorage.getItem('delivery_express_current_user');
+    if (savedUser) {
+      const parsed = JSON.parse(savedUser);
+      return parsed.role || 'customer';
+    }
+    return 'customer';
+  });
+
   const [selectedRiderId, setSelectedRiderId] = useState('rider-1');
   const [activeTrackingId, setActiveTrackingId] = useState('DE-2026-001');
   const [notification, setNotification] = useState(null);
   const [announcement, setAnnouncement] = useState(null);
 
-  // Apply theme class to document root for Tailwind darkMode: 'class'
+  // Apply theme class to document root
   useEffect(() => {
     localStorage.setItem('delivery_express_theme', theme);
     if (theme === 'dark') {
@@ -40,7 +54,15 @@ export function OrderProvider({ children }) {
     }
   }, [theme]);
 
-  // Save to localStorage
+  // Persist user and data
+  useEffect(() => {
+    if (currentUser) {
+      localStorage.setItem('delivery_express_current_user', JSON.stringify(currentUser));
+    } else {
+      localStorage.removeItem('delivery_express_current_user');
+    }
+  }, [currentUser]);
+
   useEffect(() => {
     localStorage.setItem('delivery_express_orders_balamban', JSON.stringify(orders));
   }, [orders]);
@@ -87,6 +109,30 @@ export function OrderProvider({ children }) {
     };
   }, []);
 
+  const loginAsRider = (riderId) => {
+    const rider = riders.find(r => r.id === riderId) || riders[0];
+    const userObj = { role: 'rider', id: rider.id, name: rider.name };
+    setCurrentUser(userObj);
+    setSelectedRiderId(rider.id);
+    setActiveRole('rider');
+    soundService.playSuccessFanfare();
+    showNotification(`Logged in as Courier: ${rider.name}`, 'success');
+  };
+
+  const loginAsAdmin = () => {
+    const userObj = { role: 'admin', name: 'Dispatcher / Operations Lead' };
+    setCurrentUser(userObj);
+    setActiveRole('admin');
+    soundService.playSuccessFanfare();
+    showNotification('Logged in as Dispatcher / Admin', 'success');
+  };
+
+  const logout = () => {
+    setCurrentUser(null);
+    setActiveRole('customer');
+    showNotification('Logged out to Customer View', 'info');
+  };
+
   const toggleTheme = () => {
     setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
   };
@@ -116,7 +162,7 @@ export function OrderProvider({ children }) {
     return hour >= 8 || hour < 2;
   };
 
-  // Create new order with Sound and Vibration
+  // Create new order
   const createOrder = async (orderInput) => {
     const service = SERVICES.find(s => s.id === orderInput.serviceId) || SERVICES[0];
     const trackingNumber = `DE-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -267,7 +313,7 @@ export function OrderProvider({ children }) {
     }));
 
     soundService.playOrderChime();
-    showNotification(`Courier ${rider.name} assigned in Balamban!`, 'success');
+    showNotification(`Courier ${rider.name} assigned!`, 'success');
   };
 
   // Update Rider Live GPS Location
@@ -357,7 +403,8 @@ export function OrderProvider({ children }) {
       name: newRiderData.name,
       phone: newRiderData.phone,
       plate: newRiderData.plate,
-      zone: newRiderData.zone || 'Balamban Proper',
+      zone: newRiderData.zone || 'Balamban Proper / Public Palengke',
+      municipality: newRiderData.municipality || 'Balamban',
       rating: 5.0,
       trips: 0,
       isOnline: true,
@@ -369,7 +416,7 @@ export function OrderProvider({ children }) {
     };
 
     setRiders(prev => [newRider, ...prev]);
-    showNotification(`New Staff/Rider "${newRider.name}" added successfully!`, 'success');
+    showNotification(`New Courier "${newRider.name}" added successfully!`, 'success');
     soundService.playOrderChime();
   };
 
@@ -405,7 +452,7 @@ export function OrderProvider({ children }) {
     setOrders(INITIAL_ORDERS);
     setRiders(MOCK_RIDERS);
     setActiveTrackingId('DE-2026-001');
-    showNotification('Balamban sample data refreshed!', 'info');
+    showNotification('Sample data refreshed!', 'info');
   };
 
   return (
@@ -417,6 +464,10 @@ export function OrderProvider({ children }) {
         toggleSound,
         vibrationActive,
         toggleVibration,
+        currentUser,
+        loginAsRider,
+        loginAsAdmin,
+        logout,
         orders,
         riders,
         activeRole,

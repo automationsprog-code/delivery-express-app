@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useOrder } from '../../context/OrderContext';
 import { BRAND } from '../../lib/constants';
 import { isSupabaseConfigured } from '../../lib/supabase';
+import AuthModal from './AuthModal';
 import { 
   Bike, 
   ShieldCheck, 
@@ -18,7 +19,10 @@ import {
   Volume2,
   VolumeX,
   Radio,
-  BellRing
+  BellRing,
+  Lock,
+  LogOut,
+  UserCheck
 } from 'lucide-react';
 
 export default function Header() {
@@ -27,15 +31,24 @@ export default function Header() {
     toggleTheme, 
     soundActive, 
     toggleSound, 
+    currentUser,
     activeRole, 
     setActiveRole, 
+    logout,
     isWithinOperatingHours, 
     resetSampleData, 
     notification,
     announcement 
   } = useOrder();
   
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authTab, setAuthTab] = useState('rider');
   const isOpen = isWithinOperatingHours();
+
+  const handleOpenLogin = (tab = 'rider') => {
+    setAuthTab(tab);
+    setShowAuthModal(true);
+  };
 
   return (
     <>
@@ -55,7 +68,7 @@ export default function Header() {
 
           <div className="hidden sm:flex items-center gap-1 text-zinc-300 border-l border-white/20 pl-3">
             <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
-            <span>Balamban, Cebu Verified Courier</span>
+            <span>Balamban • Asturias • Toledo • Tuburan</span>
           </div>
         </div>
 
@@ -77,7 +90,7 @@ export default function Header() {
                 <Database className="w-3 h-3" /> Supabase Live
               </span>
             ) : (
-              <span className="flex items-center gap-1 text-amber-300 font-medium" title="Ready & Connected">
+              <span className="flex items-center gap-1 text-amber-300 font-medium">
                 <Sparkles className="w-3 h-3" /> Ready
               </span>
             )}
@@ -85,7 +98,7 @@ export default function Header() {
         </div>
       </div>
 
-      {/* Admin Radio Broadcast Announcement Banner (If active) */}
+      {/* Admin Radio Broadcast Announcement Banner */}
       {announcement && (
         <div className="bg-amber-500 text-zinc-950 px-4 py-2 text-xs font-bold flex items-center justify-between gap-3 shadow-md animate-bounce">
           <div className="flex items-center gap-2">
@@ -99,11 +112,14 @@ export default function Header() {
       )}
 
       {/* Main App Bar */}
-      <header className="sticky top-0 z-40 bg-white/90 dark:bg-zinc-950/90 backdrop-blur-md border-b border-slate-200 dark:border-zinc-800 px-4 py-3 shadow-sm transition-colors">
+      <header className="sticky top-0 z-40 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-md border-b border-slate-200 dark:border-zinc-800 px-4 py-3 shadow-sm transition-colors">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
           
           {/* Brand Logo & Tagline */}
-          <div className="flex items-center gap-3">
+          <div 
+            onClick={() => setActiveRole('customer')}
+            className="flex items-center gap-3 cursor-pointer select-none"
+          >
             <div className="relative flex items-center justify-center w-11 h-11 rounded-2xl bg-gradient-to-br from-rose-600 via-red-600 to-amber-500 shadow-md shadow-rose-600/20 p-2 text-white">
               <Bike className="w-6 h-6 transform -rotate-6" />
               <div className="absolute -bottom-1 -right-1 bg-amber-400 text-zinc-950 font-black text-[9px] px-1 rounded shadow-sm">
@@ -117,7 +133,7 @@ export default function Header() {
                   Delivery <span className="text-rose-600 dark:text-rose-500">Express</span>
                 </h1>
                 <span className="bg-rose-100 dark:bg-rose-500/20 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-500/30 text-[10px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider">
-                  Balamban
+                  West Cebu
                 </span>
               </div>
               <p className="text-[11px] text-slate-500 dark:text-zinc-400 font-medium line-clamp-1">
@@ -126,14 +142,14 @@ export default function Header() {
             </div>
           </div>
 
-          {/* Controls: Theme Switcher, Sound, Reset, Role Switcher (Desktop) */}
+          {/* Right Controls: Sound, Theme, Auth / Role Switcher */}
           <div className="flex items-center gap-2">
             
-            {/* Audio Ding Toggle */}
+            {/* Audio Toggle */}
             <button
               onClick={toggleSound}
-              title={soundActive ? 'Mute notification sound' : 'Enable notification sound'}
-              className={`p-2 rounded-xl border transition-all ${
+              title={soundActive ? 'Mute sound' : 'Enable sound'}
+              className={`p-2.5 rounded-2xl border transition-all ${
                 soundActive 
                   ? 'bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-500/30 shadow-sm' 
                   : 'bg-slate-100 dark:bg-zinc-900 text-slate-400 border-slate-200 dark:border-zinc-800'
@@ -146,55 +162,61 @@ export default function Header() {
             <button
               onClick={toggleTheme}
               title={`Switch to ${theme === 'light' ? 'Dark' : 'Light'} Mode`}
-              className="p-2 rounded-xl bg-slate-100 dark:bg-zinc-900 hover:bg-slate-200 dark:hover:bg-zinc-800 text-slate-700 dark:text-amber-400 border border-slate-200 dark:border-zinc-800 transition-colors shadow-sm"
+              className="p-2.5 rounded-2xl bg-slate-100 dark:bg-zinc-900 hover:bg-slate-200 dark:hover:bg-zinc-800 text-slate-700 dark:text-amber-400 border border-slate-200 dark:border-zinc-800 transition-colors shadow-sm"
             >
               {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
             </button>
 
-            {/* Role Switcher (Desktop & Tablet) */}
-            <div className="hidden md:flex bg-slate-100 dark:bg-zinc-900 p-1 rounded-2xl border border-slate-200 dark:border-zinc-800 items-center gap-1 shadow-inner">
-              <button
-                onClick={() => setActiveRole('customer')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                  activeRole === 'customer'
-                    ? 'bg-rose-600 text-white shadow-md'
-                    : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                <Smartphone className="w-3.5 h-3.5" />
-                <span>Customer</span>
-              </button>
+            {/* USER / AUTH STATUS */}
+            {currentUser ? (
+              <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-zinc-900 p-1 rounded-2xl border border-slate-200 dark:border-zinc-800">
+                <div className="px-2.5 py-1 text-xs font-extrabold text-slate-900 dark:text-white flex items-center gap-1.5">
+                  {currentUser.role === 'rider' ? (
+                    <>
+                      <Bike className="w-3.5 h-3.5 text-amber-500" />
+                      <span className="truncate max-w-[100px]">{currentUser.name}</span>
+                    </>
+                  ) : (
+                    <>
+                      <ShieldCheck className="w-3.5 h-3.5 text-rose-500" />
+                      <span>Dispatcher</span>
+                    </>
+                  )}
+                </div>
 
-              <button
-                onClick={() => setActiveRole('rider')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                  activeRole === 'rider'
-                    ? 'bg-amber-500 text-zinc-950 font-extrabold shadow-md'
-                    : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                <Bike className="w-3.5 h-3.5" />
-                <span>Rider Portal</span>
-              </button>
+                <button
+                  onClick={logout}
+                  title="Logout to Customer View"
+                  className="p-1.5 bg-rose-50 dark:bg-rose-950/50 hover:bg-rose-100 text-rose-600 dark:text-rose-400 rounded-xl transition-colors"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => handleOpenLogin('rider')}
+                  className="hidden sm:flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-slate-100 dark:bg-zinc-900 hover:bg-amber-50 text-slate-700 dark:text-zinc-200 text-xs font-bold border border-slate-200 dark:border-zinc-800 transition-all shadow-sm"
+                >
+                  <Bike className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Rider Login</span>
+                </button>
 
-              <button
-                onClick={() => setActiveRole('admin')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                  activeRole === 'admin'
-                    ? 'bg-slate-900 dark:bg-zinc-800 text-rose-400 border border-rose-500/40 shadow-md'
-                    : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                <LayoutDashboard className="w-3.5 h-3.5" />
-                <span>Admin & Staff</span>
-              </button>
-            </div>
+                <button
+                  onClick={() => handleOpenLogin('admin')}
+                  className="px-3.5 py-2 rounded-2xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white text-xs font-bold transition-all shadow-md shadow-rose-600/20 flex items-center gap-1.5"
+                >
+                  <Lock className="w-3.5 h-3.5" />
+                  <span>Staff / Admin</span>
+                </button>
+              </div>
+            )}
 
-            {/* Reset Sample Data button */}
+            {/* Reset Sample Data */}
             <button
               onClick={resetSampleData}
               title="Reset Sample Demo Orders"
-              className="p-2 rounded-xl bg-slate-100 dark:bg-zinc-900 hover:bg-slate-200 dark:hover:bg-zinc-800 text-slate-500 dark:text-zinc-400 border border-slate-200 dark:border-zinc-800 transition-colors"
+              className="p-2.5 rounded-2xl bg-slate-100 dark:bg-zinc-900 hover:bg-slate-200 dark:hover:bg-zinc-800 text-slate-500 dark:text-zinc-400 border border-slate-200 dark:border-zinc-800 transition-colors"
             >
               <RotateCcw className="w-4 h-4" />
             </button>
@@ -208,7 +230,7 @@ export default function Header() {
         <div className="grid grid-cols-3 gap-1 text-center">
           <button
             onClick={() => setActiveRole('customer')}
-            className={`py-1.5 px-2 rounded-xl flex flex-col items-center gap-1 transition-all ${
+            className={`py-1.5 px-2 rounded-2xl flex flex-col items-center gap-1 transition-all ${
               activeRole === 'customer' 
                 ? 'bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 font-bold' 
                 : 'text-slate-500 dark:text-zinc-400'
@@ -219,20 +241,32 @@ export default function Header() {
           </button>
 
           <button
-            onClick={() => setActiveRole('rider')}
-            className={`py-1.5 px-2 rounded-xl flex flex-col items-center gap-1 transition-all ${
+            onClick={() => {
+              if (currentUser?.role === 'rider') {
+                setActiveRole('rider');
+              } else {
+                handleOpenLogin('rider');
+              }
+            }}
+            className={`py-1.5 px-2 rounded-2xl flex flex-col items-center gap-1 transition-all ${
               activeRole === 'rider' 
                 ? 'bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 font-bold' 
                 : 'text-slate-500 dark:text-zinc-400'
             }`}
           >
             <Bike className="w-4 h-4" />
-            <span className="text-[10px]">Rider Console</span>
+            <span className="text-[10px]">Rider Portal</span>
           </button>
 
           <button
-            onClick={() => setActiveRole('admin')}
-            className={`py-1.5 px-2 rounded-xl flex flex-col items-center gap-1 transition-all ${
+            onClick={() => {
+              if (currentUser?.role === 'admin') {
+                setActiveRole('admin');
+              } else {
+                handleOpenLogin('admin');
+              }
+            }}
+            className={`py-1.5 px-2 rounded-2xl flex flex-col items-center gap-1 transition-all ${
               activeRole === 'admin' 
                 ? 'bg-slate-100 dark:bg-zinc-800 text-rose-600 dark:text-rose-400 font-bold' 
                 : 'text-slate-500 dark:text-zinc-400'
@@ -256,6 +290,14 @@ export default function Header() {
             <span>{notification.msg}</span>
           </div>
         </div>
+      )}
+
+      {/* Staff & Rider Login Modal */}
+      {showAuthModal && (
+        <AuthModal
+          defaultTab={authTab}
+          onClose={() => setShowAuthModal(false)}
+        />
       )}
     </>
   );
