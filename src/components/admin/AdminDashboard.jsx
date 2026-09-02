@@ -882,11 +882,21 @@ export default function AdminDashboard() {
                     alt="Preview"
                     className="w-14 h-14 rounded-2xl object-cover border-2 border-amber-500 shadow-sm bg-white dark:bg-zinc-800"
                   />
-                  <label className="cursor-pointer px-3.5 py-2 bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 text-slate-800 dark:text-zinc-200 font-bold rounded-xl border border-slate-300 dark:border-zinc-700 flex items-center gap-1.5">
-                    <Upload className="w-3.5 h-3.5 text-rose-500" />
-                    <span>Upload New Photo</span>
-                    <input type="file" accept="image/*" className="hidden" onChange={(e) => handlePhotoUpload(e, (url) => setEditingRider({ ...editingRider, avatar: url }))} />
-                  </label>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="cursor-pointer px-3.5 py-2 bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 text-slate-800 dark:text-zinc-200 font-bold rounded-xl border border-slate-300 dark:border-zinc-700 flex items-center gap-1.5">
+                      <Upload className="w-3.5 h-3.5 text-rose-500" />
+                      <span>Upload New Photo</span>
+                      <input type="file" accept="image/*" className="hidden" onChange={(e) => handlePhotoUpload(e, (url) => setEditingRider({ ...editingRider, avatar: url }))} />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setEditingRider({ ...editingRider, avatar: '/rider-nigel.jpg' })}
+                      className="px-3 py-1.5 bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-800 rounded-xl font-extrabold text-[10px] text-left flex items-center gap-1"
+                    >
+                      <Sparkles className="w-3 h-3 text-amber-500" />
+                      <span>Use Nigel's Official Face Photo</span>
+                    </button>
+                  </div>
                 </div>
               </div>
 

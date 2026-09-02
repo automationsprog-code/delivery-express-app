@@ -1,0 +1,25 @@
+{
+  "name": "Delivery Express | Balamban West Cebu",
+  "short_name": "DeliveryExpress",
+  "description": "Your first choice in delivery. Food, Pasabuy, Cakes, Medicine, Errands & Parcels across Balamban, Asturias, Toledo, Tuburan & West Cebu.",
+  "start_url": "/",
+  "id": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#09090b",
+  "theme_color": "#e11d48",
+  "categories": ["shopping", "food", "business", "utilities"],
+  "icons": [
+    {
+      "src": "/logo.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/rider-nigel.jpg",
+      "sizes": "192x192 512x512",
+      "type": "image/jpeg"
+    }
+  ]
+}

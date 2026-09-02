@@ -167,11 +167,16 @@ export function OrderProvider({ children }) {
           currentRiderList = (riderData || []).map(r => {
             const cloudAvatar = cloudRiderAvatars[r.id];
             const localAvatar = localStorage.getItem(`rider_avatar_${r.id}`);
-            const finalAvatar = cloudAvatar || localAvatar || '/rider-nigel.jpg';
             
-            if (cloudAvatar) {
-              localStorage.setItem(`rider_avatar_${r.id}`, cloudAvatar);
+            // Prioritize cloud avatar or /rider-nigel.jpg over stale local screenshot
+            let finalAvatar = '/rider-nigel.jpg';
+            if (cloudAvatar && cloudAvatar.length > 5 && !cloudAvatar.includes('unsplash')) {
+              finalAvatar = cloudAvatar;
+            } else if (localAvatar && localAvatar.startsWith('data:image/jpeg') && localAvatar.length > 500) {
+              finalAvatar = localAvatar;
             }
+            
+            localStorage.setItem(`rider_avatar_${r.id}`, finalAvatar);
 
             const cleanPlate = r.motorcycle_plate?.split('(')[0]?.trim() || r.motorcycle_plate || 'Motorcycle';
             const riderPass = cloudRiderPasswords[r.id] || localStorage.getItem(`rider_pass_${r.id}`) || 'Pass123';

@@ -4,6 +4,7 @@ import { BRAND } from '../../lib/constants';
 import { isSupabaseConfigured } from '../../lib/supabase';
 import AuthModal from './AuthModal';
 import ChangePasswordModal from './ChangePasswordModal';
+import InstallAppButton from './InstallAppButton';
 import { 
   Bike, 
   ShieldCheck, 
@@ -126,6 +127,9 @@ export default function Header() {
           {/* Right Controls */}
           <div className="flex items-center gap-1.5 sm:gap-2">
             
+            {/* PWA 1-Click Install Button */}
+            <InstallAppButton />
+
             {/* Audio Toggle */}
             <button
               onClick={toggleSound}
