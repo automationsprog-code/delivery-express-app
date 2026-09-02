@@ -192,6 +192,27 @@ export function OrderProvider({ children }) {
             cloudRiderPasswords = parsed.rider_passwords || {};
             cloudRiderAvatars = parsed.rider_avatars || {};
             cloudAdminPass = parsed.admin_pass || 'Pass123';
+            if (parsed.payment_settings) {
+              setPaymentSettings(parsed.payment_settings);
+            }
+            if (parsed.services_rates && Array.isArray(parsed.services_rates)) {
+              const cloudRatesMap = {};
+              parsed.services_rates.forEach(sr => {
+                cloudRatesMap[sr.id] = sr;
+              });
+              setServicesList(prev => prev.map(s => {
+                const cloudS = cloudRatesMap[s.id];
+                if (cloudS) {
+                  return {
+                    ...s,
+                    baseFare: cloudS.baseFare !== undefined && !isNaN(cloudS.baseFare) ? parseFloat(cloudS.baseFare) : s.baseFare,
+                    perKmRate: cloudS.perKmRate !== undefined && !isNaN(cloudS.perKmRate) ? parseFloat(cloudS.perKmRate) : s.perKmRate,
+                    errandFee: cloudS.errandFee !== undefined && !isNaN(cloudS.errandFee) ? parseFloat(cloudS.errandFee) : s.errandFee
+                  };
+                }
+                return s;
+              }));
+            }
             localStorage.setItem('delivery_express_admin_password', cloudAdminPass);
           }
         } catch (_) {}
