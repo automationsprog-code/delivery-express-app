@@ -30,7 +30,7 @@ export function OrderProvider({ children }) {
   const [notification, setNotification] = useState(null);
   const [announcement, setAnnouncement] = useState(null);
 
-  // Apply theme class to document root
+  // Apply theme class to document root for Tailwind darkMode: 'class'
   useEffect(() => {
     localStorage.setItem('delivery_express_theme', theme);
     if (theme === 'dark') {
@@ -146,6 +146,15 @@ export function OrderProvider({ children }) {
       riderCoords: null,
       details: orderInput.details || {},
       customerNotes: orderInput.customerNotes || '',
+      messages: [
+        {
+          id: 'msg-init',
+          senderRole: 'system',
+          senderName: 'Delivery Express',
+          text: `Order #${trackingNumber} created. A rider in Balamban will be assigned shortly.`,
+          time: 'Just now'
+        }
+      ],
       createdAt: new Date().toISOString(),
       logs: [
         { step: 'Booking Submitted (Balamban)', time: 'Just now', done: true },
@@ -187,8 +196,6 @@ export function OrderProvider({ children }) {
 
     setOrders(prev => [newOrder, ...prev]);
     setActiveTrackingId(trackingNumber);
-    
-    // Play pleasant order chime and vibrate
     soundService.playOrderChime();
     showNotification(`Booking ${trackingNumber} dispatched in Balamban!`, 'success');
     
@@ -197,6 +204,31 @@ export function OrderProvider({ children }) {
     } catch (_) {}
 
     return newOrder;
+  };
+
+  // In-App Chat Send Message
+  const sendMessage = (orderId, senderRole, senderName, text) => {
+    const newMsg = {
+      id: `msg-${Date.now()}`,
+      senderRole,
+      senderName,
+      text,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+
+    setOrders(prev => prev.map(o => {
+      if (o.id === orderId || o.trackingNumber === orderId) {
+        const existingMessages = o.messages || [];
+        return {
+          ...o,
+          messages: [...existingMessages, newMsg]
+        };
+      }
+      return o;
+    }));
+
+    soundService.playOrderChime();
+    soundService.triggerVibrate([80]);
   };
 
   // Assign Rider
@@ -211,6 +243,14 @@ export function OrderProvider({ children }) {
           return log;
         });
 
+        const welcomeMsg = {
+          id: `msg-${Date.now()}`,
+          senderRole: 'rider',
+          senderName: rider.name,
+          text: `Maayong adlaw! Ako si ${rider.name}, imong Delivery Express courier. Akong gi-accept imong order #${order.trackingNumber}.`,
+          time: 'Just now'
+        };
+
         return {
           ...order,
           riderId: rider.id,
@@ -219,6 +259,7 @@ export function OrderProvider({ children }) {
           riderCoords: [rider.lat, rider.lng],
           status: 'assigned',
           statusText: `Rider Assigned: ${rider.name}`,
+          messages: [...(order.messages || []), welcomeMsg],
           logs: updatedLogs
         };
       }
@@ -309,7 +350,7 @@ export function OrderProvider({ children }) {
     } catch (_) {}
   };
 
-  // ================= ADMIN ACTIONS FOR STAFF & RIDERS =================
+  // Staff & Rider Management
   const addRider = (newRiderData) => {
     const newRider = {
       id: `rider-${Date.now()}`,
@@ -321,7 +362,7 @@ export function OrderProvider({ children }) {
       trips: 0,
       isOnline: true,
       isBusy: false,
-      status: 'active', // 'active' | 'break' | 'suspended'
+      status: 'active',
       lat: 10.5015,
       lng: 123.7150,
       avatar: newRiderData.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'
@@ -360,7 +401,6 @@ export function OrderProvider({ children }) {
     showNotification(`Radio Broadcast Sent: "${msg}"`, 'success');
   };
 
-  // Reset to sample Balamban data
   const resetSampleData = () => {
     setOrders(INITIAL_ORDERS);
     setRiders(MOCK_RIDERS);
@@ -392,6 +432,7 @@ export function OrderProvider({ children }) {
         isWithinOperatingHours,
         createOrder,
         assignRider,
+        sendMessage,
         updateRiderLocation,
         updateOrderStatus,
         uploadProofOfDelivery,

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useOrder } from '../../context/OrderContext';
 import { BRAND, ORDER_STATUSES } from '../../lib/constants';
 import DeliveryMap from '../map/DeliveryMap';
+import OrderChatModal from '../common/OrderChatModal';
 import { 
   Search, 
   Bike, 
@@ -16,12 +17,14 @@ import {
   FileText,
   Camera,
   Share2,
-  AlertCircle
+  AlertCircle,
+  MessagesSquare
 } from 'lucide-react';
 
 export default function LiveTracker() {
   const { orders, activeTrackingId, setActiveTrackingId } = useOrder();
   const [searchInput, setSearchInput] = useState('');
+  const [showChatModal, setShowChatModal] = useState(false);
 
   const activeOrder = orders.find(o => o.trackingNumber === activeTrackingId || o.id === activeTrackingId) || orders[0];
 
@@ -42,8 +45,6 @@ export default function LiveTracker() {
   const getStatusBadge = (status) => {
     return ORDER_STATUSES[status] || { label: status, color: 'bg-slate-100 text-slate-700 dark:bg-zinc-800 dark:text-zinc-300' };
   };
-
-  const messengerUrl = `https://m.me/${BRAND.messengerUsername}?text=${encodeURIComponent(`Hi Delivery Express! Inquiring on my Balamban Order #${activeOrder?.trackingNumber || ''}`)}`;
 
   const pickupCoords = activeOrder?.pickupCoords || [10.5015, 123.7150];
   const dropoffCoords = activeOrder?.dropoffCoords || [10.4720, 123.7060];
@@ -143,7 +144,7 @@ export default function LiveTracker() {
                   </div>
                 </div>
 
-                {/* Quick Actions */}
+                {/* Quick Phone / SMS Actions */}
                 {activeOrder.riderPhone && (
                   <div className="flex items-center gap-2">
                     <a
@@ -153,27 +154,24 @@ export default function LiveTracker() {
                     >
                       <PhoneCall className="w-4 h-4" />
                     </a>
-                    <a
-                      href={`sms:${activeOrder.riderPhone}`}
-                      className="p-3 rounded-2xl bg-blue-50 hover:bg-blue-100 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/30 transition-all shadow-sm"
-                      title="SMS Rider"
-                    >
-                      <MessageCircle className="w-4 h-4" />
-                    </a>
                   </div>
                 )}
               </div>
 
-              {/* Direct Facebook Messenger Quick Button */}
-              <a
-                href={messengerUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="w-full py-3 px-4 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-md shadow-blue-600/20"
+              {/* In-App Realtime Chat Button */}
+              <button
+                type="button"
+                onClick={() => setShowChatModal(true)}
+                className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-rose-600 to-amber-500 hover:from-rose-500 hover:to-amber-400 text-white text-xs sm:text-sm font-black flex items-center justify-center gap-2.5 transition-all shadow-lg shadow-rose-600/20"
               >
-                <Send className="w-3.5 h-3.5" />
-                <span>Chat with Delivery Express Balamban on Messenger</span>
-              </a>
+                <MessagesSquare className="w-4 h-4 text-white" />
+                <span>Open In-App Direct Chat with Courier</span>
+                {activeOrder.messages && activeOrder.messages.length > 0 && (
+                  <span className="bg-white text-rose-600 font-extrabold text-[10px] px-2 py-0.5 rounded-full ml-1">
+                    {activeOrder.messages.length}
+                  </span>
+                )}
+              </button>
             </div>
 
             {/* Proof of Delivery Card (If Delivered) */}
@@ -311,6 +309,15 @@ export default function LiveTracker() {
           </div>
 
         </div>
+      )}
+
+      {/* In-App Real-Time Chat Modal */}
+      {showChatModal && activeOrder && (
+        <OrderChatModal
+          order={activeOrder}
+          senderRole="customer"
+          onClose={() => setShowChatModal(false)}
+        />
       )}
 
     </div>

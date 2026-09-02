@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useOrder } from '../../context/OrderContext';
 import { ORDER_STATUSES } from '../../lib/constants';
+import OrderChatModal from '../common/OrderChatModal';
 import { 
   Bike, 
   MapPin, 
@@ -18,7 +19,8 @@ import {
   Clock,
   LocateFixed,
   Radio,
-  Volume2
+  Volume2,
+  MessageSquare
 } from 'lucide-react';
 
 export default function RiderPortal() {
@@ -34,6 +36,7 @@ export default function RiderPortal() {
   } = useOrder();
 
   const [selectedOrderForPod, setSelectedOrderForPod] = useState(null);
+  const [selectedOrderForChat, setSelectedOrderForChat] = useState(null);
   const [podPhotoUrl, setPodPhotoUrl] = useState('');
   const [podNotes, setPodNotes] = useState('');
   const [isSimulatingMove, setIsSimulatingMove] = useState(false);
@@ -148,7 +151,7 @@ export default function RiderPortal() {
               Plate: <strong className="text-slate-800 dark:text-zinc-200">{currentRider.plate}</strong> • <span className="text-rose-600 dark:text-rose-400 font-bold">{currentRider.zone || 'Balamban Hub'}</span>
             </p>
 
-            {/* Switch Rider for testing */}
+            {/* Switch Rider */}
             <div className="flex flex-wrap items-center gap-1.5 mt-2">
               <span className="text-[10px] text-slate-400 font-semibold">Switch courier:</span>
               {riders.map(r => (
@@ -188,7 +191,7 @@ export default function RiderPortal() {
           </button>
         </div>
 
-        {/* Quick Earnings Summary */}
+        {/* Shift Summary */}
         <div className="flex items-center gap-4 bg-slate-50 dark:bg-zinc-950/80 p-3.5 rounded-2xl border border-slate-200 dark:border-zinc-800 w-full md:w-auto justify-around">
           <div className="text-center px-2">
             <span className="text-[10px] text-slate-400 dark:text-zinc-500 block uppercase font-bold">Today's Payout</span>
@@ -348,6 +351,15 @@ export default function RiderPortal() {
                     </button>
                   )}
 
+                  {/* Open In-App Chat Button for Rider */}
+                  <button
+                    onClick={() => setSelectedOrderForChat(order)}
+                    className="p-3 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 rounded-2xl border border-rose-200 dark:border-rose-900 transition-colors shadow-sm"
+                    title="Chat with Customer"
+                  >
+                    <MessageSquare className="w-4 h-4" />
+                  </button>
+
                   <a
                     href={`tel:${order.customerPhone}`}
                     className="p-3 bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 text-emerald-600 dark:text-emerald-400 rounded-2xl border border-slate-200 dark:border-zinc-700 transition-colors shadow-sm"
@@ -415,6 +427,15 @@ export default function RiderPortal() {
         </div>
 
       </div>
+
+      {/* In-App Real-Time Chat Modal for Rider */}
+      {selectedOrderForChat && (
+        <OrderChatModal
+          order={selectedOrderForChat}
+          senderRole="rider"
+          onClose={() => setSelectedOrderForChat(null)}
+        />
+      )}
 
       {/* Proof of Delivery (POD) Modal */}
       {selectedOrderForPod && (
