@@ -58,6 +58,8 @@ export default function AdminDashboard() {
     broadcastWeatherAlert,
     servicesList, 
     updateServiceRates, 
+    showFareBreakdownDetails,
+    setShowFareBreakdownDetails,
     storesList,
     addPartnerStore,
     updatePartnerStore,
@@ -761,15 +763,41 @@ export default function AdminDashboard() {
       {/* TAB 4: EDIT RATES & BASE FARES (ADMIN ONLY) */}
       {activeTab === 'rates' && (
         <div className="space-y-4">
-          <div className="bg-gradient-to-r from-amber-500/10 via-rose-500/10 to-transparent p-4 rounded-2xl border border-amber-500/20 flex items-center gap-3">
-            <Sliders className="w-6 h-6 text-amber-500 shrink-0" />
-            <div>
-              <h4 className="font-extrabold text-slate-900 dark:text-white text-sm sm:text-base">
-                Admin Courier Rates Configuration
-              </h4>
-              <p className="text-xs text-slate-500 dark:text-zinc-400">
-                You can customize the Base Fare (₱), Per-Kilometer Rate (₱/km), and Errand Handling Fee for each service.
-              </p>
+          <div className="bg-gradient-to-r from-amber-500/10 via-rose-500/10 to-transparent p-4 sm:p-5 rounded-3xl border border-amber-500/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-amber-500 text-zinc-950 rounded-2xl shadow-sm">
+                <Sliders className="w-6 h-6 shrink-0" />
+              </div>
+              <div>
+                <h4 className="font-extrabold text-slate-900 dark:text-white text-sm sm:text-base">
+                  Admin Courier Rates & Customer Fare Breakdown
+                </h4>
+                <p className="text-xs text-slate-500 dark:text-zinc-400">
+                  Customize Base Fare (₱), Per-Km Rate (₱/km), Errand Fee, and toggle customer breakdown visibility.
+                </p>
+              </div>
+            </div>
+
+            {/* Customer Breakdown Hide/Show Toggle */}
+            <div className="flex items-center gap-2.5 bg-white dark:bg-zinc-900 p-2.5 rounded-2xl border border-slate-200 dark:border-zinc-800 shadow-sm shrink-0">
+              <span className="text-xs font-bold text-slate-700 dark:text-zinc-300">
+                Customer Breakdown Details:
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  const nextVal = !showFareBreakdownDetails;
+                  setShowFareBreakdownDetails(nextVal);
+                  try { localStorage.setItem('delivery_express_show_breakdown', String(nextVal)); } catch (_) {}
+                }}
+                className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all ${
+                  showFareBreakdownDetails
+                    ? 'bg-rose-600 text-white shadow-sm'
+                    : 'bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 border border-slate-300 dark:border-zinc-700'
+                }`}
+              >
+                {showFareBreakdownDetails ? '👁️ SHOWN (Distance & Errand Visible)' : '🔒 HIDDEN (Clean Single Fare)'}
+              </button>
             </div>
           </div>
 

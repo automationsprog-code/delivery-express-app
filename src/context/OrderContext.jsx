@@ -38,6 +38,11 @@ export function OrderProvider({ children }) {
   });
 
   // Services & Rates
+  const [showFareBreakdownDetails, setShowFareBreakdownDetails] = useState(() => {
+    const saved = localStorage.getItem('delivery_express_show_breakdown');
+    return saved === 'true'; // default false (hide distance and errand fee details)
+  });
+
   const [servicesList, setServicesList] = useState(() => {
     const saved = localStorage.getItem('delivery_express_services_rates');
     return saved ? JSON.parse(saved) : SERVICES;
@@ -1525,6 +1530,8 @@ export function OrderProvider({ children }) {
         broadcastWeatherAlert,
         servicesList,
         updateServiceRates,
+        showFareBreakdownDetails,
+        setShowFareBreakdownDetails,
         storesList,
         addPartnerStore,
         updatePartnerStore,

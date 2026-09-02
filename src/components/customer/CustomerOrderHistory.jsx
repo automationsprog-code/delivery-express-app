@@ -22,11 +22,15 @@ import {
   RotateCcw,
   Sparkles,
   ShieldCheck,
+  Download,
+  Share2,
+  Printer,
+  Copy,
   X
 } from 'lucide-react';
 
 export default function CustomerOrderHistory({ onSelectService, onTrackOrder }) {
-  const { orders, riders, currentUser, rateRider } = useOrder();
+  const { orders, riders, currentUser, rateRider, showNotification } = useOrder();
   const [filterStatus, setFilterStatus] = useState('all'); // 'all' | 'delivered' | 'cancelled'
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedReceiptOrder, setSelectedReceiptOrder] = useState(null);
@@ -96,6 +100,70 @@ export default function CustomerOrderHistory({ onSelectService, onTrackOrder }) 
     if (!ratingOrder) return;
     rateRider(ratingOrder.id, ratingOrder.riderId, ratingStars, ratingComment);
     setRatingOrder(null);
+  };
+
+  const handleDownloadReceipt = (order) => {
+    if (!order) return;
+    const total = (order.estimatedFare || 0) + (order.itemCost || 0);
+    const content = `========================================
+       DELIVERY EXPRESS BALAMBAN
+       Official Digital E-Receipt
+========================================
+Tracking Number: ${order.trackingNumber || order.id}
+Date & Time    : ${order.createdAt ? new Date(order.createdAt).toLocaleString() : 'Just now'}
+Customer Name  : ${order.customerName || 'Customer'}
+Customer Phone : ${order.customerPhone || 'N/A'}
+Service        : ${order.serviceName || 'Delivery'}
+Courier / Rider: ${order.riderName || 'Nigel'}
+
+Pickup Address : ${order.pickupAddress || 'Balamban'}
+Dropoff Address: ${order.dropoffAddress || 'Balamban'}
+
+----------------------------------------
+Delivery Fare  : ₱${order.estimatedFare || 0}
+Items/Goods Cost: ₱${order.itemCost || 0}
+----------------------------------------
+TOTAL PAID     : ₱${total.toLocaleString()}
+Payment Method : ${order.paymentMethod || 'Cash on Delivery'}
+Status         : ${order.status?.toUpperCase() || 'DELIVERED'}
+========================================
+Thank you for trusting Delivery Express!
+"Anything, Anywhere in West Cebu!"
+========================================`;
+
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Delivery-Express-Receipt-${order.trackingNumber || 'DE'}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    if (showNotification) showNotification('Receipt file downloaded!', 'success');
+  };
+
+  const handleShareReceipt = async (order) => {
+    if (!order) return;
+    const total = (order.estimatedFare || 0) + (order.itemCost || 0);
+    const shareText = `📄 Delivery Express Official Receipt #${order.trackingNumber}\nCustomer: ${order.customerName}\nService: ${order.serviceName}\nCourier: ${order.riderName || 'Nigel'}\nTotal Paid: ₱${total.toLocaleString()} (${order.paymentMethod || 'COD'})\nTrack & Verify: https://delivery-express-app-one.vercel.app`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `Delivery Express Receipt #${order.trackingNumber}`,
+          text: shareText
+        });
+        return;
+      } catch (_) {}
+    }
+
+    try {
+      await navigator.clipboard.writeText(shareText);
+      if (showNotification) showNotification('Receipt copied to clipboard! Ready to paste & send in Messenger/SMS.', 'success');
+    } catch (_) {
+      if (showNotification) showNotification('Could not copy to clipboard', 'info');
+    }
   };
 
   return (
@@ -484,25 +552,30 @@ export default function CustomerOrderHistory({ onSelectService, onTrackOrder }) 
       {/* MODAL 2: DIGITAL OFFICIAL E-RECEIPT */}
       {selectedReceiptOrder && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl p-6 max-w-md w-full space-y-5 shadow-2xl">
+          <div 
+            id="printable-receipt-modal"
+            className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl p-6 sm:p-7 max-w-md w-full space-y-5 shadow-2xl"
+          >
+            {/* Receipt Header */}
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-zinc-800 pb-3">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-rose-600 text-white flex items-center justify-center font-black text-xs">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-2xl bg-rose-600 text-white flex items-center justify-center font-black text-xs shadow-sm">
                   DE
                 </div>
                 <div>
-                  <h4 className="font-black text-sm text-slate-900 dark:text-white uppercase font-heading">
+                  <h4 className="font-black text-base text-slate-900 dark:text-white uppercase font-heading">
                     Official E-Receipt
                   </h4>
-                  <p className="text-[10px] text-slate-500 dark:text-zinc-400">Delivery Express Balamban Hub</p>
+                  <p className="text-[10px] text-slate-500 dark:text-zinc-400">Delivery Express • Balamban Hub</p>
                 </div>
               </div>
-              <button onClick={() => setSelectedReceiptOrder(null)} className="text-slate-400 hover:text-slate-700">
+              <button onClick={() => setSelectedReceiptOrder(null)} className="no-print text-slate-400 hover:text-slate-700 dark:hover:text-white">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="space-y-3 text-xs bg-slate-50 dark:bg-zinc-950 p-4 rounded-2xl border border-slate-200/80 dark:border-zinc-800 font-mono">
+            {/* Receipt Body Slip */}
+            <div className="space-y-2.5 text-xs bg-slate-50 dark:bg-zinc-950 p-4 rounded-2xl border border-slate-200/80 dark:border-zinc-800 font-mono">
               <div className="flex justify-between">
                 <span className="text-slate-500">Tracking Number:</span>
                 <span className="font-bold text-rose-600 dark:text-rose-400">{selectedReceiptOrder.trackingNumber}</span>
@@ -529,34 +602,67 @@ export default function CustomerOrderHistory({ onSelectService, onTrackOrder }) 
               <div className="border-t border-dashed border-slate-300 dark:border-zinc-700 my-2 pt-2 space-y-1">
                 <div className="flex justify-between">
                   <span>Delivery Fare:</span>
-                  <span>₱{selectedReceiptOrder.estimatedFare || 60}</span>
+                  <span className="font-bold">₱{selectedReceiptOrder.estimatedFare || 60}</span>
                 </div>
                 {selectedReceiptOrder.itemCost > 0 && (
                   <div className="flex justify-between">
-                    <span>Items / Food Cost:</span>
-                    <span>₱{selectedReceiptOrder.itemCost}</span>
+                    <span>Items / Goods Cost:</span>
+                    <span className="font-bold">₱{selectedReceiptOrder.itemCost.toLocaleString()}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-sm font-black text-slate-900 dark:text-white pt-2 border-t border-slate-300 dark:border-zinc-700">
                   <span>TOTAL PAID:</span>
-                  <span>₱{((selectedReceiptOrder.estimatedFare || 0) + (selectedReceiptOrder.itemCost || 0)).toLocaleString()}</span>
+                  <span className="text-emerald-600 dark:text-emerald-400 text-base">
+                    ₱{((selectedReceiptOrder.estimatedFare || 0) + (selectedReceiptOrder.itemCost || 0)).toLocaleString()}
+                  </span>
                 </div>
+                <div className="flex justify-between text-[11px] text-slate-500 pt-1">
+                  <span>Payment Method:</span>
+                  <span className="uppercase font-bold">{selectedReceiptOrder.paymentMethod || 'Cash on Delivery'}</span>
+                </div>
+              </div>
+
+              <div className="text-center pt-2 text-[10px] text-slate-400 border-t border-slate-200 dark:border-zinc-800">
+                <span>"Your first choice in delivery. Anything, Anywhere!"</span>
               </div>
             </div>
 
-            <div className="flex gap-2">
-              <button
-                onClick={() => window.print()}
-                className="w-full py-2.5 bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 text-slate-800 dark:text-zinc-200 font-bold rounded-2xl text-xs transition-all"
-              >
-                Print Receipt
-              </button>
-              <button
-                onClick={() => setSelectedReceiptOrder(null)}
-                className="w-full py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-black rounded-2xl text-xs transition-all shadow-md"
-              >
-                Done
-              </button>
+            {/* Action Buttons (Hidden when printing) */}
+            <div className="no-print space-y-2">
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => window.print()}
+                  className="py-2.5 px-3 bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 text-slate-800 dark:text-zinc-200 font-bold rounded-2xl text-xs flex items-center justify-center gap-1.5 transition-all"
+                >
+                  <Printer className="w-3.5 h-3.5 text-rose-600" />
+                  <span>Print Receipt</span>
+                </button>
+
+                <button
+                  onClick={() => handleDownloadReceipt(selectedReceiptOrder)}
+                  className="py-2.5 px-3 bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 text-slate-800 dark:text-zinc-200 font-bold rounded-2xl text-xs flex items-center justify-center gap-1.5 transition-all"
+                >
+                  <Download className="w-3.5 h-3.5 text-blue-600" />
+                  <span>Download File</span>
+                </button>
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleShareReceipt(selectedReceiptOrder)}
+                  className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-400 text-zinc-950 font-black rounded-2xl text-xs flex items-center justify-center gap-1.5 transition-all shadow-sm"
+                >
+                  <Share2 className="w-3.5 h-3.5" />
+                  <span>Share / Copy Receipt</span>
+                </button>
+
+                <button
+                  onClick={() => setSelectedReceiptOrder(null)}
+                  className="px-5 py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-black rounded-2xl text-xs transition-all shadow-md"
+                >
+                  Done
+                </button>
+              </div>
             </div>
           </div>
         </div>
