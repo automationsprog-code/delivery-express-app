@@ -13,7 +13,8 @@ import {
   CheckCheck,
   Sparkles,
   MapPin,
-  Clock
+  Clock,
+  ArrowLeft
 } from 'lucide-react';
 
 export default function OrderChatModal({ order, onClose, senderRole = 'customer' }) {
@@ -165,33 +166,43 @@ export default function OrderChatModal({ order, onClose, senderRole = 'customer'
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fadeIn">
-      <div className="relative w-full max-w-lg bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col h-[90vh] sm:h-[650px]">
+    <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-0 sm:p-4 animate-fadeIn">
+      <div className="relative w-full h-[100dvh] sm:h-[650px] sm:max-h-[92vh] max-w-lg bg-white dark:bg-zinc-900 sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col">
         
-        {/* GRAB-STYLE CHAT HEADER */}
-        <div className="bg-[#00B14F] text-white p-4 flex items-center justify-between shadow-md shrink-0">
-          <div className="flex items-center gap-3">
+        {/* GRAB-STYLE CHAT HEADER (ALWAYS PINNED TO VERY TOP OF MOBILE SCREEN) */}
+        <div className="bg-[#00B14F] text-white px-4 py-3.5 sm:py-4 flex items-center justify-between shadow-md shrink-0 z-30">
+          <div className="flex items-center gap-2.5">
+            {/* Mobile Quick Back Button */}
+            <button
+              onClick={onClose}
+              className="p-2 -ml-1.5 rounded-2xl hover:bg-white/20 text-white transition-colors"
+              title="Close / Back"
+            >
+              <ArrowLeft className="w-5 h-5 sm:hidden" />
+              <X className="w-5 h-5 hidden sm:block" />
+            </button>
+
             <div className="relative">
               <img
                 src={senderRole === 'customer' ? riderAvatar : (order?.customerAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80')}
                 alt={otherPersonName}
-                className="w-11 h-11 rounded-2xl object-cover border-2 border-white/80 shadow-md bg-white"
+                className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl object-cover border-2 border-white/80 shadow-md bg-white"
               />
               <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-emerald-300 border-2 border-[#00B14F] rounded-full animate-pulse" />
             </div>
 
             <div>
-              <div className="flex items-center gap-2">
-                <h4 className="font-black text-sm sm:text-base text-white font-heading">
+              <div className="flex items-center gap-1.5">
+                <h4 className="font-black text-sm sm:text-base text-white font-heading truncate max-w-[150px] sm:max-w-[200px]">
                   {otherPersonName}
                 </h4>
-                <span className="bg-white/20 text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full flex items-center gap-1 border border-white/20">
-                  <ShieldCheck className="w-3 h-3 text-emerald-200" />
+                <span className="bg-white/20 text-white text-[9px] font-extrabold px-1.5 py-0.5 rounded-full flex items-center gap-0.5 border border-white/20">
+                  <ShieldCheck className="w-2.5 h-2.5 text-emerald-200" />
                   <span>Verified</span>
                 </span>
               </div>
-              <p className="text-xs text-emerald-100 font-medium flex items-center gap-1.5 mt-0.5">
-                <span>Order #{orderTracking}</span>
+              <p className="text-[11px] text-emerald-100 font-medium flex items-center gap-1 mt-0.5">
+                <span>#{orderTracking}</span>
                 <span>•</span>
                 <span className="text-white font-bold">{order?.serviceName || 'Express'}</span>
               </p>
@@ -210,7 +221,8 @@ export default function OrderChatModal({ order, onClose, senderRole = 'customer'
             )}
             <button
               onClick={onClose}
-              className="p-2.5 rounded-2xl bg-black/20 hover:bg-black/40 text-white transition-colors"
+              className="p-2.5 rounded-2xl bg-black/20 hover:bg-black/40 text-white transition-colors hidden sm:flex items-center justify-center"
+              title="Close chat"
             >
               <X className="w-4 h-4" />
             </button>
@@ -218,17 +230,17 @@ export default function OrderChatModal({ order, onClose, senderRole = 'customer'
         </div>
 
         {/* Grab Order Summary Mini Ribbon */}
-        <div className="bg-emerald-50 dark:bg-emerald-950/40 border-b border-emerald-100 dark:border-emerald-900/60 px-4 py-2 flex items-center justify-between text-xs shrink-0">
-          <div className="flex items-center gap-1.5 text-emerald-800 dark:text-emerald-300 font-bold truncate max-w-[280px]">
+        <div className="bg-emerald-50 dark:bg-emerald-950/40 border-b border-emerald-100 dark:border-emerald-900/60 px-4 py-2 flex items-center justify-between text-xs shrink-0 z-20">
+          <div className="flex items-center gap-1.5 text-emerald-800 dark:text-emerald-300 font-bold truncate max-w-[240px] sm:max-w-[320px]">
             <MapPin className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
             <span className="truncate">{order?.dropoffAddress || 'Balamban, Cebu'}</span>
           </div>
-          <span className="text-[11px] font-black text-emerald-700 dark:text-emerald-400 bg-white dark:bg-zinc-800 px-2 py-0.5 rounded-lg border border-emerald-200 dark:border-emerald-800">
+          <span className="text-[11px] font-black text-emerald-700 dark:text-emerald-400 bg-white dark:bg-zinc-800 px-2.5 py-0.5 rounded-lg border border-emerald-200 dark:border-emerald-800 shrink-0">
             ₱{order?.estimatedFare || 100} COD
           </span>
         </div>
 
-        {/* MESSAGE THREAD HISTORY */}
+        {/* MESSAGE THREAD HISTORY (SCROLLS SMOOTHLY IN MIDDLE) */}
         <div className="flex-1 p-4 overflow-y-auto space-y-3 bg-[#F7F9FA] dark:bg-zinc-950">
           <div className="text-center my-1">
             <span className="text-[10px] bg-white dark:bg-zinc-900 text-slate-500 dark:text-zinc-400 px-3 py-1 rounded-full font-bold border border-slate-200 dark:border-zinc-800 shadow-2xs inline-flex items-center gap-1">
@@ -291,7 +303,7 @@ export default function OrderChatModal({ order, onClose, senderRole = 'customer'
         </div>
 
         {/* QUICK CANNED REPLIES (Grab Chips Style) */}
-        <div className="p-2.5 bg-slate-100 dark:bg-zinc-900 border-t border-slate-200 dark:border-zinc-800 flex items-center gap-1.5 overflow-x-auto shrink-0">
+        <div className="p-2.5 bg-slate-100 dark:bg-zinc-900 border-t border-slate-200 dark:border-zinc-800 flex items-center gap-1.5 overflow-x-auto shrink-0 z-20">
           <span className="text-[10px] text-[#00B14F] font-black shrink-0 ml-1">⚡ Quick:</span>
           {quickReplies.map((reply, i) => (
             <button
@@ -305,8 +317,8 @@ export default function OrderChatModal({ order, onClose, senderRole = 'customer'
           ))}
         </div>
 
-        {/* GRAB INPUT COMPOSER */}
-        <form onSubmit={handleFormSubmit} className="p-3 bg-white dark:bg-zinc-900 border-t border-slate-200 dark:border-zinc-800 flex items-center gap-2 shrink-0">
+        {/* GRAB INPUT COMPOSER (PINNED TO BOTTOM) */}
+        <form onSubmit={handleFormSubmit} className="p-3 bg-white dark:bg-zinc-900 border-t border-slate-200 dark:border-zinc-800 flex items-center gap-2 shrink-0 z-20 pb-4 sm:pb-3">
           <input
             type="text"
             value={inputText}
