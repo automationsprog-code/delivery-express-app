@@ -27,8 +27,38 @@ export default function BookingModal({ service, initialData = null, onClose, onB
   // Find latest active service rates
   const currentService = servicesList?.find(s => s.id === service.id) || service;
 
-  const [customerName, setCustomerName] = useState(currentUser?.name || '');
-  const [customerPhone, setCustomerPhone] = useState(currentUser?.phone || '');
+  const getInitialName = () => {
+    if (!currentUser) return '';
+    if (currentUser.firstName && currentUser.lastName) {
+      return `${currentUser.firstName} ${currentUser.lastName}`.trim();
+    }
+    if (currentUser.name && !currentUser.name.includes('@')) {
+      return currentUser.name;
+    }
+    if (currentUser.email) {
+      const emailUser = currentUser.email.split('@')[0].replace(/[._0-9]/g, ' ').trim();
+      if (emailUser) {
+        return emailUser.split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+      }
+    }
+    return currentUser.name || '';
+  };
+
+  const [customerName, setCustomerName] = useState(getInitialName);
+  const [customerPhone, setCustomerPhone] = useState(currentUser?.phone || currentUser?.mobile || '');
+
+  useEffect(() => {
+    if (currentUser) {
+      const bestName = getInitialName();
+      if (bestName && (!customerName || customerName.includes('@'))) {
+        setCustomerName(bestName);
+      }
+      if (currentUser.phone && !customerPhone) {
+        setCustomerPhone(currentUser.phone);
+      }
+    }
+  }, [currentUser]);
+
   const [pickupAddress, setPickupAddress] = useState(initialData?.pickupAddress || 'Balamban Public Market, Cebu');
   const [pickupLandmark, setPickupLandmark] = useState(initialData?.pickupLandmark || 'Palengke Town Proper');
   const [pickupCoords, setPickupCoords] = useState([10.5015, 123.7150]);
