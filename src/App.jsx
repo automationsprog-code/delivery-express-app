@@ -250,10 +250,50 @@ function MainContent() {
   );
 }
 
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error("App Crash caught by ErrorBoundary:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center p-6 text-center space-y-4">
+          <div className="w-16 h-16 rounded-3xl bg-rose-600/20 text-rose-500 flex items-center justify-center mx-auto text-2xl font-black">
+            DE
+          </div>
+          <h2 className="text-xl font-black">Delivery Express</h2>
+          <p className="text-xs text-zinc-400 max-w-sm">
+            Something went wrong while loading. Click below to refresh.
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-6 py-3 bg-rose-600 hover:bg-rose-500 text-white font-black rounded-2xl text-xs shadow-lg transition-all"
+          >
+            🔄 Refresh Application
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export default function App() {
   return (
-    <OrderProvider>
-      <MainContent />
-    </OrderProvider>
+    <ErrorBoundary>
+      <OrderProvider>
+        <MainContent />
+      </OrderProvider>
+    </ErrorBoundary>
   );
 }

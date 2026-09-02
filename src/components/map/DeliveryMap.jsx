@@ -1,21 +1,47 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { 
-  Compass, 
   Layers, 
   MapPin, 
   Store, 
-  Utensils, 
-  Navigation, 
-  ZoomIn, 
-  ZoomOut, 
   RotateCcw,
-  Check
+  AlertTriangle
 } from 'lucide-react';
 
-// Custom Map Marker Icons
-const createCustomIcon = (color, emoji, size = 34) => {
+// Safe Coordinate Helper
+function safeCoord(coord, fallback = [10.5015, 123.7150]) {
+  if (!coord) return fallback;
+  if (Array.isArray(coord) && coord.length >= 2) {
+    const lat = parseFloat(coord[0]);
+    const lng = parseFloat(coord[1]);
+    if (!isNaN(lat) && !isNaN(lng) && isFinite(lat) && isFinite(lng)) {
+      return [lat, lng];
+    }
+  }
+  if (typeof coord === 'object') {
+    const lat = parseFloat(coord.lat ?? coord.latitude ?? coord[0]);
+    const lng = parseFloat(coord.lng ?? coord.longitude ?? coord.lon ?? coord[1]);
+    if (!isNaN(lat) && !isNaN(lng) && isFinite(lat) && isFinite(lng)) {
+      return [lat, lng];
+    }
+  }
+  if (typeof coord === 'string') {
+    try {
+      const parsed = JSON.parse(coord);
+      return safeCoord(parsed, fallback);
+    } catch (_) {
+      const parts = coord.split(',').map(s => parseFloat(s.trim()));
+      if (parts.length >= 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+        return [parts[0], parts[1]];
+      }
+    }
+  }
+  return fallback;
+}
+
+// Custom Map Marker Icons using safe DivIcon
+const createSafeIcon = (color, emoji, size = 32) => {
   return L.divIcon({
     className: 'custom-map-pin',
     html: `
@@ -25,32 +51,22 @@ const createCustomIcon = (color, emoji, size = 34) => {
         height: ${size}px;
         border-radius: 50%;
         border: 2px solid white;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+        box-shadow: 0 3px 10px rgba(0,0,0,0.35);
         display: flex;
         align-items: center;
         justify-content: center;
         color: white;
-        font-size: ${size * 0.44}px;
-        cursor: pointer;
-        transition: transform 0.2s;
-      " onmouseover="this.style.transform='scale(1.15)'" onmouseout="this.style.transform='scale(1)'">
+        font-size: ${Math.round(size * 0.44)}px;
+        line-height: 1;
+        user-select: none;
+      ">
         ${emoji}
       </div>
     `,
     iconSize: [size, size],
-    iconAnchor: [size / 2, size]
+    iconAnchor: [size / 2, size / 2]
   });
 };
-
-const pickupIcon = createCustomIcon('#2563EB', '📦', 36); // Blue
-const dropoffIcon = createCustomIcon('#10B981', '📍', 36); // Emerald Green
-const riderIcon = createCustomIcon('#E11D48', '🏍️', 38); // Brand Red
-
-// POI Icons
-const foodIcon = createCustomIcon('#F59E0B', '🍔', 28);
-const storeIcon = createCustomIcon('#8B5CF6', '🛒', 28);
-const pharmacyIcon = createCustomIcon('#06B6D4', '💊', 28);
-const townIcon = createCustomIcon('#6366F1', '🏛️', 28);
 
 // Popular Partner Stores and Comprehensive Places across ALL West Cebu Municipalities
 const WEST_CEBU_PLACES = [
@@ -98,50 +114,21 @@ const TOWN_COORDS = {
   Tabuelan: [10.8250, 123.8750]
 };
 
-// Helper to pan/recenter map
+// Helper component to smoothly move map
 function MapController({ center, zoom }) {
   const map = useMap();
   useEffect(() => {
-    if (center && center[0] && center[1]) {
+    if (center && Array.isArray(center) && center.length >= 2 && !isNaN(center[0]) && !isNaN(center[1])) {
       map.setView(center, zoom, { animate: true });
     }
   }, [center, zoom, map]);
   return null;
 }
 
-// Custom Zoom and Action Buttons Controller
-function MapControls({ onRecenter, onZoomIn, onZoomOut }) {
-  return (
-    <div className="absolute top-3 right-3 z-[1000] flex flex-col gap-1.5">
-      <button
-        onClick={onZoomIn}
-        className="w-8 h-8 rounded-xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 text-slate-800 dark:text-zinc-200 shadow-md flex items-center justify-center hover:bg-slate-50 transition-colors font-bold text-base"
-        title="Zoom In"
-      >
-        +
-      </button>
-      <button
-        onClick={onZoomOut}
-        className="w-8 h-8 rounded-xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 text-slate-800 dark:text-zinc-200 shadow-md flex items-center justify-center hover:bg-slate-50 transition-colors font-bold text-base"
-        title="Zoom Out"
-      >
-        -
-      </button>
-      <button
-        onClick={onRecenter}
-        className="w-8 h-8 rounded-xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 text-rose-600 dark:text-rose-400 shadow-md flex items-center justify-center hover:bg-slate-50 transition-colors"
-        title="Re-center on Route"
-      >
-        <RotateCcw className="w-3.5 h-3.5" />
-      </button>
-    </div>
-  );
-}
-
 export default function DeliveryMap({ 
   pickupCoords = [10.5015, 123.7150],
   dropoffCoords = [10.4720, 123.7060],
-  riderCoords = [10.4850, 123.7110],
+  riderCoords = null,
   showRider = true,
   height = "380px",
   zoom = 13,
@@ -151,20 +138,37 @@ export default function DeliveryMap({
   const [mapType, setMapType] = useState('streets'); // 'streets' | 'satellite'
   const [showPlaces, setShowPlaces] = useState(true);
   const [currentZoom, setCurrentZoom] = useState(zoom);
+  const [hasMapError, setHasMapError] = useState(false);
 
-  const defaultCenter = riderCoords || pickupCoords || [10.5015, 123.7150];
+  // Safely normalize all coordinates
+  const safePickup = useMemo(() => safeCoord(pickupCoords, [10.5015, 123.7150]), [pickupCoords]);
+  const safeDropoff = useMemo(() => safeCoord(dropoffCoords, [10.4720, 123.7060]), [dropoffCoords]);
+  const safeRider = useMemo(() => riderCoords ? safeCoord(riderCoords, null) : null, [riderCoords]);
+
+  const defaultCenter = safeRider || safePickup || [10.5015, 123.7150];
   const [mapCenter, setMapCenter] = useState(defaultCenter);
 
   useEffect(() => {
-    if (riderCoords && riderCoords[0]) {
-      setMapCenter(riderCoords);
+    if (safeRider) {
+      setMapCenter(safeRider);
     }
-  }, [riderCoords]);
+  }, [safeRider]);
 
-  const polylinePositions = [pickupCoords, riderCoords, dropoffCoords].filter(p => p && p[0] && p[1]);
+  // Safe icons
+  const pickupIcon = useMemo(() => createSafeIcon('#2563EB', '📦', 34), []);
+  const dropoffIcon = useMemo(() => createSafeIcon('#10B981', '📍', 34), []);
+  const riderIcon = useMemo(() => createSafeIcon('#E11D48', '🏍️', 36), []);
+  const foodIcon = useMemo(() => createSafeIcon('#F59E0B', '🍔', 26), []);
+  const storeIcon = useMemo(() => createSafeIcon('#8B5CF6', '🛒', 26), []);
+  const pharmacyIcon = useMemo(() => createSafeIcon('#06B6D4', '💊', 26), []);
+  const townIcon = useMemo(() => createSafeIcon('#6366F1', '🏛️', 26), []);
+
+  const polylinePositions = useMemo(() => {
+    return [safePickup, safeRider, safeDropoff].filter(Boolean);
+  }, [safePickup, safeRider, safeDropoff]);
 
   const handleRecenter = () => {
-    const center = riderCoords || pickupCoords || [10.5015, 123.7150];
+    const center = safeRider || safePickup || [10.5015, 123.7150];
     setMapCenter([...center]);
     setCurrentZoom(14);
   };
@@ -176,6 +180,24 @@ export default function DeliveryMap({
 
   const handleZoomIn = () => setCurrentZoom(prev => Math.min(18, prev + 1));
   const handleZoomOut = () => setCurrentZoom(prev => Math.max(10, prev - 1));
+
+  if (hasMapError) {
+    return (
+      <div style={{ height }} className="w-full rounded-3xl bg-slate-100 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 p-6 flex flex-col items-center justify-center text-center space-y-3">
+        <AlertTriangle className="w-8 h-8 text-amber-500" />
+        <div>
+          <p className="text-sm font-bold text-slate-800 dark:text-zinc-200">Map rendering fallback</p>
+          <p className="text-xs text-slate-500 dark:text-zinc-400">Live courier coordinates: {safePickup[0]}, {safePickup[1]}</p>
+        </div>
+        <button
+          onClick={() => setHasMapError(false)}
+          className="px-4 py-2 bg-rose-600 text-white rounded-xl text-xs font-bold"
+        >
+          Reload Map
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div style={{ height }} className="w-full rounded-3xl overflow-hidden border border-slate-200 dark:border-zinc-800 shadow-xl relative z-0">
@@ -199,14 +221,14 @@ export default function DeliveryMap({
           />
         ) : (
           <TileLayer
-            attribution='Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+            attribution='Tiles &copy; Esri'
             url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
           />
         )}
 
         {/* 1. Pickup Pin */}
-        {pickupCoords && pickupCoords[0] && (
-          <Marker position={pickupCoords} icon={pickupIcon}>
+        {safePickup && (
+          <Marker position={safePickup} icon={pickupIcon}>
             <Popup>
               <div className="p-1 font-sans text-xs space-y-1">
                 <span className="bg-blue-100 text-blue-800 text-[10px] font-black px-2 py-0.5 rounded-md uppercase block w-fit">
@@ -220,8 +242,8 @@ export default function DeliveryMap({
         )}
 
         {/* 2. Dropoff Pin */}
-        {dropoffCoords && dropoffCoords[0] && (
-          <Marker position={dropoffCoords} icon={dropoffIcon}>
+        {safeDropoff && (
+          <Marker position={safeDropoff} icon={dropoffIcon}>
             <Popup>
               <div className="p-1 font-sans text-xs space-y-1">
                 <span className="bg-emerald-100 text-emerald-800 text-[10px] font-black px-2 py-0.5 rounded-md uppercase block w-fit">
@@ -235,11 +257,11 @@ export default function DeliveryMap({
         )}
 
         {/* 3. Live Courier Pin */}
-        {showRider && riderCoords && riderCoords[0] && (
-          <Marker position={riderCoords} icon={riderIcon}>
+        {showRider && safeRider && (
+          <Marker position={safeRider} icon={riderIcon}>
             <Popup>
               <div className="p-1 font-sans text-xs space-y-1">
-                <span className="bg-rose-100 text-rose-800 text-[10px] font-black px-2 py-0.5 rounded-md uppercase block w-fit animate-pulse">
+                <span className="bg-rose-100 text-rose-800 text-[10px] font-black px-2 py-0.5 rounded-md uppercase block w-fit">
                   Live Courier GPS
                 </span>
                 <strong className="text-rose-600 block font-extrabold text-xs">Delivery Express Courier</strong>
@@ -249,13 +271,13 @@ export default function DeliveryMap({
           </Marker>
         )}
 
-        {/* 4. Interactive West Cebu Stores & Places (Google Maps Style) */}
+        {/* 4. Interactive West Cebu Stores & Places */}
         {showPlaces && WEST_CEBU_PLACES.map((place) => {
           const icon = place.type === 'food' ? foodIcon : place.type === 'pharmacy' ? pharmacyIcon : place.type === 'store' ? storeIcon : townIcon;
           return (
             <Marker key={place.id} position={place.coords} icon={icon}>
               <Popup>
-                <div className="p-1.5 font-sans text-xs space-y-1 min-w-[160px]">
+                <div className="p-1.5 font-sans text-xs space-y-1 min-w-[150px]">
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-[9px] font-black text-rose-600 uppercase tracking-wider block">
                       {place.category}
@@ -291,7 +313,7 @@ export default function DeliveryMap({
       </MapContainer>
 
       {/* Floating Top Left Controls */}
-      <div className="absolute top-3 left-3 z-[1000] flex flex-wrap items-center gap-1.5 max-w-[calc(100%-100px)]">
+      <div className="absolute top-3 left-3 z-[1000] flex flex-wrap items-center gap-1.5 max-w-[calc(100%-90px)]">
         <div className="bg-zinc-950/85 backdrop-blur-md px-3 py-1.5 rounded-2xl border border-zinc-800 text-[11px] text-zinc-300 font-bold flex items-center gap-1.5 shadow-md">
           <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
           <span>West Cebu Live GPS</span>
@@ -323,7 +345,7 @@ export default function DeliveryMap({
       </div>
 
       {/* Municipality Jump Bar */}
-      <div className="absolute top-14 left-3 z-[1000] flex items-center gap-1 overflow-x-auto max-w-[calc(100%-60px)] pb-1 no-scrollbar">
+      <div className="absolute top-14 left-3 z-[1000] flex items-center gap-1 overflow-x-auto max-w-[calc(100%-50px)] pb-1 no-scrollbar">
         {Object.entries(TOWN_COORDS).map(([townName, coords]) => (
           <button
             key={townName}
@@ -336,11 +358,29 @@ export default function DeliveryMap({
       </div>
 
       {/* Custom Zoom Controls */}
-      <MapControls 
-        onRecenter={handleRecenter} 
-        onZoomIn={handleZoomIn} 
-        onZoomOut={handleZoomOut} 
-      />
+      <div className="absolute top-3 right-3 z-[1000] flex flex-col gap-1.5">
+        <button
+          onClick={handleZoomIn}
+          className="w-8 h-8 rounded-xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 text-slate-800 dark:text-zinc-200 shadow-md flex items-center justify-center hover:bg-slate-50 transition-colors font-bold text-base"
+          title="Zoom In"
+        >
+          +
+        </button>
+        <button
+          onClick={handleZoomOut}
+          className="w-8 h-8 rounded-xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 text-slate-800 dark:text-zinc-200 shadow-md flex items-center justify-center hover:bg-slate-50 transition-colors font-bold text-base"
+          title="Zoom Out"
+        >
+          -
+        </button>
+        <button
+          onClick={handleRecenter}
+          className="w-8 h-8 rounded-xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 text-rose-600 dark:text-rose-400 shadow-md flex items-center justify-center hover:bg-slate-50 transition-colors"
+          title="Re-center on Route"
+        >
+          <RotateCcw className="w-3.5 h-3.5" />
+        </button>
+      </div>
 
       {/* Floating Bottom Legend */}
       <div className="absolute bottom-3 left-3 bg-zinc-950/85 backdrop-blur-md px-3 py-1.5 rounded-2xl border border-zinc-800 text-[11px] text-zinc-300 flex items-center gap-3 z-[1000] shadow-md">
