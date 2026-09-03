@@ -272,6 +272,7 @@ export function OrderProvider({ children }) {
         let cloudRiderPasswords = {};
         let cloudRiderAvatars = {};
         let cloudCustomRiders = [];
+        let cloudDeletedOrders = [];
         let cloudAdminPass = localStorage.getItem('delivery_express_admin_password') || 'Pass123';
 
         // 1. Fetch live orders (includes real-time cloud system configuration)
@@ -287,6 +288,10 @@ export function OrderProvider({ children }) {
             cloudRiderPasswords = parsed.rider_passwords || {};
             cloudRiderAvatars = parsed.rider_avatars || {};
             cloudAdminPass = parsed.admin_pass || cloudAdminPass;
+            if (parsed.deleted_orders && Array.isArray(parsed.deleted_orders)) {
+              cloudDeletedOrders = parsed.deleted_orders;
+              try { localStorage.setItem('delivery_express_deleted_orders', JSON.stringify(parsed.deleted_orders)); } catch (_) {}
+            }
 
             if (parsed.payment_settings) {
               setPaymentSettings(parsed.payment_settings);
@@ -441,8 +446,11 @@ export function OrderProvider({ children }) {
 
         // 3. Format and filter live delivery orders (exclude system configuration row)
         if (!orderErr && orderData) {
+          const localDeletedOrders = JSON.parse(localStorage.getItem('delivery_express_deleted_orders') || '[]');
+          const allDeleted = new Set([...cloudDeletedOrders, ...localDeletedOrders]);
+
           const formatted = (orderData || [])
-            .filter(o => o.tracking_number !== 'SYS-CONFIG-RATES' && o.customer_name !== 'SYSTEM_SETTINGS')
+            .filter(o => o.tracking_number !== 'SYS-CONFIG-RATES' && o.customer_name !== 'SYSTEM_SETTINGS' && o.status !== 'deleted' && !allDeleted.has(o.tracking_number))
             .map(o => {
             const rawMessages = (o.details && o.details.chat_messages) ? o.details.chat_messages : (o.messages || []);
             const assignedRiderObj = currentRiderList.find(r => r.id === o.rider_id);
@@ -1662,9 +1670,21 @@ export function OrderProvider({ children }) {
       setActiveTrackingId('');
     }
 
+    if (tracking) {
+      const localDeleted = JSON.parse(localStorage.getItem('delivery_express_deleted_orders') || '[]');
+      const updatedDeleted = Array.from(new Set([...localDeleted, tracking]));
+      try { localStorage.setItem('delivery_express_deleted_orders', JSON.stringify(updatedDeleted)); } catch (_) {}
+      
+      // Sync with cloud configuration row (RLS-proof)
+      await syncSysConfig({ deleted_orders: updatedDeleted });
+    }
+
     if (isSupabaseConfigured && supabase) {
       try {
         if (tracking && tracking !== 'SYS-CONFIG-RATES') {
+          // 1. Mark as deleted in Supabase
+          await supabase.from('orders').update({ status: 'deleted' }).eq('tracking_number', tracking);
+          // 2. Attempt hard delete if policy allows
           await supabase.from('orders').delete().eq('tracking_number', tracking);
         }
         if (targetId && isUuid(targetId)) {
