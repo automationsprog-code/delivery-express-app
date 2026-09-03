@@ -91,6 +91,26 @@ export default function AutoMenuScannerModal({ store, onClose }) {
         { name: 'Hot & Spicy Chicken Wings', price: 280, category: 'Chicken Wings', isPopular: true, image: '' },
         { name: 'Barkada Package (Pizza + Wraps + Burgers + Chicken)', price: 1299, category: 'Barkada Meals', isPopular: true, image: '' }
       ]
+    },
+    {
+      title: "🍱 Hungry Besties (Chaofan, Silog, Lomi & Dinuguan)",
+      desc: 'Chaofan specials (₱99), Silogs (₱79), Lomi (₱29-₱69), Dinuguan (₱149)',
+      items: [
+        { name: 'Plain Chaofan', price: 69, category: 'Chaofan Specials', isPopular: true, image: 'https://images.unsplash.com/photo-1512058564366-18510be2db19?w=500&auto=format&fit=crop&q=80' },
+        { name: 'Chicken Popcorn Chaofan Special', price: 99, category: 'Chaofan Specials', isPopular: true, image: 'https://images.unsplash.com/photo-1562967914-608f82629710?w=500&auto=format&fit=crop&q=80' },
+        { name: 'Sisig Chaofan Special', price: 99, category: 'Chaofan Specials', isPopular: true, image: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=500&auto=format&fit=crop&q=80' },
+        { name: 'Spam Chaofan Special', price: 99, category: 'Chaofan Specials', isPopular: false, image: 'https://images.unsplash.com/photo-1512058564366-18510be2db19?w=500&auto=format&fit=crop&q=80' },
+        { name: 'Lumpia Shanghai Chaofan Special', price: 99, category: 'Chaofan Specials', isPopular: false, image: 'https://images.unsplash.com/photo-1541592106381-b31e9677c0e5?w=500&auto=format&fit=crop&q=80' },
+        { name: 'Special Dinuguan', price: 149, category: 'Special Dish', isPopular: true, image: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500&auto=format&fit=crop&q=80' },
+        { name: 'Lomi Regular', price: 29, category: 'Lomi & Noodles', isPopular: false, image: 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=500&auto=format&fit=crop&q=80' },
+        { name: 'Lomi with Egg', price: 49, category: 'Lomi & Noodles', isPopular: true, image: 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=500&auto=format&fit=crop&q=80' },
+        { name: 'Lomi Overload', price: 69, category: 'Lomi & Noodles', isPopular: true, image: 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=500&auto=format&fit=crop&q=80' },
+        { name: 'Spamsilog (Spam + Egg + Rice)', price: 79, category: 'Rice Silog Specials', isPopular: true, image: 'https://images.unsplash.com/photo-1516684732162-798a0062be99?w=500&auto=format&fit=crop&q=80' },
+        { name: 'Sisigsilog (Sizzling Sisig + Egg + Rice)', price: 79, category: 'Rice Silog Specials', isPopular: true, image: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=500&auto=format&fit=crop&q=80' },
+        { name: 'Chixsilog (Chicken Popcorn + Egg + Rice)', price: 79, category: 'Rice Silog Specials', isPopular: true, image: 'https://images.unsplash.com/photo-1562967914-608f82629710?w=500&auto=format&fit=crop&q=80' },
+        { name: 'Lumpiasilog (Lumpia + Egg + Rice)', price: 79, category: 'Rice Silog Specials', isPopular: false, image: 'https://images.unsplash.com/photo-1541592106381-b31e9677c0e5?w=500&auto=format&fit=crop&q=80' },
+        { name: 'Extra Plain Rice', price: 20, category: 'Rice', isPopular: false, image: 'https://images.unsplash.com/photo-1516684732162-798a0062be99?w=500&auto=format&fit=crop&q=80' }
+      ]
     }
   ];
 
@@ -138,7 +158,24 @@ export default function AutoMenuScannerModal({ store, onClose }) {
       const storeNameLower = (store?.name || '').toLowerCase();
       const storeCategoryLower = (store?.category || '').toLowerCase();
 
-      if (storeNameLower.includes("tet") || storeNameLower.includes("spizzal") || storeNameLower.includes("pizza") || storeCategoryLower.includes("pizza")) {
+      if (storeNameLower.includes("hungry") || storeNameLower.includes("besties") || storeNameLower.includes("chaofan") || storeNameLower.includes("silog") || storeNameLower.includes("lomi") || storeNameLower.includes("dinuguan")) {
+        detectedDishes = [
+          { name: 'Plain Chaofan', price: 69, category: 'Chaofan Specials', isPopular: true, image: 'https://images.unsplash.com/photo-1512058564366-18510be2db19?w=500&auto=format&fit=crop&q=80' },
+          { name: 'Chicken Popcorn Chaofan Special', price: 99, category: 'Chaofan Specials', isPopular: true, image: 'https://images.unsplash.com/photo-1562967914-608f82629710?w=500&auto=format&fit=crop&q=80' },
+          { name: 'Sisig Chaofan Special', price: 99, category: 'Chaofan Specials', isPopular: true, image: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=500&auto=format&fit=crop&q=80' },
+          { name: 'Spam Chaofan Special', price: 99, category: 'Chaofan Specials', isPopular: false, image: 'https://images.unsplash.com/photo-1512058564366-18510be2db19?w=500&auto=format&fit=crop&q=80' },
+          { name: 'Lumpia Shanghai Chaofan Special', price: 99, category: 'Chaofan Specials', isPopular: false, image: 'https://images.unsplash.com/photo-1541592106381-b31e9677c0e5?w=500&auto=format&fit=crop&q=80' },
+          { name: 'Special Dinuguan', price: 149, category: 'Special Dish', isPopular: true, image: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500&auto=format&fit=crop&q=80' },
+          { name: 'Lomi Regular', price: 29, category: 'Lomi & Noodles', isPopular: false, image: 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=500&auto=format&fit=crop&q=80' },
+          { name: 'Lomi with Egg', price: 49, category: 'Lomi & Noodles', isPopular: true, image: 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=500&auto=format&fit=crop&q=80' },
+          { name: 'Lomi Overload', price: 69, category: 'Lomi & Noodles', isPopular: true, image: 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=500&auto=format&fit=crop&q=80' },
+          { name: 'Spamsilog (Spam + Egg + Rice)', price: 79, category: 'Rice Silog Specials', isPopular: true, image: 'https://images.unsplash.com/photo-1516684732162-798a0062be99?w=500&auto=format&fit=crop&q=80' },
+          { name: 'Sisigsilog (Sizzling Sisig + Egg + Rice)', price: 79, category: 'Rice Silog Specials', isPopular: true, image: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=500&auto=format&fit=crop&q=80' },
+          { name: 'Chixsilog (Chicken Popcorn + Egg + Rice)', price: 79, category: 'Rice Silog Specials', isPopular: true, image: 'https://images.unsplash.com/photo-1562967914-608f82629710?w=500&auto=format&fit=crop&q=80' },
+          { name: 'Lumpiasilog (Lumpia + Egg + Rice)', price: 79, category: 'Rice Silog Specials', isPopular: false, image: 'https://images.unsplash.com/photo-1541592106381-b31e9677c0e5?w=500&auto=format&fit=crop&q=80' },
+          { name: 'Extra Plain Rice', price: 20, category: 'Rice', isPopular: false, image: 'https://images.unsplash.com/photo-1516684732162-798a0062be99?w=500&auto=format&fit=crop&q=80' }
+        ];
+      } else if (storeNameLower.includes("tet") || storeNameLower.includes("spizzal") || storeNameLower.includes("pizza") || storeCategoryLower.includes("pizza")) {
         detectedDishes = [
           { name: 'Hawaiian Pizza (12")', price: 280, category: 'Pizza', isPopular: true, image: '' },
           { name: 'Hawaiian Pizza (15")', price: 450, category: 'Pizza', isPopular: true, image: '' },
