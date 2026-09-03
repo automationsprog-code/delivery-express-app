@@ -702,6 +702,48 @@ export function OrderProvider({ children }) {
     showNotification('Customer account deleted', 'info');
   };
 
+  // Update Customer Profile Information, Avatar & Password (Real-time Cloud Synced to Admin)
+  const updateCustomerProfile = async (updatedFields) => {
+    let updatedUser = null;
+    setCurrentUser(prev => {
+      updatedUser = { ...(prev || {}), ...updatedFields, role: 'customer' };
+      try {
+        localStorage.setItem('delivery_express_current_user', JSON.stringify(updatedUser));
+      } catch (_) {}
+      return updatedUser;
+    });
+
+    let updatedList = [];
+    setRegisteredCustomers(prev => {
+      const matchIndex = prev.findIndex(c => 
+        (currentUser?.id && c.id === currentUser.id) ||
+        (currentUser?.email && c.email && c.email.toLowerCase() === currentUser.email.toLowerCase()) ||
+        (currentUser?.phone && c.phone && c.phone.slice(-10) === currentUser.phone.slice(-10)) ||
+        (updatedFields.email && c.email && c.email.toLowerCase() === updatedFields.email.toLowerCase()) ||
+        (updatedFields.phone && c.phone && c.phone.slice(-10) === updatedFields.phone.slice(-10))
+      );
+
+      if (matchIndex >= 0) {
+        updatedList = [...prev];
+        updatedList[matchIndex] = { ...updatedList[matchIndex], ...updatedFields };
+      } else {
+        updatedList = [...prev, { id: `cust-${Date.now()}`, ...updatedFields }];
+      }
+
+      try {
+        localStorage.setItem('delivery_express_registered_customers', JSON.stringify(updatedList));
+      } catch (_) {}
+      return updatedList;
+    });
+
+    // Cloud sync to SYS-CONFIG-RATES so Admin screen and all devices immediately receive updated profile info & avatar
+    await syncSysConfig({ registered_customers: updatedList });
+
+    soundService.playSuccessFanfare();
+    showNotification('Profile & photo updated & synced with Admin!', 'success');
+    return updatedUser;
+  };
+
   const loginCustomerWithPassword = (emailOrPhone, password) => {
     const cleanInput = (emailOrPhone || '').trim().toLowerCase();
     const cleanDigits = cleanInput.replace(/\D/g, '');
@@ -1818,6 +1860,7 @@ export function OrderProvider({ children }) {
         currentUser,
         registeredCustomers,
         registerCustomer,
+        updateCustomerProfile,
         loginCustomerWithPassword,
         deleteCustomer,
         loginAsCustomer,

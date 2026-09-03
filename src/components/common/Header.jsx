@@ -5,6 +5,7 @@ import { isSupabaseConfigured } from '../../lib/supabase';
 import AuthModal from './AuthModal';
 import ChangePasswordModal from './ChangePasswordModal';
 import InstallAppButton from './InstallAppButton';
+import CustomerProfileModal from '../customer/CustomerProfileModal';
 import { 
   Bike, 
   ShieldCheck, 
@@ -24,7 +25,9 @@ import {
   Lock,
   LogOut,
   User,
-  KeyRound
+  KeyRound,
+  Edit2,
+  Settings
 } from 'lucide-react';
 
 export default function Header() {
@@ -48,6 +51,7 @@ export default function Header() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authTab, setAuthTab] = useState('customer');
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [showCustomerProfileModal, setShowCustomerProfileModal] = useState(false);
 
   const isOpen = isWithinOperatingHours();
 
@@ -180,15 +184,39 @@ export default function Header() {
             {/* USER / AUTH STATUS */}
             {currentUser ? (
               <div className="flex items-center gap-1 bg-slate-100 dark:bg-zinc-900 p-0.5 sm:p-1 rounded-xl sm:rounded-2xl border border-slate-200 dark:border-zinc-800">
-                <div className="px-1.5 sm:px-2 py-0.5 text-[11px] sm:text-xs font-extrabold text-slate-900 dark:text-white flex items-center gap-1 truncate max-w-[70px] sm:max-w-[130px]">
-                  {currentUser.role === 'customer' ? (
-                    <span className="truncate">{currentUser.name.split(' ')[0]}</span>
-                  ) : currentUser.role === 'rider' ? (
-                    <span className="truncate">{currentUser.name}</span>
-                  ) : (
-                    <span>Admin</span>
-                  )}
-                </div>
+                
+                {/* Customer Profile Button (Opens CustomerProfileModal) */}
+                {currentUser.role === 'customer' ? (
+                  <button
+                    onClick={() => setShowCustomerProfileModal(true)}
+                    title="Edit Profile, Photo & Password"
+                    className="flex items-center gap-1.5 px-1.5 sm:px-2 py-0.5 hover:bg-slate-200 dark:hover:bg-zinc-800 rounded-lg sm:rounded-xl transition-all max-w-[100px] sm:max-w-[150px] group"
+                  >
+                    {currentUser.avatar && !currentUser.avatar.includes('unsplash') ? (
+                      <img
+                        src={currentUser.avatar}
+                        alt={currentUser.name}
+                        className="w-5 h-5 sm:w-6 sm:h-6 rounded-full object-cover border border-rose-500 shadow-sm shrink-0"
+                      />
+                    ) : (
+                      <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-gradient-to-br from-rose-500 to-amber-500 text-white flex items-center justify-center font-black text-[9px] sm:text-[10px] shrink-0 uppercase">
+                        {(currentUser.name || 'C').charAt(0)}
+                      </div>
+                    )}
+                    <span className="truncate text-[11px] sm:text-xs font-extrabold text-slate-900 dark:text-white group-hover:text-rose-600">
+                      {currentUser.name.split(' ')[0]}
+                    </span>
+                    <Edit2 className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-slate-400 group-hover:text-rose-500 shrink-0" />
+                  </button>
+                ) : (
+                  <div className="px-1.5 sm:px-2 py-0.5 text-[11px] sm:text-xs font-extrabold text-slate-900 dark:text-white flex items-center gap-1 truncate max-w-[70px] sm:max-w-[130px]">
+                    {currentUser.role === 'rider' ? (
+                      <span className="truncate">{currentUser.name}</span>
+                    ) : (
+                      <span>Admin</span>
+                    )}
+                  </div>
+                )}
 
                 {currentUser.role !== 'customer' && (
                   <button
@@ -323,6 +351,13 @@ export default function Header() {
           userRole={currentUser.role}
           userId={currentUser.id}
           onClose={() => setShowPasswordModal(false)}
+        />
+      )}
+
+      {/* Customer Profile & Photo Edit Modal */}
+      {showCustomerProfileModal && currentUser && currentUser.role === 'customer' && (
+        <CustomerProfileModal
+          onClose={() => setShowCustomerProfileModal(false)}
         />
       )}
     </>
