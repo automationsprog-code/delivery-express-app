@@ -460,21 +460,41 @@ export default function AutoMenuScannerModal({ store, onClose }) {
                     {/* Dish Photo & Change Button */}
                     <div className="flex items-center gap-3 w-full sm:w-auto">
                       <div className="relative group shrink-0">
-                        <img
-                          src={dish.image}
-                          alt={dish.name}
-                          className="w-14 h-14 rounded-2xl object-cover border border-slate-200 dark:border-zinc-800 shadow-sm"
-                        />
+                        {dish.image && dish.image.trim() !== '' ? (
+                          <img
+                            src={dish.image}
+                            alt={dish.name}
+                            className="w-14 h-14 rounded-2xl object-cover border border-slate-200 dark:border-zinc-800 shadow-sm"
+                          />
+                        ) : (
+                          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-500/20 via-rose-500/20 to-orange-500/20 dark:from-amber-500/10 dark:via-rose-500/10 dark:to-orange-500/10 border border-amber-500/30 flex flex-col items-center justify-center shrink-0 text-center p-0.5 shadow-sm">
+                            <span className="text-base">
+                              {dish.category?.toLowerCase().includes('pizza') ? '🍕' :
+                               dish.category?.toLowerCase().includes('burger') ? '🍔' :
+                               dish.category?.toLowerCase().includes('pasta') ? '🍝' :
+                               dish.category?.toLowerCase().includes('wings') || dish.category?.toLowerCase().includes('chicken') ? '🍗' :
+                               dish.category?.toLowerCase().includes('salad') ? '🥗' :
+                               dish.category?.toLowerCase().includes('wrap') || dish.category?.toLowerCase().includes('taco') ? '🌮' :
+                               dish.category?.toLowerCase().includes('fries') || dish.category?.toLowerCase().includes('nacho') ? '🍟' :
+                               dish.category?.toLowerCase().includes('barkada') ? '🍱' :
+                               '🍽️'}
+                            </span>
+                            <span className="text-[8px] font-black uppercase tracking-tighter text-rose-600 dark:text-rose-400 truncate max-w-full">
+                              {dish.name ? dish.name.split(' ').slice(0, 2).map(w => w[0]).join('') : 'TS'}
+                            </span>
+                          </div>
+                        )}
+
                         <button
                           type="button"
                           onClick={() => {
                             setEditingDishIndexForPhoto(idx);
                             dishPhotoInputRef.current?.click();
                           }}
-                          className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 rounded-2xl flex items-center justify-center text-white text-[10px] font-black transition-opacity"
-                          title="Change dish photo"
+                          className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 rounded-2xl flex items-center justify-center text-white text-[10px] font-black transition-opacity text-center p-1"
+                          title="Upload/Change dish photo"
                         >
-                          Change 📸
+                          {dish.image ? 'Change 📸' : '+ Photo 📸'}
                         </button>
                       </div>
 
