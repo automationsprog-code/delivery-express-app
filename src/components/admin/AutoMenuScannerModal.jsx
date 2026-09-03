@@ -111,6 +111,38 @@ export default function AutoMenuScannerModal({ store, onClose }) {
         { name: 'Lumpiasilog (Lumpia + Egg + Rice)', price: 79, category: 'Rice Silog Specials', isPopular: false, image: 'https://images.unsplash.com/photo-1541592106381-b31e9677c0e5?w=500&auto=format&fit=crop&q=80' },
         { name: 'Extra Plain Rice', price: 20, category: 'Rice', isPopular: false, image: 'https://images.unsplash.com/photo-1516684732162-798a0062be99?w=500&auto=format&fit=crop&q=80' }
       ]
+    },
+    {
+      title: "🍲 Lugawan sa Balamban (Lugaw, Silogs, Tokwa't Baboy)",
+      desc: 'Lugaw specials (₱30-₱125), Silog Rice Meals (₱65-₱110), Sisig & Tokwa',
+      items: [
+        { name: 'Plain Lugaw', price: 30, category: 'Lugaw Specials', isPopular: false, image: '' },
+        { name: 'Lugaw w/ Egg', price: 45, category: 'Lugaw Specials', isPopular: true, image: '' },
+        { name: 'Arozcaldo', price: 65, category: 'Lugaw Specials', isPopular: true, image: '' },
+        { name: 'Lugaw w/ Lechon Kawali', price: 85, category: 'Lugaw Specials', isPopular: true, image: '' },
+        { name: 'Lugaw Overload', price: 125, category: 'Lugaw Specials', isPopular: true, image: '' },
+        { name: 'Lugaw Siomai', price: 60, category: 'Lugaw Specials', isPopular: false, image: '' },
+        { name: 'Sisig-silog', price: 110, category: 'Rice Meals (Silogs)', isPopular: true, image: '' },
+        { name: 'Kawali-silog', price: 110, category: 'Rice Meals (Silogs)', isPopular: true, image: '' },
+        { name: 'Tapsilog', price: 110, category: 'Rice Meals (Silogs)', isPopular: true, image: '' },
+        { name: 'Chicsilog', price: 85, category: 'Rice Meals (Silogs)', isPopular: false, image: '' },
+        { name: 'Tocilog', price: 99, category: 'Rice Meals (Silogs)', isPopular: true, image: '' },
+        { name: 'Cornsilog', price: 99, category: 'Rice Meals (Silogs)', isPopular: false, image: '' },
+        { name: 'Hotsilog', price: 65, category: 'Rice Meals (Silogs)', isPopular: false, image: '' },
+        { name: 'Shanghaisilog', price: 65, category: 'Rice Meals (Silogs)', isPopular: false, image: '' },
+        { name: 'Hungariansilog', price: 105, category: 'Rice Meals (Silogs)', isPopular: true, image: '' },
+        { name: 'Longsilog', price: 85, category: 'Rice Meals (Silogs)', isPopular: false, image: '' },
+        { name: 'Siomaisilog', price: 65, category: 'Rice Meals (Silogs)', isPopular: false, image: '' },
+        { name: 'Spamsilog', price: 85, category: 'Rice Meals (Silogs)', isPopular: true, image: '' },
+        { name: 'Lumpiang Togue', price: 15, category: 'Sides & Specials', isPopular: true, image: '' },
+        { name: 'Tokwa\'t Baboy', price: 50, category: 'Sides & Specials', isPopular: true, image: '' },
+        { name: 'Sisig Platter', price: 190, category: 'Sides & Specials', isPopular: true, image: '' },
+        { name: 'Siomai Ala Carte (4pcs)', price: 35, category: 'Sides & Specials', isPopular: false, image: '' },
+        { name: 'Extra Egg', price: 15, category: 'Sides & Specials', isPopular: false, image: '' },
+        { name: 'Extra Rice', price: 20, category: 'Sides & Specials', isPopular: false, image: '' },
+        { name: 'Softdrinks', price: 20, category: 'Drinks', isPopular: false, image: '' },
+        { name: 'Bottled Water', price: 20, category: 'Drinks', isPopular: false, image: '' }
+      ]
     }
   ];
 
@@ -158,7 +190,36 @@ export default function AutoMenuScannerModal({ store, onClose }) {
       const storeNameLower = (store?.name || '').toLowerCase();
       const storeCategoryLower = (store?.category || '').toLowerCase();
 
-      if (storeNameLower.includes("hungry") || storeNameLower.includes("besties") || storeNameLower.includes("chaofan") || storeNameLower.includes("silog") || storeNameLower.includes("lomi") || storeNameLower.includes("dinuguan")) {
+      if (storeNameLower.includes("lugaw") || storeNameLower.includes("arozcaldo") || storeNameLower.includes("goto") || storeNameLower.includes("lugawan")) {
+        detectedDishes = [
+          { name: 'Plain Lugaw', price: 30, category: 'Lugaw Specials', isPopular: false, image: '' },
+          { name: 'Lugaw w/ Egg', price: 45, category: 'Lugaw Specials', isPopular: true, image: '' },
+          { name: 'Arozcaldo', price: 65, category: 'Lugaw Specials', isPopular: true, image: '' },
+          { name: 'Lugaw w/ Lechon Kawali', price: 85, category: 'Lugaw Specials', isPopular: true, image: '' },
+          { name: 'Lugaw Overload', price: 125, category: 'Lugaw Specials', isPopular: true, image: '' },
+          { name: 'Lugaw Siomai', price: 60, category: 'Lugaw Specials', isPopular: false, image: '' },
+          { name: 'Sisig-silog', price: 110, category: 'Rice Meals (Silogs)', isPopular: true, image: '' },
+          { name: 'Kawali-silog', price: 110, category: 'Rice Meals (Silogs)', isPopular: true, image: '' },
+          { name: 'Tapsilog', price: 110, category: 'Rice Meals (Silogs)', isPopular: true, image: '' },
+          { name: 'Chicsilog', price: 85, category: 'Rice Meals (Silogs)', isPopular: false, image: '' },
+          { name: 'Tocilog', price: 99, category: 'Rice Meals (Silogs)', isPopular: true, image: '' },
+          { name: 'Cornsilog', price: 99, category: 'Rice Meals (Silogs)', isPopular: false, image: '' },
+          { name: 'Hotsilog', price: 65, category: 'Rice Meals (Silogs)', isPopular: false, image: '' },
+          { name: 'Shanghaisilog', price: 65, category: 'Rice Meals (Silogs)', isPopular: false, image: '' },
+          { name: 'Hungariansilog', price: 105, category: 'Rice Meals (Silogs)', isPopular: true, image: '' },
+          { name: 'Longsilog', price: 85, category: 'Rice Meals (Silogs)', isPopular: false, image: '' },
+          { name: 'Siomaisilog', price: 65, category: 'Rice Meals (Silogs)', isPopular: false, image: '' },
+          { name: 'Spamsilog', price: 85, category: 'Rice Meals (Silogs)', isPopular: true, image: '' },
+          { name: 'Lumpiang Togue', price: 15, category: 'Sides & Specials', isPopular: true, image: '' },
+          { name: 'Tokwa\'t Baboy', price: 50, category: 'Sides & Specials', isPopular: true, image: '' },
+          { name: 'Sisig Platter', price: 190, category: 'Sides & Specials', isPopular: true, image: '' },
+          { name: 'Siomai Ala Carte (4pcs)', price: 35, category: 'Sides & Specials', isPopular: false, image: '' },
+          { name: 'Extra Egg', price: 15, category: 'Sides & Specials', isPopular: false, image: '' },
+          { name: 'Extra Rice', price: 20, category: 'Sides & Specials', isPopular: false, image: '' },
+          { name: 'Softdrinks', price: 20, category: 'Drinks', isPopular: false, image: '' },
+          { name: 'Bottled Water', price: 20, category: 'Drinks', isPopular: false, image: '' }
+        ];
+      } else if (storeNameLower.includes("hungry") || storeNameLower.includes("besties") || storeNameLower.includes("chaofan") || storeNameLower.includes("silog") || storeNameLower.includes("lomi") || storeNameLower.includes("dinuguan")) {
         detectedDishes = [
           { name: 'Plain Chaofan', price: 69, category: 'Chaofan Specials', isPopular: true, image: 'https://images.unsplash.com/photo-1512058564366-18510be2db19?w=500&auto=format&fit=crop&q=80' },
           { name: 'Chicken Popcorn Chaofan Special', price: 99, category: 'Chaofan Specials', isPopular: true, image: 'https://images.unsplash.com/photo-1562967914-608f82629710?w=500&auto=format&fit=crop&q=80' },
