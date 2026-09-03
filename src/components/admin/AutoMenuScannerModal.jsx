@@ -134,24 +134,61 @@ export default function AutoMenuScannerModal({ store, onClose }) {
     setIsScanning(true);
 
     setTimeout(() => {
-      const defaultScanned = [
-        { name: 'C1: 1-pc Chickenjoy with Rice & Drink', price: 90, category: 'Chickenjoy Meals', isPopular: true, image: 'https://images.unsplash.com/photo-1626645738196-c2a7c87a8f58?w=500&auto=format&fit=crop&q=80' },
-        { name: 'C1 Spicy: 1-pc Spicy Chickenjoy Meal', price: 92, category: 'Chickenjoy Meals', isPopular: false, image: 'https://images.unsplash.com/photo-1567620832903-9fc6debc209f?w=500&auto=format&fit=crop&q=80' },
-        { name: 'C2: 1-pc Chickenjoy with Double Rice', price: 99, category: 'Chickenjoy Meals', isPopular: false, image: 'https://images.unsplash.com/photo-1626645738196-c2a7c87a8f58?w=500&auto=format&fit=crop&q=80' },
-        { name: 'C3: 1-pc Chickenjoy with Jolly Spaghetti', price: 122, category: 'Chickenjoy Meals', isPopular: true, image: 'https://images.unsplash.com/photo-1551183053-bf91a1d81141?w=500&auto=format&fit=crop&q=80' },
-        { name: 'C4: 1-pc Chickenjoy with Palabok', price: 167, category: 'Chickenjoy Meals', isPopular: true, image: 'https://images.unsplash.com/photo-1626645738196-c2a7c87a8f58?w=500&auto=format&fit=crop&q=80' },
-        { name: 'C5: 2-pc Chickenjoy Solo/Value Meal', price: 170, category: 'Chickenjoy Meals', isPopular: true, image: 'https://images.unsplash.com/photo-1626645738196-c2a7c87a8f58?w=500&auto=format&fit=crop&q=80' },
-        { name: 'C6: 1-pc Chickenjoy with Fries & Drink', price: 105, category: 'Chickenjoy Meals', isPopular: false, image: 'https://images.unsplash.com/photo-1576107232684-1279f3908594?w=500&auto=format&fit=crop&q=80' },
-        { name: '6-pc Chickenjoy Bucket', price: 399, category: 'Family Buckets', isPopular: true, image: 'https://images.unsplash.com/photo-1626645738196-c2a7c87a8f58?w=500&auto=format&fit=crop&q=80' },
-        { name: 'Combo C1: Buffalo Wings Rice Meal', price: 159, category: 'Flavored Wings', isPopular: true, image: 'https://images.unsplash.com/photo-1567620832903-9fc6debc209f?w=500&auto=format&fit=crop&q=80' },
-        { name: 'Combo C2: Lemon Pepper Wings Rice Meal', price: 159, category: 'Flavored Wings', isPopular: false, image: 'https://images.unsplash.com/photo-1567620832903-9fc6debc209f?w=500&auto=format&fit=crop&q=80' },
-        { name: 'Combo C3: Sweet Chili Wings Rice Meal', price: 159, category: 'Flavored Wings', isPopular: true, image: 'https://images.unsplash.com/photo-1567620832903-9fc6debc209f?w=500&auto=format&fit=crop&q=80' },
-        { name: 'Combo C4: Teriyaki Wings Rice Meal', price: 159, category: 'Flavored Wings', isPopular: false, image: 'https://images.unsplash.com/photo-1567620832903-9fc6debc209f?w=500&auto=format&fit=crop&q=80' },
-        { name: 'Combo C8: 6 pcs Crispy House Blend Chicken', price: 500, category: 'Group Meals', isPopular: true, image: 'https://images.unsplash.com/photo-1626645738196-c2a7c87a8f58?w=500&auto=format&fit=crop&q=80' },
-        { name: 'Combo CS: Crispy Chicken Spaghetti', price: 110, category: 'Combo Meals', isPopular: true, image: 'https://images.unsplash.com/photo-1551183053-bf91a1d81141?w=500&auto=format&fit=crop&q=80' }
-      ];
+      let detectedDishes = [];
+      const storeNameLower = (store?.name || '').toLowerCase();
+      const storeCategoryLower = (store?.category || '').toLowerCase();
 
-      setExtractedDishes(defaultScanned);
+      if (storeNameLower.includes("tet") || storeNameLower.includes("spizzal") || storeNameLower.includes("pizza") || storeCategoryLower.includes("pizza")) {
+        detectedDishes = [
+          { name: 'Hawaiian Pizza (12")', price: 280, category: 'Pizza', isPopular: true, image: '' },
+          { name: 'Hawaiian Pizza (15")', price: 450, category: 'Pizza', isPopular: true, image: '' },
+          { name: 'Hawaiian Pizza (18" Party)', price: 780, category: 'Pizza', isPopular: false, image: '' },
+          { name: 'Pepperoni Pizza (12")', price: 450, category: 'Pizza', isPopular: true, image: '' },
+          { name: 'Pepperoni Pizza (15")', price: 640, category: 'Pizza', isPopular: true, image: '' },
+          { name: 'Pepperoni Pizza (18" Party)', price: 890, category: 'Pizza', isPopular: false, image: '' },
+          { name: 'Loaded Supreme Pizza (12")', price: 425, category: 'Pizza', isPopular: true, image: '' },
+          { name: 'Loaded Supreme Pizza (15")', price: 575, category: 'Pizza', isPopular: true, image: '' },
+          { name: 'Full House Pizza (12")', price: 480, category: 'Pizza', isPopular: true, image: '' },
+          { name: 'Full House Pizza (15")', price: 650, category: 'Pizza', isPopular: true, image: '' },
+          { name: 'Creamy Spinach Pizza (12")', price: 485, category: 'Pizza', isPopular: true, image: '' },
+          { name: 'Carbonara Pasta', price: 140, category: 'Pasta', isPopular: true, image: '' },
+          { name: 'Shrimp Pesto Pasta', price: 170, category: 'Pasta', isPopular: true, image: '' },
+          { name: 'Caramelized Cheeseburger', price: 120, category: 'Burger', isPopular: true, image: '' },
+          { name: 'Double Cheeseburger w/ Fries & Drink', price: 260, category: 'Burger', isPopular: true, image: '' },
+          { name: 'Lava Ragga Chicken w/ Fries & Drink', price: 280, category: 'Burger', isPopular: true, image: '' },
+          { name: '1 PC Chicken w/ Rice & Drink', price: 125, category: 'Chicken Meals', isPopular: true, image: '' },
+          { name: '1 PC Chicken w/ Spaghetti', price: 145, category: 'Chicken Meals', isPopular: true, image: '' },
+          { name: 'Hot & Spicy Chicken Wings', price: 280, category: 'Chicken Wings', isPopular: true, image: '' },
+          { name: 'BBQ Chicken Wings', price: 280, category: 'Chicken Wings', isPopular: false, image: '' },
+          { name: 'Big Taco', price: 140, category: 'Wraps & Tacos', isPopular: true, image: '' },
+          { name: 'Chicken Wrap w/ Fries', price: 200, category: 'Wraps & Tacos', isPopular: true, image: '' },
+          { name: 'Meaty Cheesy Fries', price: 385, category: 'Nachos & Fries', isPopular: true, image: '' },
+          { name: 'Barkada Package (1 Loaded Pizza + 2 Wraps + 2 Burgers + 4 Chicken w/ Fries)', price: 1299, category: 'Barkada Meals', isPopular: true, image: '' }
+        ];
+      } else if (storeNameLower.includes("liempo") || storeNameLower.includes("inasal") || storeNameLower.includes("bbq")) {
+        detectedDishes = [
+          { name: 'Original Balamban Liempo (Whole Roll)', price: 320, category: 'Liempo & Pork', isPopular: true, image: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=500&auto=format&fit=crop&q=80' },
+          { name: 'Spicy Balamban Liempo (Whole)', price: 335, category: 'Liempo & Pork', isPopular: true, image: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=500&auto=format&fit=crop&q=80' },
+          { name: 'Lechon Manok / Roast Chicken', price: 340, category: 'Roast Chicken', isPopular: true, image: 'https://images.unsplash.com/photo-1626645738196-c2a7c87a8f58?w=500&auto=format&fit=crop&q=80' },
+          { name: 'Grilled Pork BBQ (3 Sticks)', price: 95, category: 'Sides & BBQ', isPopular: false, image: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=500&auto=format&fit=crop&q=80' },
+          { name: 'Extra Steamed Rice / Puso', price: 15, category: 'Rice', isPopular: false, image: 'https://images.unsplash.com/photo-1516684732162-798a0062be99?w=500&auto=format&fit=crop&q=80' }
+        ];
+      } else {
+        // Jollibee / Fastfood fallback
+        detectedDishes = [
+          { name: 'C1: 1-pc Chickenjoy with Rice & Drink', price: 90, category: 'Chickenjoy Meals', isPopular: true, image: 'https://images.unsplash.com/photo-1626645738196-c2a7c87a8f58?w=500&auto=format&fit=crop&q=80' },
+          { name: 'C1 Spicy: 1-pc Spicy Chickenjoy Meal', price: 92, category: 'Chickenjoy Meals', isPopular: false, image: 'https://images.unsplash.com/photo-1567620832903-9fc6debc209f?w=500&auto=format&fit=crop&q=80' },
+          { name: 'C2: 1-pc Chickenjoy with Double Rice', price: 99, category: 'Chickenjoy Meals', isPopular: false, image: 'https://images.unsplash.com/photo-1626645738196-c2a7c87a8f58?w=500&auto=format&fit=crop&q=80' },
+          { name: 'C3: 1-pc Chickenjoy with Jolly Spaghetti', price: 122, category: 'Chickenjoy Meals', isPopular: true, image: 'https://images.unsplash.com/photo-1551183053-bf91a1d81141?w=500&auto=format&fit=crop&q=80' },
+          { name: 'C4: 1-pc Chickenjoy with Palabok', price: 167, category: 'Chickenjoy Meals', isPopular: true, image: 'https://images.unsplash.com/photo-1626645738196-c2a7c87a8f58?w=500&auto=format&fit=crop&q=80' },
+          { name: 'C5: 2-pc Chickenjoy Solo/Value Meal', price: 170, category: 'Chickenjoy Meals', isPopular: true, image: 'https://images.unsplash.com/photo-1626645738196-c2a7c87a8f58?w=500&auto=format&fit=crop&q=80' },
+          { name: '6-pc Chickenjoy Bucket', price: 399, category: 'Family Buckets', isPopular: true, image: 'https://images.unsplash.com/photo-1626645738196-c2a7c87a8f58?w=500&auto=format&fit=crop&q=80' },
+          { name: 'Combo C1: Buffalo Wings Rice Meal', price: 159, category: 'Flavored Wings', isPopular: true, image: 'https://images.unsplash.com/photo-1567620832903-9fc6debc209f?w=500&auto=format&fit=crop&q=80' },
+          { name: 'Combo C8: 6 pcs Crispy House Blend Chicken', price: 500, category: 'Group Meals', isPopular: true, image: 'https://images.unsplash.com/photo-1626645738196-c2a7c87a8f58?w=500&auto=format&fit=crop&q=80' }
+        ];
+      }
+
+      setExtractedDishes(detectedDishes);
       setIsScanning(false);
       setActiveTab('review');
     }, 1200);
