@@ -108,6 +108,24 @@ function MainContent() {
                 <span>Our 9 Delivery Services</span>
               </button>
 
+              {/* Food & Store Menus Tab for Customers */}
+              <button
+                onClick={() => setCustomerTab('menus')}
+                className={`flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-extrabold transition-all shrink-0 shadow-sm relative ${
+                  customerTab === 'menus'
+                    ? 'bg-gradient-to-r from-rose-600 via-amber-500 to-red-600 text-white shadow-rose-600/20 shadow-md'
+                    : 'bg-white dark:bg-zinc-900 text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-zinc-800'
+                }`}
+              >
+                <UtensilsCrossed className="w-4 h-4 text-amber-300" />
+                <span>Food & Store Menus</span>
+                {storesList.length > 0 && (
+                  <span className="bg-amber-400 text-zinc-950 text-[10px] font-black px-1.5 py-0.2 rounded-full">
+                    {storesList.length}
+                  </span>
+                )}
+              </button>
+
               <button
                 onClick={() => setCustomerTab('tracker')}
                 className={`flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-extrabold transition-all relative shrink-0 shadow-sm ${
@@ -143,10 +161,15 @@ function MainContent() {
 
             {/* Active Customer Tab Content */}
             {customerTab === 'services' ? (
-              <ServiceGrid onSelectService={(service) => {
-                setBookingInitialData(null);
-                setSelectedServiceForBooking(service);
-              }} />
+              <ServiceGrid 
+                onSelectService={(service) => {
+                  setBookingInitialData(null);
+                  setSelectedServiceForBooking(service);
+                }}
+                onOpenMenus={() => setCustomerTab('menus')}
+              />
+            ) : customerTab === 'menus' ? (
+              <StoreMenuCatalog onOrderFromMenu={handleOrderFromMenu} />
             ) : customerTab === 'history' ? (
               <CustomerOrderHistory 
                 onSelectService={(service) => {

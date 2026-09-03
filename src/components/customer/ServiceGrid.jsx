@@ -34,8 +34,8 @@ const iconMap = {
   FileText
 };
 
-export default function ServiceGrid({ onSelectService }) {
-  const { servicesList, riders, isWithinOperatingHours } = useOrder();
+export default function ServiceGrid({ onSelectService, onOpenMenus }) {
+  const { servicesList, riders, isWithinOperatingHours, storesList } = useOrder();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
 
@@ -126,6 +126,41 @@ export default function ServiceGrid({ onSelectService }) {
         </div>
 
       </div>
+
+      {/* Partner Store Menus Shortcut Callout Banner */}
+      {storesList && storesList.length > 0 && onOpenMenus && (
+        <div 
+          onClick={onOpenMenus}
+          className="group relative overflow-hidden bg-gradient-to-r from-amber-500/10 via-rose-500/10 to-orange-500/10 dark:from-amber-500/5 dark:via-rose-500/5 dark:to-orange-500/5 border border-amber-500/30 hover:border-amber-500 rounded-3xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 cursor-pointer transition-all shadow-sm hover:shadow-md"
+        >
+          <div className="flex items-center gap-3.5">
+            <div className="w-12 h-12 rounded-2xl bg-amber-500 text-zinc-950 flex items-center justify-center font-black text-xl shadow-md shrink-0 group-hover:scale-105 transition-transform">
+              🍔
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h4 className="text-sm sm:text-base font-black text-slate-900 dark:text-white">
+                  Balamban Partner Restaurants & Food Menus
+                </h4>
+                <span className="bg-rose-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full animate-pulse">
+                  {storesList.length} Stores
+                </span>
+              </div>
+              <p className="text-xs text-slate-600 dark:text-zinc-400">
+                Browse menus from Jollibee, Balamban Liempo, Bakeries, Milktea & order with 1 tap!
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            className="px-4 py-2 bg-gradient-to-r from-rose-600 to-amber-500 hover:from-rose-500 text-white text-xs font-black rounded-xl flex items-center gap-1.5 shadow-md shrink-0 group-hover:gap-2.5 transition-all"
+          >
+            <span>View Food Menus</span>
+            <ArrowRight className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {/* Services Header & Search Bar */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
