@@ -108,16 +108,18 @@ export default function Header() {
             <span className="truncate">RADIO ({announcement.time}): {announcement.msg}</span>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <span className="text-[10px] bg-zinc-950 text-amber-400 px-2 py-0.5 rounded-full uppercase hidden sm:inline">
-              Staff Alert
+            <span className="text-[10px] bg-zinc-950 text-amber-400 px-2.5 py-0.5 rounded-full uppercase font-black hidden sm:inline">
+              HQ Radio Alert
             </span>
-            <button
-              onClick={clearAnnouncement}
-              title="Dismiss Broadcast"
-              className="px-2 py-1 bg-zinc-950/10 hover:bg-zinc-950/25 rounded-lg text-zinc-950 font-black text-xs flex items-center gap-1 border border-zinc-950/20 cursor-pointer"
-            >
-              <span>✕ Stop</span>
-            </button>
+            {activeRole === 'admin' && (
+              <button
+                onClick={clearAnnouncement}
+                title="Stop Broadcast (Admin Only)"
+                className="px-2.5 py-1 bg-zinc-950 hover:bg-zinc-900 text-amber-400 font-black text-xs rounded-xl flex items-center gap-1 shadow-sm border border-zinc-950/30 cursor-pointer transition-all active:scale-95"
+              >
+                <span>✕ Stop</span>
+              </button>
+            )}
           </div>
         </div>
       )}

@@ -32,7 +32,11 @@ import {
   Eye,
   EyeOff,
   Lock,
-  X
+  X,
+  ShoppingBag,
+  Store,
+  Receipt,
+  Utensils
 } from 'lucide-react';
 
 export default function RiderPortal() {
@@ -178,6 +182,101 @@ export default function RiderPortal() {
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  const renderOrderItemsDetails = (order) => {
+    const details = order.details || {};
+    const items = Array.isArray(details.items) ? details.items : (Array.isArray(order.items) ? order.items : []);
+    const storeName = details.store_name || details.storeName || (order.serviceId === 'food_delivery' ? order.pickupAddress : null);
+    const instructions = details.item_description || details.instructions || details.notes || order.deliveryNotes || details.recipient_notes;
+    const pasabuyItems = details.pasabuy_items || details.grocery_list;
+    const packageType = details.package_type || details.document_type;
+    const hasAnyDetails = items.length > 0 || storeName || instructions || pasabuyItems || packageType || order.itemCost > 0;
+
+    if (!hasAnyDetails) return null;
+
+    return (
+      <div className="p-4 bg-amber-50/80 dark:bg-amber-950/30 border border-amber-300/80 dark:border-amber-600/40 rounded-2xl text-xs space-y-3 shadow-sm">
+        {/* Header with Store Name & Cost */}
+        <div className="flex items-center justify-between border-b border-amber-300/60 dark:border-amber-700/50 pb-2">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <ShoppingBag className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+            <span className="font-black uppercase tracking-wider text-[11px] text-amber-950 dark:text-amber-200 truncate">
+              {storeName ? `Store: ${storeName}` : 'Order / Items List'}
+            </span>
+          </div>
+          {order.itemCost > 0 && (
+            <span className="bg-rose-100 dark:bg-rose-950/80 text-rose-700 dark:text-rose-300 text-[11px] font-black px-2.5 py-0.5 rounded-full border border-rose-300 dark:border-rose-800 shrink-0">
+              Est. Item Cost: ₱{order.itemCost.toLocaleString()}
+            </span>
+          )}
+        </div>
+
+        {/* Itemized Food List */}
+        {items.length > 0 && (
+          <div className="space-y-1.5">
+            <span className="text-[10px] font-extrabold uppercase text-slate-500 dark:text-zinc-400 block">
+              Items to Purchase / Pickup ({items.length}):
+            </span>
+            <div className="space-y-1.5">
+              {items.map((it, idx) => (
+                <div 
+                  key={idx} 
+                  className="flex items-center justify-between bg-white dark:bg-zinc-900 px-3 py-2 rounded-xl border border-amber-200/70 dark:border-zinc-800 shadow-2xs text-xs"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="w-5 h-5 rounded-lg bg-amber-500 text-zinc-950 font-black text-[11px] flex items-center justify-center shrink-0 shadow-xs">
+                      {it.quantity || it.qty || 1}x
+                    </span>
+                    <span className="font-bold text-slate-900 dark:text-zinc-100 truncate">
+                      {it.name || it.title || 'Item'}
+                    </span>
+                  </div>
+                  <span className="font-black text-slate-800 dark:text-zinc-200 shrink-0 ml-2">
+                    ₱{((it.price || 0) * (it.quantity || it.qty || 1)).toLocaleString()}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Pasabuy Custom Shopping List */}
+        {pasabuyItems && (
+          <div className="bg-white dark:bg-zinc-900 p-3 rounded-xl border border-amber-200/70 dark:border-zinc-800 space-y-1">
+            <span className="text-[10px] font-extrabold uppercase text-amber-700 dark:text-amber-400 block flex items-center gap-1">
+              <Receipt className="w-3.5 h-3.5" />
+              <span>Shopping / Pasabuy List:</span>
+            </span>
+            <p className="font-bold text-slate-800 dark:text-zinc-200 whitespace-pre-line text-xs">
+              {pasabuyItems}
+            </p>
+          </div>
+        )}
+
+        {/* Package / Document Info */}
+        {packageType && (
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-bold text-slate-500 uppercase">Package Type:</span>
+            <span className="bg-white dark:bg-zinc-900 text-slate-800 dark:text-zinc-200 font-extrabold px-2 py-0.5 rounded-lg border border-slate-200 dark:border-zinc-800 text-[11px]">
+              {packageType}
+            </span>
+          </div>
+        )}
+
+        {/* Customer Special Notes / Instructions */}
+        {instructions && (
+          <div className="bg-amber-100/60 dark:bg-amber-900/20 p-2.5 rounded-xl border border-amber-200 dark:border-amber-800/40 text-[11px]">
+            <span className="text-[10px] font-black uppercase text-amber-800 dark:text-amber-300 block mb-0.5">
+              Customer Note:
+            </span>
+            <p className="font-semibold italic text-slate-800 dark:text-zinc-200 whitespace-pre-line">
+              "{instructions}"
+            </p>
+          </div>
+        )}
+      </div>
+    );
   };
 
   const handlePodSubmit = (e) => {
@@ -550,20 +649,8 @@ export default function RiderPortal() {
                     </div>
                   )}
 
-                  {/* Items & Customer Instructions (Filtered out internal technical metadata) */}
-                  {order.details && Object.keys(order.details).length > 0 && (
-                    <div className="p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-500/20 rounded-2xl text-xs space-y-1">
-                      <span className="text-[10px] font-bold uppercase text-amber-700 dark:text-amber-400 block">Errand Instructions:</span>
-                      {Object.entries(order.details)
-                        .filter(([k]) => k !== 'chat_messages' && k !== 'rider_name' && k !== 'rider_phone' && k !== 'rider_plate' && k !== 'cancel_reason')
-                        .map(([k, v]) => (
-                          <div key={k} className="text-slate-700 dark:text-zinc-300 text-[11px]">
-                            <strong className="text-slate-500 dark:text-zinc-400 capitalize">{k.replace(/([A-Z])/g, ' $1')}: </strong> 
-                            <span className="font-semibold whitespace-pre-line">{String(v)}</span>
-                          </div>
-                        ))}
-                    </div>
-                  )}
+                  {/* Itemized Order & Errand Details Card */}
+                  {renderOrderItemsDetails(order)}
 
                   {/* Status Advancement Action Buttons */}
                   <div className="pt-2 flex flex-wrap items-center gap-2">
@@ -664,6 +751,9 @@ export default function RiderPortal() {
                   <p className="line-clamp-1"><strong className="text-slate-400">From:</strong> {order.pickupAddress}</p>
                   <p className="line-clamp-1"><strong className="text-slate-400">To:</strong> {order.dropoffAddress}</p>
                 </div>
+
+                {/* Itemized Order / Errand Info Preview */}
+                {renderOrderItemsDetails(order)}
 
                 <button
                   onClick={() => assignRider(order.id, currentRider.id)}

@@ -1497,8 +1497,15 @@ export function OrderProvider({ children }) {
 
   // Update Rider GPS Coordinates (Realtime Live Fleet Tracking from Phone GPS)
   const updateRiderLocation = async (riderId, newLat, newLng) => {
+    let targetRiderObj = null;
     setRiders(prev => {
-      const updated = prev.map(r => (r.id === riderId || r.name === riderId) ? { ...r, lat: newLat, lng: newLng } : r);
+      const updated = prev.map(r => {
+        if (r.id === riderId || r.name === riderId || (r.id && riderId && String(r.id) === String(riderId))) {
+          targetRiderObj = r;
+          return { ...r, lat: newLat, lng: newLng };
+        }
+        return r;
+      });
       try {
         localStorage.setItem('delivery_express_riders_balamban', JSON.stringify(updated));
       } catch (_) {}
@@ -1507,10 +1514,18 @@ export function OrderProvider({ children }) {
 
     if (isSupabaseConfigured && supabase) {
       try {
-        await supabase.from('riders').update({
-          current_lat: newLat,
-          current_lng: newLng
-        }).eq('id', 'b2c77a52-42ae-4f07-a8fa-540722d74fae');
+        const actualId = targetRiderObj?.id || riderId;
+        if (isUuid(actualId)) {
+          await supabase.from('riders').update({
+            current_lat: newLat,
+            current_lng: newLng
+          }).eq('id', actualId);
+        } else if (targetRiderObj?.phone) {
+          await supabase.from('riders').update({
+            current_lat: newLat,
+            current_lng: newLng
+          }).eq('phone', targetRiderObj.phone);
+        }
       } catch (_) {}
     }
   };
@@ -1520,7 +1535,7 @@ export function OrderProvider({ children }) {
     const boolVal = Boolean(isOnline);
     const nextStatus = boolVal ? 'active' : 'offline';
     let updatedRoster = [];
-    let targetRiderName = 'Nigel';
+    let targetRiderObj = null;
 
     setRiders(prev => {
       updatedRoster = prev.map(r => {
@@ -1529,7 +1544,7 @@ export function OrderProvider({ children }) {
                         (r.id && riderId && String(r.id) === String(riderId)) ||
                         (r.name && riderId && r.name.toLowerCase() === String(riderId).toLowerCase());
         if (matches) {
-          targetRiderName = r.name || targetRiderName;
+          targetRiderObj = r;
           return { ...r, isOnline: boolVal, status: nextStatus };
         }
         return r;
@@ -1540,9 +1555,11 @@ export function OrderProvider({ children }) {
       return updatedRoster;
     });
 
+    const riderDisplayName = targetRiderObj?.name || 'Courier';
+
     soundService.triggerVibrate([100, 50, 100]);
     showNotification(
-      boolVal ? `🟢 You are now ON DUTY (Active)` : `⚪ You are now OFF DUTY (Inactive)`, 
+      boolVal ? `🟢 ${riderDisplayName} is now ON DUTY (Active)` : `⚪ ${riderDisplayName} is now OFF DUTY (Inactive)`, 
       boolVal ? 'success' : 'info'
     );
 
@@ -1553,7 +1570,7 @@ export function OrderProvider({ children }) {
         bc.postMessage({ 
           type: 'RIDER_DUTY_CHANGED', 
           riderId, 
-          riderName: targetRiderName, 
+          riderName: riderDisplayName, 
           isOnline: boolVal,
           updatedRoster 
         });
@@ -1563,9 +1580,16 @@ export function OrderProvider({ children }) {
 
     if (isSupabaseConfigured && supabase) {
       try {
-        await supabase.from('riders').update({
-          is_online: boolVal
-        }).eq('id', 'b2c77a52-42ae-4f07-a8fa-540722d74fae');
+        const actualId = targetRiderObj?.id || riderId;
+        if (isUuid(actualId)) {
+          await supabase.from('riders').update({
+            is_online: boolVal
+          }).eq('id', actualId);
+        } else if (targetRiderObj?.phone) {
+          await supabase.from('riders').update({
+            is_online: boolVal
+          }).eq('phone', targetRiderObj.phone);
+        }
       } catch (_) {}
 
       // Guarantee cloud sync of online duty status in SYS-CONFIG-RATES
