@@ -392,8 +392,15 @@ export function OrderProvider({ children }) {
             if (cr && cr.name && !currentRiderList.some(r => r.id === cr.id || (r.phone && cr.phone && r.phone === cr.phone))) {
               const pass = cloudRiderPasswords[cr.id] || cloudRiderPasswords[cr.phone] || cr.password || 'Pass123';
               const avatar = cloudRiderAvatars[cr.id] || cloudRiderAvatars[cr.phone] || cr.avatar || null;
+              
+              // Check live status from Supabase riders table if present
+              const dbRiderMatch = Array.isArray(riderData) ? riderData.find(dr => dr.id === cr.id || dr.phone === cr.phone || dr.full_name === cr.name) : null;
+              const isRiderOnline = dbRiderMatch ? Boolean(dbRiderMatch.is_online) : Boolean(cr.isOnline !== false && cr.status !== 'offline');
+
               currentRiderList.push({
                 ...cr,
+                isOnline: isRiderOnline,
+                status: isRiderOnline ? 'active' : 'offline',
                 avatar: avatar && !avatar.includes('unsplash') ? avatar : (cr.name && cr.name.toLowerCase().includes('nigel') ? '/rider-nigel.jpg' : null),
                 password: pass
               });
@@ -412,6 +419,7 @@ export function OrderProvider({ children }) {
               }
               const cleanPlate = r.motorcycle_plate?.split('(')[0]?.trim() || r.motorcycle_plate || 'Motorcycle';
               const riderPass = cloudRiderPasswords[r.id] || cloudRiderPasswords[r.phone] || cloudRiderPasswords[r.full_name] || localStorage.getItem(`rider_pass_${r.id}`) || 'Pass123';
+              const isRiderOnline = Boolean(r.is_online);
 
               currentRiderList.push({
                 id: r.id,
@@ -423,8 +431,8 @@ export function OrderProvider({ children }) {
                 avatar: finalAvatar,
                 rating: parseFloat(r.rating || 5.0),
                 trips: r.total_completed_trips || 0,
-                isOnline: r.is_online !== false,
-                status: r.is_online ? 'active' : 'offline',
+                isOnline: isRiderOnline,
+                status: isRiderOnline ? 'active' : 'offline',
                 password: riderPass,
                 lat: parseFloat(r.current_lat || 10.5015),
                 lng: parseFloat(r.current_lng || 123.7150)
