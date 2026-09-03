@@ -635,6 +635,8 @@ export function OrderProvider({ children }) {
             );
           } else if (event.data?.type === 'CUSTOMER_PROFILE_UPDATED' && event.data.customerList) {
             setRegisteredCustomers(event.data.customerList);
+          } else if (event.data?.type === 'SERVICES_RATES_UPDATED' && Array.isArray(event.data.servicesRates)) {
+            setServicesList(event.data.servicesRates);
           }
         };
       }
@@ -952,31 +954,39 @@ export function OrderProvider({ children }) {
   };
 
   const updateServiceRates = async (serviceId, updatedRates) => {
-    const newBase = parseFloat(updatedRates.baseFare);
-    const newPerKm = parseFloat(updatedRates.perKmRate);
-    const newErrand = parseFloat(updatedRates.errandFee || 0);
+    const newBase = parseFloat(updatedRates.baseFare !== undefined && !isNaN(updatedRates.baseFare) ? updatedRates.baseFare : 60);
+    const newPerKm = parseFloat(updatedRates.perKmRate !== undefined && !isNaN(updatedRates.perKmRate) ? updatedRates.perKmRate : 0);
+    const newErrand = parseFloat(updatedRates.errandFee !== undefined && !isNaN(updatedRates.errandFee) ? updatedRates.errandFee : 0);
 
-    let updatedList = [];
-    setServicesList(prev => {
-      updatedList = prev.map(s => {
-        if (s.id === serviceId) {
-          return {
-            ...s,
-            baseFare: newBase,
-            perKmRate: newPerKm,
-            errandFee: newErrand
-          };
-        }
-        return s;
-      });
-      try {
-        localStorage.setItem('delivery_express_services_rates', JSON.stringify(updatedList));
-      } catch (_) {}
-      return updatedList;
+    const currentList = servicesList && servicesList.length > 0 ? servicesList : SERVICES;
+    const updatedList = currentList.map(s => {
+      if (s.id === serviceId) {
+        return {
+          ...s,
+          baseFare: newBase,
+          perKmRate: newPerKm,
+          errandFee: newErrand
+        };
+      }
+      return s;
     });
 
-    showNotification('Courier rates saved & synced to all devices!', 'success');
+    setServicesList(updatedList);
+    try {
+      localStorage.setItem('delivery_express_services_rates', JSON.stringify(updatedList));
+    } catch (_) {}
+
+    showNotification(`Courier rates for "${serviceId}" saved & synced!`, 'success');
     soundService.playOrderChime();
+
+    // 0-latency broadcast to other tabs (e.g. Customer tab)
+    try {
+      if (typeof window !== 'undefined' && window.BroadcastChannel) {
+        const bc = new BroadcastChannel('delivery_express_cross_tab');
+        bc.postMessage({ type: 'SERVICES_RATES_UPDATED', servicesRates: updatedList });
+        setTimeout(() => bc.close(), 200);
+      }
+    } catch (_) {}
 
     const ratesPayload = updatedList.map(s => ({
       id: s.id,
@@ -985,7 +995,17 @@ export function OrderProvider({ children }) {
       perKmRate: s.perKmRate,
       errandFee: s.errandFee
     }));
+
     await syncSysConfig({ services_rates: ratesPayload });
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('services').update({
+          base_fare: newBase,
+          per_km_rate: newPerKm
+        }).eq('id', serviceId);
+      } catch (_) {}
+    }
   };
 
   // Helper to persist Stores & Menus to Cloud
