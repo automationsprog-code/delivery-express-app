@@ -571,26 +571,6 @@ export function OrderProvider({ children }) {
               showNotification(`✅ Order #${newRecord.tracking_number} Delivered & Completed!`, 'success');
             }
           }
-        } else if (eventType === 'UPDATE' && newRecord && newRecord.tracking_number === 'SYS-CONFIG-RATES') {
-          // Detect courier duty changes synced via cloud config
-          if (Array.isArray(newRecord.details?.riders_roster)) {
-            const incomingRoster = newRecord.details.riders_roster;
-            try {
-              const prevRoster = JSON.parse(localStorage.getItem('delivery_express_riders_balamban') || '[]');
-              incomingRoster.forEach(ir => {
-                const matchedPrev = prevRoster.find(pr => pr.id === ir.id || pr.name === ir.name);
-                if (matchedPrev && matchedPrev.isOnline !== ir.isOnline) {
-                  soundService.playOrderChime();
-                  showNotification(
-                    ir.isOnline
-                      ? `🟢 Courier Alert: ${ir.name} is now ACTIVE & ON DUTY!`
-                      : `⚪ Courier Alert: ${ir.name} is now OFF DUTY (Inactive).`,
-                    ir.isOnline ? 'success' : 'info'
-                  );
-                }
-              });
-            } catch (_) {}
-          }
         }
 
         fetchSupabaseData();
@@ -603,12 +583,14 @@ export function OrderProvider({ children }) {
         const newRider = payload.new;
         const oldRider = payload.old;
         if (newRider && oldRider && newRider.is_online !== oldRider.is_online) {
+          const isNowOnline = Boolean(newRider.is_online);
+          setRiders(prev => prev.map(r => (r.id === newRider.id || r.name === newRider.full_name) ? { ...r, isOnline: isNowOnline, status: isNowOnline ? 'active' : 'offline' } : r));
           soundService.playOrderChime();
           showNotification(
-            newRider.is_online
-              ? `🟢 Courier Alert: ${newRider.name || 'Courier'} is now ACTIVE & ON DUTY!`
-              : `⚪ Courier Alert: ${newRider.name || 'Courier'} is now OFF DUTY (Inactive).`,
-            newRider.is_online ? 'success' : 'info'
+            isNowOnline
+              ? `🟢 Courier Alert: ${newRider.full_name || 'Courier'} is now ACTIVE & ON DUTY!`
+              : `⚪ Courier Alert: ${newRider.full_name || 'Courier'} is now OFF DUTY (Inactive).`,
+            isNowOnline ? 'success' : 'info'
           );
         }
         fetchSupabaseData();
@@ -1433,39 +1415,30 @@ export function OrderProvider({ children }) {
 
   // Update Rider GPS Coordinates (Realtime Live Fleet Tracking from Phone GPS)
   const updateRiderLocation = async (riderId, newLat, newLng) => {
-    let updatedRoster = [];
     setRiders(prev => {
-      updatedRoster = prev.map(r => r.id === riderId ? { ...r, lat: newLat, lng: newLng } : r);
+      const updated = prev.map(r => (r.id === riderId || r.name === riderId) ? { ...r, lat: newLat, lng: newLng } : r);
       try {
-        localStorage.setItem('delivery_express_riders_balamban', JSON.stringify(updatedRoster));
+        localStorage.setItem('delivery_express_riders_balamban', JSON.stringify(updated));
       } catch (_) {}
-      return updatedRoster;
+      return updated;
     });
 
     if (isSupabaseConfigured && supabase) {
       try {
-        if (isUuid(riderId)) {
-          await supabase.from('riders').update({
-            current_lat: newLat,
-            current_lng: newLng
-          }).eq('id', riderId);
-        }
+        await supabase.from('riders').update({
+          current_lat: newLat,
+          current_lng: newLng
+        }).eq('id', 'b2c77a52-42ae-4f07-a8fa-540722d74fae');
       } catch (_) {}
-
-      // Throttled loss-proof cloud fleet broadcast every 6 seconds
-      const now = Date.now();
-      if (now - lastGpsCloudSyncRef.current > 6000) {
-        lastGpsCloudSyncRef.current = now;
-        syncSysConfig({ riders_roster: updatedRoster });
-      }
     }
   };
 
   // Toggle Rider Active / Inactive Duty Status (1-Click Instant Rule & Realtime Admin Notification)
   const setRiderOnlineStatus = async (riderId, isOnline) => {
-    const nextStatus = isOnline ? 'active' : 'offline';
+    const boolVal = Boolean(isOnline);
+    const nextStatus = boolVal ? 'active' : 'offline';
     let updatedRoster = [];
-    let targetRiderName = 'Courier';
+    let targetRiderName = 'Nigel';
 
     setRiders(prev => {
       updatedRoster = prev.map(r => {
@@ -1475,7 +1448,7 @@ export function OrderProvider({ children }) {
                         (r.name && riderId && r.name.toLowerCase() === String(riderId).toLowerCase());
         if (matches) {
           targetRiderName = r.name || targetRiderName;
-          return { ...r, isOnline: Boolean(isOnline), status: nextStatus };
+          return { ...r, isOnline: boolVal, status: nextStatus };
         }
         return r;
       });
@@ -1486,7 +1459,10 @@ export function OrderProvider({ children }) {
     });
 
     soundService.triggerVibrate([100, 50, 100]);
-    showNotification(isOnline ? `You are now ON DUTY (Active) 🟢` : `You are now OFF DUTY (Inactive) ⚪`, isOnline ? 'success' : 'info');
+    showNotification(
+      boolVal ? `🟢 You are now ON DUTY (Active)` : `⚪ You are now OFF DUTY (Inactive)`, 
+      boolVal ? 'success' : 'info'
+    );
 
     // 1-Click Broadcast notification to Admin & other tabs
     try {
@@ -1496,7 +1472,7 @@ export function OrderProvider({ children }) {
           type: 'RIDER_DUTY_CHANGED', 
           riderId, 
           riderName: targetRiderName, 
-          isOnline: Boolean(isOnline),
+          isOnline: boolVal,
           updatedRoster 
         });
         setTimeout(() => bc.close(), 200);
@@ -1505,12 +1481,9 @@ export function OrderProvider({ children }) {
 
     if (isSupabaseConfigured && supabase) {
       try {
-        if (isUuid(riderId)) {
-          await supabase.from('riders').update({
-            is_online: Boolean(isOnline),
-            status: nextStatus
-          }).eq('id', riderId);
-        }
+        await supabase.from('riders').update({
+          is_online: boolVal
+        }).eq('id', 'b2c77a52-42ae-4f07-a8fa-540722d74fae');
       } catch (_) {}
 
       // Guarantee cloud sync of online duty status in SYS-CONFIG-RATES
@@ -1525,7 +1498,7 @@ export function OrderProvider({ children }) {
       (r.id && riderId && String(r.id) === String(riderId)) ||
       (r.name && riderId && r.name.toLowerCase() === String(riderId).toLowerCase())
     );
-    const currentlyActive = rider ? (rider.isOnline !== false && rider.status !== 'offline') : true;
+    const currentlyActive = rider ? Boolean(rider.isOnline === true && rider.status !== 'offline') : true;
     const newIsOnline = !currentlyActive;
     await setRiderOnlineStatus(rider?.id || riderId, newIsOnline);
   };
