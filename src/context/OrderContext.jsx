@@ -1643,25 +1643,39 @@ export function OrderProvider({ children }) {
     showNotification(`Rider ${rider?.name || ''} deleted`, 'info');
   };
 
-  // Robust Cloud Order Deletion
+  // Robust Cloud Order Deletion (Permanent & Synced across all devices)
   const deleteOrder = async (orderId) => {
     const target = orders.find(o => o.id === orderId || o.trackingNumber === orderId);
-    const tracking = target?.trackingNumber || orderId;
+    const tracking = target?.trackingNumber || (typeof orderId === 'string' && orderId.startsWith('DE-') ? orderId : null);
+    const targetId = target?.id || orderId;
 
-    setOrders(prev => prev.filter(o => o.id !== orderId && o.trackingNumber !== orderId && o.trackingNumber !== tracking));
+    let updatedOrders = [];
+    setOrders(prev => {
+      updatedOrders = prev.filter(o => o.id !== orderId && o.trackingNumber !== orderId && (!tracking || o.trackingNumber !== tracking));
+      try {
+        localStorage.setItem('delivery_express_orders_balamban', JSON.stringify(updatedOrders));
+      } catch (_) {}
+      return updatedOrders;
+    });
+
     if (activeTrackingId === tracking || activeTrackingId === orderId) {
       setActiveTrackingId('');
     }
 
     if (isSupabaseConfigured && supabase) {
       try {
-        await supabase.from('orders').delete().or(`tracking_number.eq.${tracking},id.eq.${orderId}`);
+        if (tracking && tracking !== 'SYS-CONFIG-RATES') {
+          await supabase.from('orders').delete().eq('tracking_number', tracking);
+        }
+        if (targetId && isUuid(targetId)) {
+          await supabase.from('orders').delete().eq('id', targetId);
+        }
       } catch (err) {
-        console.warn('Supabase delete order warning:', err);
+        console.warn('Supabase delete order error:', err);
       }
     }
 
-    showNotification('Order removed from all screens', 'info');
+    showNotification(`Order #${tracking || orderId} deleted permanently`, 'info');
   };
 
   const broadcastAdminAnnouncement = (msg) => {
