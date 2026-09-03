@@ -92,31 +92,36 @@ export function OrderProvider({ children }) {
     };
     try {
       const saved = localStorage.getItem('delivery_express_payment_settings');
-      return saved ? { ...defaultSettings, ...JSON.parse(saved) } : defaultSettings;
-    } catch (_) {
-      return defaultSettings;
-    }
+      const parsed = saved ? JSON.parse(saved) : null;
+      if (parsed) return parsed;
+    } catch (_) {}
+    return {
+      gcashName: 'Delivery Express Official',
+      gcashNumber: '09458819427',
+      gcashQrUrl: null,
+      bankName: 'BDO / Maya Balamban',
+      bankAccountName: 'Delivery Express West Cebu',
+      bankAccountNumber: '09458819427'
+    };
   });
 
-  // Current logged in user (Customer, Rider, or Admin)
   const [currentUser, setCurrentUser] = useState(() => {
     try {
       const saved = localStorage.getItem('delivery_express_current_user');
-      return saved ? JSON.parse(saved) : null;
-    } catch (_) {
-      return null;
-    }
+      const parsed = saved ? JSON.parse(saved) : null;
+      if (parsed) return parsed;
+    } catch (_) {}
+    return null;
   });
 
-  // Active Role: PERSIST ON REFRESH based on currentUser
   const [activeRole, setActiveRole] = useState(() => {
-    try {
-      const savedUser = localStorage.getItem('delivery_express_current_user');
-      if (savedUser) {
+    const savedUser = localStorage.getItem('delivery_express_current_user');
+    if (savedUser) {
+      try {
         const parsed = JSON.parse(savedUser);
-        return parsed.role || 'customer';
-      }
-    } catch (_) {}
+        if (parsed.role) return parsed.role;
+      } catch (_) {}
+    }
     return 'customer';
   });
 
@@ -145,43 +150,17 @@ export function OrderProvider({ children }) {
       const saved = localStorage.getItem('delivery_express_riders_balamban');
       const parsed = saved ? JSON.parse(saved) : null;
       if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
+        // Merge core riders if missing
+        const combined = [...parsed];
+        CORE_OFFICIAL_RIDERS.forEach(cor => {
+          if (!combined.some(r => r.id === cor.id || r.phone === cor.phone)) {
+            combined.push(cor);
+          }
+        });
+        return combined;
       }
     } catch (_) {}
-    return [
-      {
-        id: 'b2c77a52-42ae-4f07-a8fa-540722d74fae',
-        name: 'Nigel',
-        phone: '09458819427',
-        plate: 'MIO GEAR - G629MC',
-        zone: 'Balamban Proper',
-        municipality: 'Balamban',
-        avatar: '/rider-nigel.jpg',
-        rating: 5.0,
-        trips: 0,
-        isOnline: true,
-        status: 'active',
-        password: 'Pass123',
-        lat: 10.5015,
-        lng: 123.7150
-      },
-      {
-        id: 'rider-kuya-louie-1',
-        name: 'Kuya Louie Richard',
-        phone: '09172587841',
-        plate: 'HONDA CLICK - Y676M',
-        zone: 'Toledo City',
-        municipality: 'Toledo City',
-        avatar: null,
-        rating: 5.0,
-        trips: 0,
-        isOnline: true,
-        status: 'active',
-        password: 'Pass123',
-        lat: 10.3750,
-        lng: 123.6390
-      }
-    ];
+    return CORE_OFFICIAL_RIDERS;
   });
 
   const [selectedRiderId, setSelectedRiderId] = useState(() => {
@@ -467,6 +446,13 @@ export function OrderProvider({ children }) {
             }
           });
         }
+
+        // Priority 4: Ensure all 3 Core Official Riders (Nigel, Kuya Louie, Kuya Yael) are NEVER lost
+        CORE_OFFICIAL_RIDERS.forEach(cor => {
+          if (!currentRiderList.some(r => r.id === cor.id || (r.phone && cor.phone && r.phone === cor.phone) || (r.name && cor.name && r.name.toLowerCase() === cor.name.toLowerCase()))) {
+            currentRiderList.push(cor);
+          }
+        });
 
         if (currentRiderList.length > 0) {
           setRiders(currentRiderList);

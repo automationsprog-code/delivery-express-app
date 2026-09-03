@@ -100,22 +100,37 @@ export default function Header() {
         </div>
       </div>
 
-      {/* Admin Radio Broadcast Announcement Banner with Dismiss X Button */}
+      {/* Admin Radio Broadcast Announcement Banner with Moving Text Marquee */}
       {announcement && (
-        <div className="bg-amber-500 text-zinc-950 px-3.5 sm:px-8 py-2 text-xs font-bold flex items-center justify-between gap-2 shadow-md">
-          <div className="flex items-center gap-2 truncate">
-            <Radio className="w-4 h-4 animate-spin shrink-0 text-rose-900" />
-            <span className="truncate">RADIO ({announcement.time}): {announcement.msg}</span>
+        <div className="bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-zinc-950 px-3 sm:px-6 py-2 text-xs font-black flex items-center justify-between gap-3 shadow-md overflow-hidden relative border-b border-amber-600/30">
+          <div className="flex items-center gap-2 shrink-0 z-10 bg-amber-400/95 dark:bg-amber-500/95 pr-2 py-0.5 rounded-r-xl">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-600 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-600"></span>
+            </span>
+            <span className="bg-zinc-950 text-amber-300 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider shadow-xs flex items-center gap-1">
+              <Radio className="w-3 h-3 text-amber-400 animate-spin" />
+              <span>RADIO ({announcement.time})</span>
+            </span>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+
+          {/* Continuous Smooth Scrolling Moving Text (Marquee) */}
+          <div className="flex-1 overflow-hidden relative select-none mx-2">
+            <div className="marquee-content font-black text-xs text-zinc-950 tracking-wide">
+              <span>📢 {announcement.msg} &nbsp;&nbsp;&nbsp;•••&nbsp;&nbsp;&nbsp; 📢 {announcement.msg} &nbsp;&nbsp;&nbsp;•••&nbsp;&nbsp;&nbsp; 📢 {announcement.msg}</span>
+            </div>
+          </div>
+
+          {/* Right Action / Staff Alert */}
+          <div className="flex items-center gap-2 shrink-0 z-10 bg-amber-400/95 dark:bg-amber-500/95 pl-2 py-0.5 rounded-l-xl">
             <span className="text-[10px] bg-zinc-950 text-amber-400 px-2.5 py-0.5 rounded-full uppercase font-black hidden sm:inline">
-              HQ Radio Alert
+              HQ Alert
             </span>
             {activeRole === 'admin' && (
               <button
                 onClick={clearAnnouncement}
                 title="Stop Broadcast (Admin Only)"
-                className="px-2.5 py-1 bg-zinc-950 hover:bg-zinc-900 text-amber-400 font-black text-xs rounded-xl flex items-center gap-1 shadow-sm border border-zinc-950/30 cursor-pointer transition-all active:scale-95"
+                className="px-2.5 py-1 bg-zinc-950 hover:bg-zinc-900 text-amber-400 font-black text-xs rounded-xl flex items-center gap-1 shadow-sm border border-zinc-950/30 cursor-pointer transition-all active:scale-95 shrink-0"
               >
                 <span>✕ Stop</span>
               </button>

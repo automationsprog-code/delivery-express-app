@@ -109,3 +109,29 @@ body {
     display: none !important;
   }
 }
+
+.custom-map-popup .leaflet-popup-tip {
+  display: none;
+}
+
+/* 📻 Continuous Moving Text Marquee for HQ Radio Broadcast */
+@keyframes marquee-scroll {
+  0% {
+    transform: translateX(100%);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+}
+
+.marquee-content {
+  display: inline-block;
+  white-space: nowrap;
+  padding-left: 100%;
+  animation: marquee-scroll 22s linear infinite;
+  will-change: transform;
+}
+
+.marquee-content:hover {
+  animation-play-state: paused;
+}
