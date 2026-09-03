@@ -601,6 +601,19 @@ export function OrderProvider({ children }) {
             const ord = event.data.order;
             soundService.playNewBookingAlert();
             showNotification(`🔔 Bag-ong Booking: #${ord.trackingNumber} gikan kang ${ord.customerName || 'Customer'}!`, 'success');
+          } else if (event.data?.type === 'RIDER_DUTY_CHANGED') {
+            if (event.data.updatedRoster) {
+              setRiders(event.data.updatedRoster);
+            }
+            soundService.playOrderChime();
+            showNotification(
+              event.data.isOnline 
+                ? `🟢 Courier Alert: ${event.data.riderName} is now ACTIVE & ON DUTY!` 
+                : `⚪ Courier Alert: ${event.data.riderName} is now OFF DUTY (Inactive).`,
+              event.data.isOnline ? 'success' : 'info'
+            );
+          } else if (event.data?.type === 'CUSTOMER_PROFILE_UPDATED' && event.data.customerList) {
+            setRegisteredCustomers(event.data.customerList);
           }
         };
       }
@@ -1409,15 +1422,21 @@ export function OrderProvider({ children }) {
     }
   };
 
-  // Toggle Rider Active / Inactive Duty Status (100% Persistent across all devices)
+  // Toggle Rider Active / Inactive Duty Status (1-Click Instant Rule & Realtime Admin Notification)
   const setRiderOnlineStatus = async (riderId, isOnline) => {
     const nextStatus = isOnline ? 'active' : 'offline';
     let updatedRoster = [];
+    let targetRiderName = 'Courier';
 
     setRiders(prev => {
       updatedRoster = prev.map(r => {
-        if (r.id === riderId) {
-          return { ...r, isOnline, status: nextStatus };
+        const matches = r.id === riderId || 
+                        r.name === riderId || 
+                        (r.id && riderId && String(r.id) === String(riderId)) ||
+                        (r.name && riderId && r.name.toLowerCase() === String(riderId).toLowerCase());
+        if (matches) {
+          targetRiderName = r.name || targetRiderName;
+          return { ...r, isOnline: Boolean(isOnline), status: nextStatus };
         }
         return r;
       });
@@ -1427,11 +1446,30 @@ export function OrderProvider({ children }) {
       return updatedRoster;
     });
 
+    soundService.triggerVibrate([100, 50, 100]);
+    showNotification(isOnline ? `You are now ON DUTY (Active) 🟢` : `You are now OFF DUTY (Inactive) ⚪`, isOnline ? 'success' : 'info');
+
+    // 1-Click Broadcast notification to Admin & other tabs
+    try {
+      if (typeof window !== 'undefined' && window.BroadcastChannel) {
+        const bc = new BroadcastChannel('delivery_express_cross_tab');
+        bc.postMessage({ 
+          type: 'RIDER_DUTY_CHANGED', 
+          riderId, 
+          riderName: targetRiderName, 
+          isOnline: Boolean(isOnline),
+          updatedRoster 
+        });
+        setTimeout(() => bc.close(), 200);
+      }
+    } catch (_) {}
+
     if (isSupabaseConfigured && supabase) {
       try {
         if (isUuid(riderId)) {
           await supabase.from('riders').update({
-            is_online: isOnline
+            is_online: Boolean(isOnline),
+            status: nextStatus
           }).eq('id', riderId);
         }
       } catch (_) {}
@@ -1439,14 +1477,18 @@ export function OrderProvider({ children }) {
       // Guarantee cloud sync of online duty status in SYS-CONFIG-RATES
       await syncSysConfig({ riders_roster: updatedRoster });
     }
-
-    showNotification(isOnline ? 'You are now ON DUTY (Active) 🟢' : 'You are now OFF DUTY (Inactive) ⚪', 'info');
   };
 
   const toggleRiderDuty = async (riderId) => {
-    const rider = riders.find(r => r.id === riderId);
-    const newIsOnline = !(rider?.isOnline);
-    await setRiderOnlineStatus(riderId, newIsOnline);
+    const rider = riders.find(r => 
+      r.id === riderId || 
+      r.name === riderId || 
+      (r.id && riderId && String(r.id) === String(riderId)) ||
+      (r.name && riderId && r.name.toLowerCase() === String(riderId).toLowerCase())
+    );
+    const currentlyActive = rider ? (rider.isOnline !== false && rider.status !== 'offline') : true;
+    const newIsOnline = !currentlyActive;
+    await setRiderOnlineStatus(rider?.id || riderId, newIsOnline);
   };
 
   // Update order status workflow (Maps accurately to Supabase order_status ENUM & Preserves Rider assignment)
