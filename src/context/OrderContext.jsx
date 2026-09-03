@@ -599,16 +599,10 @@ export function OrderProvider({ children }) {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'riders' }, (payload) => {
         const newRider = payload.new;
         const oldRider = payload.old;
-        if (newRider && oldRider && newRider.is_online !== oldRider.is_online) {
+        if (newRider && oldRider && Boolean(newRider.is_online) !== Boolean(oldRider.is_online)) {
           const isNowOnline = Boolean(newRider.is_online);
           setRiders(prev => prev.map(r => (r.id === newRider.id || r.name === newRider.full_name) ? { ...r, isOnline: isNowOnline, status: isNowOnline ? 'active' : 'offline' } : r));
-          soundService.playOrderChime();
-          showNotification(
-            isNowOnline
-              ? `🟢 Courier Alert: ${newRider.full_name || 'Courier'} is now ACTIVE & ON DUTY!`
-              : `⚪ Courier Alert: ${newRider.full_name || 'Courier'} is now OFF DUTY (Inactive).`,
-            isNowOnline ? 'success' : 'info'
-          );
+          notifyDutyChangeOnce(newRider.id, newRider.full_name || 'Courier', isNowOnline);
         }
         fetchSupabaseData();
       })
@@ -643,13 +637,7 @@ export function OrderProvider({ children }) {
             if (event.data.updatedRoster) {
               setRiders(event.data.updatedRoster);
             }
-            soundService.playOrderChime();
-            showNotification(
-              event.data.isOnline 
-                ? `🟢 Courier Alert: ${event.data.riderName} is now ACTIVE & ON DUTY!` 
-                : `⚪ Courier Alert: ${event.data.riderName} is now OFF DUTY (Inactive).`,
-              event.data.isOnline ? 'success' : 'info'
-            );
+            notifyDutyChangeOnce(event.data.riderId, event.data.riderName, event.data.isOnline);
           } else if (event.data?.type === 'CUSTOMER_PROFILE_UPDATED' && event.data.customerList) {
             setRegisteredCustomers(event.data.customerList);
           } else if (event.data?.type === 'SERVICES_RATES_UPDATED' && Array.isArray(event.data.servicesRates)) {
@@ -956,11 +944,33 @@ export function OrderProvider({ children }) {
     showNotification(newState ? 'Haptic Vibration Enabled 📳' : 'Vibration Disabled', 'info');
   };
 
+  const notifTimeoutRef = useRef(null);
+  const lastDutyNotifiedRef = useRef({});
+
   const showNotification = (msg, type = 'info') => {
+    if (notifTimeoutRef.current) {
+      clearTimeout(notifTimeoutRef.current);
+    }
     setNotification({ msg, type, id: Date.now() });
-    setTimeout(() => {
+    notifTimeoutRef.current = setTimeout(() => {
       setNotification(null);
-    }, 4500);
+    }, 3500);
+  };
+
+  const notifyDutyChangeOnce = (riderKey, riderName, isOnline) => {
+    const key = `${riderKey}_${isOnline}`;
+    const now = Date.now();
+    if (lastDutyNotifiedRef.current[key] && now - lastDutyNotifiedRef.current[key] < 8000) {
+      return; // Deduped: prevent repeated pop-ups for 8 seconds
+    }
+    lastDutyNotifiedRef.current[key] = now;
+    soundService.playOrderChime();
+    showNotification(
+      isOnline 
+        ? `🟢 Courier Alert: ${riderName} is now ACTIVE & ON DUTY!` 
+        : `⚪ Courier Alert: ${riderName} is now OFF DUTY (Inactive).`,
+      isOnline ? 'success' : 'info'
+    );
   };
 
   const isWithinOperatingHours = () => {
@@ -1558,10 +1568,7 @@ export function OrderProvider({ children }) {
     const riderDisplayName = targetRiderObj?.name || 'Courier';
 
     soundService.triggerVibrate([100, 50, 100]);
-    showNotification(
-      boolVal ? `🟢 ${riderDisplayName} is now ON DUTY (Active)` : `⚪ ${riderDisplayName} is now OFF DUTY (Inactive)`, 
-      boolVal ? 'success' : 'info'
-    );
+    notifyDutyChangeOnce(riderId, riderDisplayName, boolVal);
 
     // 1-Click Broadcast notification to Admin & other tabs
     try {
