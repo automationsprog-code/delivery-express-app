@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useOrder } from '../../context/OrderContext';
 import { SERVICES, BRAND, ORDER_STATUSES } from '../../lib/constants';
 import DeliveryMap from '../map/DeliveryMap';
+import AutoMenuScannerModal from './AutoMenuScannerModal';
 import { 
   Users, 
   Bike, 
@@ -111,8 +112,9 @@ export default function AdminDashboard() {
   const [newStoreImage, setNewStoreImage] = useState('https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600&auto=format&fit=crop&q=80');
   const [newStoreFlyer, setNewStoreFlyer] = useState('');
 
-  // Item Modal
+  // Item & Menu Scanner Modals
   const [targetStoreForMenu, setTargetStoreForMenu] = useState(null);
+  const [scanningStoreForMenu, setScanningStoreForMenu] = useState(null);
   const [editingMenuItem, setEditingMenuItem] = useState(null);
   const [newItemName, setNewItemName] = useState('');
   const [newItemPrice, setNewItemPrice] = useState('');
@@ -1031,7 +1033,16 @@ export default function AdminDashboard() {
                   </div>
 
                   {/* Actions for Store */}
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      onClick={() => setScanningStoreForMenu(store)}
+                      className="px-3.5 py-2 bg-gradient-to-r from-amber-500 to-rose-600 hover:from-amber-400 hover:to-rose-500 text-white font-black rounded-xl text-xs flex items-center gap-1.5 shadow-md shadow-rose-600/20 active:scale-95 transition-all"
+                      title="Upload flyer/photo to automatically extract and list all menu dishes"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-amber-200" />
+                      <span>📸 Auto-Scan Photo Menu</span>
+                    </button>
+
                     <button
                       onClick={() => {
                         setTargetStoreForMenu(store);
@@ -1045,7 +1056,7 @@ export default function AdminDashboard() {
                       className="px-3.5 py-2 bg-rose-50 dark:bg-rose-500/10 hover:bg-rose-100 text-rose-600 dark:text-rose-400 font-bold rounded-xl text-xs flex items-center gap-1.5 border border-rose-200 dark:border-rose-500/30"
                     >
                       <Plus className="w-3.5 h-3.5" />
-                      <span>+ Add Food Dish / Item</span>
+                      <span>+ Add Item</span>
                     </button>
 
                     <button
@@ -2399,6 +2410,14 @@ export default function AdminDashboard() {
             </form>
           </div>
         </div>
+      )}
+
+      {/* AI Photo Menu Scanner Modal */}
+      {scanningStoreForMenu && (
+        <AutoMenuScannerModal
+          store={scanningStoreForMenu}
+          onClose={() => setScanningStoreForMenu(null)}
+        />
       )}
     </div>
   );

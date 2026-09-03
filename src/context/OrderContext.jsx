@@ -1094,6 +1094,39 @@ export function OrderProvider({ children }) {
     soundService.playOrderChime();
   };
 
+  // Add Bulk Extracted Menu Items (from AI Photo Scanner)
+  const addBulkMenuItems = (storeId, itemsArray) => {
+    if (!Array.isArray(itemsArray) || itemsArray.length === 0) return;
+    
+    const formattedItems = itemsArray.map((it, idx) => ({
+      id: it.id || `item_${Date.now()}_${idx}`,
+      name: it.name || 'Food Item',
+      price: parseFloat(it.price || 0),
+      description: it.description || '',
+      category: it.category || 'Specialty',
+      image: it.image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&auto=format&fit=crop&q=80',
+      isPopular: Boolean(it.isPopular)
+    }));
+
+    setStoresList(prev => {
+      const updated = prev.map(s => {
+        if (s.id === storeId) {
+          return {
+            ...s,
+            items: [...(s.items || []), ...formattedItems]
+          };
+        }
+        return s;
+      });
+      try { localStorage.setItem('delivery_express_partner_stores', JSON.stringify(updated)); } catch (_) {}
+      syncStoresToCloud(updated);
+      return updated;
+    });
+
+    showNotification(`Added ${formattedItems.length} menu dishes to store!`, 'success');
+    soundService.playOrderChime();
+  };
+
   // Update Menu Item
   const updateMenuItem = (storeId, itemId, updatedFields) => {
     setStoresList(prev => {
@@ -1934,6 +1967,7 @@ export function OrderProvider({ children }) {
         updatePartnerStore,
         deletePartnerStore,
         addMenuItem,
+        addBulkMenuItems,
         updateMenuItem,
         deleteMenuItem,
         paymentSettings,
