@@ -525,10 +525,39 @@ export function OrderProvider({ children }) {
 
     fetchSupabaseData();
 
-    // Realtime subscriptions
+    // Realtime subscriptions with instant audio-visual dispatch alerts
     const orderChannel = supabase
       .channel('public:orders:realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload) => {
+        const eventType = payload.eventType;
+        const newRecord = payload.new;
+        const oldRecord = payload.old;
+
+        if (eventType === 'INSERT' && newRecord && newRecord.tracking_number !== 'SYS-CONFIG-RATES' && newRecord.status !== 'deleted') {
+          // Play attention-grabbing high chime & vibrate
+          soundService.playNewBookingAlert();
+          showNotification(
+            `🔔 Bag-ong Booking: #${newRecord.tracking_number} gikan kang ${newRecord.customer_name || 'Customer'}!`,
+            'success'
+          );
+        } else if (eventType === 'UPDATE' && newRecord && newRecord.tracking_number !== 'SYS-CONFIG-RATES' && newRecord.status !== 'deleted') {
+          if (oldRecord && oldRecord.status !== newRecord.status) {
+            if (newRecord.status === 'assigned') {
+              soundService.playOrderChime();
+              showNotification(`🛵 Courier Assigned: Order #${newRecord.tracking_number}`, 'info');
+            } else if (newRecord.status === 'at_pickup_purchasing') {
+              soundService.playOrderChime();
+              showNotification(`🛒 Purchasing/At Store: #${newRecord.tracking_number}`, 'info');
+            } else if (newRecord.status === 'out_for_delivery') {
+              soundService.playOrderChime();
+              showNotification(`🚀 Out for Delivery: #${newRecord.tracking_number}`, 'info');
+            } else if (newRecord.status === 'delivered') {
+              soundService.playSuccessFanfare();
+              showNotification(`✅ Order #${newRecord.tracking_number} Delivered & Completed!`, 'success');
+            }
+          }
+        }
+
         fetchSupabaseData();
       })
       .subscribe();
@@ -551,6 +580,27 @@ export function OrderProvider({ children }) {
       supabase.removeChannel(orderChannel);
       supabase.removeChannel(riderChannel);
       supabase.removeChannel(servicesChannel);
+    };
+  }, []);
+
+  // 0-Latency Local Cross-Tab Notification Broadcaster
+  useEffect(() => {
+    let bc = null;
+    try {
+      if (typeof window !== 'undefined' && window.BroadcastChannel) {
+        bc = new BroadcastChannel('delivery_express_cross_tab');
+        bc.onmessage = (event) => {
+          if (event.data?.type === 'NEW_BOOKING' && event.data.order) {
+            const ord = event.data.order;
+            soundService.playNewBookingAlert();
+            showNotification(`🔔 Bag-ong Booking: #${ord.trackingNumber} gikan kang ${ord.customerName || 'Customer'}!`, 'success');
+          }
+        };
+      }
+    } catch (_) {}
+
+    return () => {
+      if (bc) bc.close();
     };
   }, []);
 
@@ -1046,6 +1096,15 @@ export function OrderProvider({ children }) {
     setActiveTrackingId(trackingNumber);
     soundService.playSuccessFanfare();
     showNotification(`Booking #${trackingNumber} Confirmed!`, 'success');
+
+    // Broadcast to other open tabs (Admin & Courier Portal) instantly
+    try {
+      if (typeof window !== 'undefined' && window.BroadcastChannel) {
+        const bc = new BroadcastChannel('delivery_express_cross_tab');
+        bc.postMessage({ type: 'NEW_BOOKING', order: newOrder });
+        setTimeout(() => bc.close(), 200);
+      }
+    } catch (_) {}
     
     try {
       confetti({ particleCount: 100, spread: 75, origin: { y: 0.6 } });

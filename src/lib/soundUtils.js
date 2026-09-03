@@ -62,6 +62,36 @@ class SoundService {
     this.triggerVibrate([150, 80, 150]);
   }
 
+  // Attention-grabbing high chime for new bookings / dispatch
+  playNewBookingAlert() {
+    if (!this.soundEnabled) return;
+    try {
+      this.initContext();
+      if (!this.ctx) return;
+
+      const now = this.ctx.currentTime;
+      const freqs = [783.99, 1046.50, 1318.51]; // G5, C6, E6
+      freqs.forEach((freq, idx) => {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        const startTime = now + idx * 0.12;
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, startTime);
+        gain.gain.setValueAtTime(0, startTime);
+        gain.gain.linearRampToValueAtTime(0.35, startTime + 0.03);
+        gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.6);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(startTime);
+        osc.stop(startTime + 0.6);
+      });
+    } catch (e) {
+      console.warn('Audio play error:', e);
+    }
+
+    this.triggerVibrate([200, 100, 200, 100, 300]);
+  }
+
   // Success / Delivered fanfare
   playSuccessFanfare() {
     if (!this.soundEnabled) return;
