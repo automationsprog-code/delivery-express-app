@@ -197,7 +197,14 @@ export function OrderProvider({ children }) {
 
   const [activeTrackingId, setActiveTrackingId] = useState('');
   const [notification, setNotification] = useState(null);
-  const [announcement, setAnnouncement] = useState(null);
+  const [announcement, setAnnouncement] = useState(() => {
+    try {
+      const saved = localStorage.getItem('delivery_express_active_announcement');
+      return saved ? JSON.parse(saved) : null;
+    } catch (_) {
+      return null;
+    }
+  });
 
   // Apply theme class
   useEffect(() => {
@@ -355,6 +362,16 @@ export function OrderProvider({ children }) {
                 }
                 return prevUser;
               });
+            }
+            if (parsed.active_announcement !== undefined) {
+              setAnnouncement(parsed.active_announcement);
+              try {
+                if (parsed.active_announcement) {
+                  localStorage.setItem('delivery_express_active_announcement', JSON.stringify(parsed.active_announcement));
+                } else {
+                  localStorage.removeItem('delivery_express_active_announcement');
+                }
+              } catch (_) {}
             }
             localStorage.setItem('delivery_express_admin_password', cloudAdminPass);
           }
@@ -637,6 +654,18 @@ export function OrderProvider({ children }) {
             setRegisteredCustomers(event.data.customerList);
           } else if (event.data?.type === 'SERVICES_RATES_UPDATED' && Array.isArray(event.data.servicesRates)) {
             setServicesList(event.data.servicesRates);
+          } else if (event.data?.type === 'RADIO_BROADCAST') {
+            const annObj = event.data.announcement;
+            setAnnouncement(annObj);
+            try {
+              if (annObj) {
+                localStorage.setItem('delivery_express_active_announcement', JSON.stringify(annObj));
+                soundService.playBroadcastAlert();
+                showNotification(`📻 Radio Announcement: "${annObj.msg}"`, 'warning');
+              } else {
+                localStorage.removeItem('delivery_express_active_announcement');
+              }
+            } catch (_) {}
           }
         };
       }
@@ -1920,15 +1949,42 @@ export function OrderProvider({ children }) {
     showNotification(`Order #${tracking || orderId} deleted permanently`, 'info');
   };
 
-  const broadcastAdminAnnouncement = (msg) => {
-    setAnnouncement({ msg, time: new Date().toLocaleTimeString() });
+  const broadcastAdminAnnouncement = async (msg) => {
+    const annObj = { msg, time: new Date().toLocaleTimeString(), timestamp: Date.now() };
+    setAnnouncement(annObj);
+    
+    try {
+      localStorage.setItem('delivery_express_active_announcement', JSON.stringify(annObj));
+      if (typeof window !== 'undefined' && window.BroadcastChannel) {
+        const bc = new BroadcastChannel('delivery_express_cross_tab');
+        bc.postMessage({ type: 'RADIO_BROADCAST', announcement: annObj });
+        bc.close();
+      }
+    } catch (_) {}
+
     soundService.playBroadcastAlert();
     showNotification(`Radio: "${msg}"`, 'success');
+
+    // Sync to Supabase SYS-CONFIG-RATES so couriers on mobile & all devices receive it in real-time
+    await syncSysConfig({ active_announcement: annObj });
   };
 
-  const clearAnnouncement = () => {
+  const clearAnnouncement = async () => {
     setAnnouncement(null);
+
+    try {
+      localStorage.removeItem('delivery_express_active_announcement');
+      if (typeof window !== 'undefined' && window.BroadcastChannel) {
+        const bc = new BroadcastChannel('delivery_express_cross_tab');
+        bc.postMessage({ type: 'RADIO_BROADCAST', announcement: null });
+        bc.close();
+      }
+    } catch (_) {}
+
     showNotification('Radio broadcast stopped & cleared', 'info');
+
+    // Clear on Cloud SYS-CONFIG-RATES
+    await syncSysConfig({ active_announcement: null });
   };
 
   const broadcastWeatherAlert = async (targetTown = 'Balamban') => {

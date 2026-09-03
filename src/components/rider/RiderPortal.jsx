@@ -40,6 +40,7 @@ export default function RiderPortal() {
     orders, 
     riders, 
     weather,
+    announcement,
     selectedRiderId, 
     setSelectedRiderId, 
     assignRider, 
@@ -315,6 +316,30 @@ export default function RiderPortal() {
         </div>
 
       </div>
+
+      {/* 📻 HQ Real-time Radio Broadcast Alert Banner for Couriers */}
+      {announcement && (
+        <div className="bg-gradient-to-r from-amber-500 via-orange-500 to-rose-600 text-white p-4 sm:p-5 rounded-3xl shadow-xl flex items-center justify-between gap-3 border-2 border-amber-300 dark:border-amber-500/50 card-float animate-pulse">
+          <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+            <div className="w-11 h-11 rounded-2xl bg-black/20 backdrop-blur-md flex items-center justify-center shrink-0 shadow-inner">
+              <Radio className="w-6 h-6 text-amber-200 animate-spin" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="bg-black/30 text-white text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full tracking-wider border border-white/20">
+                  📢 HQ RADIO BROADCAST ({announcement.time})
+                </span>
+                <span className="text-[10px] text-amber-200 font-extrabold hidden sm:inline">
+                  • STAFF ALERT
+                </span>
+              </div>
+              <p className="text-sm sm:text-base font-black text-white mt-1 drop-shadow-md truncate sm:whitespace-normal">
+                "{announcement.msg}"
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Real-time PANAHON Weather Advisory Card for Courier */}
       {weather && (
