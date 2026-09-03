@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { SERVICES, BRAND, DEFAULT_PARTNER_STORES } from '../lib/constants';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { soundService } from '../lib/soundUtils';
@@ -1328,7 +1328,9 @@ export function OrderProvider({ children }) {
     showNotification(`Courier ${rider.name} assigned!`, 'success');
   };
 
-  // Update Rider GPS Coordinates (Realtime Live Fleet Tracking)
+  const lastGpsCloudSyncRef = useRef(0);
+
+  // Update Rider GPS Coordinates (Realtime Live Fleet Tracking from Phone GPS)
   const updateRiderLocation = async (riderId, newLat, newLng) => {
     let updatedRoster = [];
     setRiders(prev => {
@@ -1348,9 +1350,14 @@ export function OrderProvider({ children }) {
           }).eq('id', riderId);
         }
       } catch (_) {}
-    }
 
-    soundService.triggerVibrate([50]);
+      // Throttled loss-proof cloud fleet broadcast every 6 seconds
+      const now = Date.now();
+      if (now - lastGpsCloudSyncRef.current > 6000) {
+        lastGpsCloudSyncRef.current = now;
+        syncSysConfig({ riders_roster: updatedRoster });
+      }
+    }
   };
 
   // Toggle Rider Active / Inactive Duty Status (100% Persistent across all devices)
