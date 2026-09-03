@@ -563,6 +563,26 @@ export function OrderProvider({ children }) {
               showNotification(`✅ Order #${newRecord.tracking_number} Delivered & Completed!`, 'success');
             }
           }
+        } else if (eventType === 'UPDATE' && newRecord && newRecord.tracking_number === 'SYS-CONFIG-RATES') {
+          // Detect courier duty changes synced via cloud config
+          if (Array.isArray(newRecord.details?.riders_roster)) {
+            const incomingRoster = newRecord.details.riders_roster;
+            try {
+              const prevRoster = JSON.parse(localStorage.getItem('delivery_express_riders_balamban') || '[]');
+              incomingRoster.forEach(ir => {
+                const matchedPrev = prevRoster.find(pr => pr.id === ir.id || pr.name === ir.name);
+                if (matchedPrev && matchedPrev.isOnline !== ir.isOnline) {
+                  soundService.playOrderChime();
+                  showNotification(
+                    ir.isOnline
+                      ? `🟢 Courier Alert: ${ir.name} is now ACTIVE & ON DUTY!`
+                      : `⚪ Courier Alert: ${ir.name} is now OFF DUTY (Inactive).`,
+                    ir.isOnline ? 'success' : 'info'
+                  );
+                }
+              });
+            } catch (_) {}
+          }
         }
 
         fetchSupabaseData();
@@ -571,7 +591,18 @@ export function OrderProvider({ children }) {
 
     const riderChannel = supabase
       .channel('public:riders:realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'riders' }, () => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'riders' }, (payload) => {
+        const newRider = payload.new;
+        const oldRider = payload.old;
+        if (newRider && oldRider && newRider.is_online !== oldRider.is_online) {
+          soundService.playOrderChime();
+          showNotification(
+            newRider.is_online
+              ? `🟢 Courier Alert: ${newRider.name || 'Courier'} is now ACTIVE & ON DUTY!`
+              : `⚪ Courier Alert: ${newRider.name || 'Courier'} is now OFF DUTY (Inactive).`,
+            newRider.is_online ? 'success' : 'info'
+          );
+        }
         fetchSupabaseData();
       })
       .subscribe();
