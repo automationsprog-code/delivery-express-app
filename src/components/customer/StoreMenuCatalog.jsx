@@ -400,11 +400,30 @@ export default function StoreMenuCatalog({ onOrderFromMenu }) {
                         }`}
                       >
                         <div className="flex gap-3">
-                          <img
-                            src={item.image}
-                            alt={item.name}
-                            className="w-16 h-16 rounded-xl object-cover border border-slate-200 dark:border-zinc-800 shrink-0"
-                          />
+                          {item.image && item.image.trim() !== '' ? (
+                            <img
+                              src={item.image}
+                              alt={item.name}
+                              className="w-16 h-16 rounded-2xl object-cover border border-slate-200 dark:border-zinc-800 shrink-0 shadow-sm"
+                            />
+                          ) : (
+                            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-500/20 via-rose-500/20 to-orange-500/20 dark:from-amber-500/10 dark:via-rose-500/10 dark:to-orange-500/10 border border-amber-500/30 flex flex-col items-center justify-center shrink-0 text-center p-1 shadow-sm">
+                              <span className="text-xl">
+                                {item.category?.toLowerCase().includes('pizza') ? '🍕' :
+                                 item.category?.toLowerCase().includes('burger') ? '🍔' :
+                                 item.category?.toLowerCase().includes('pasta') ? '🍝' :
+                                 item.category?.toLowerCase().includes('wings') || item.category?.toLowerCase().includes('chicken') ? '🍗' :
+                                 item.category?.toLowerCase().includes('salad') ? '🥗' :
+                                 item.category?.toLowerCase().includes('wrap') || item.category?.toLowerCase().includes('taco') ? '🌮' :
+                                 item.category?.toLowerCase().includes('fries') || item.category?.toLowerCase().includes('nacho') ? '🍟' :
+                                 item.category?.toLowerCase().includes('barkada') ? '🍱' :
+                                 '🍽️'}
+                              </span>
+                              <span className="text-[9px] font-black uppercase tracking-tighter text-rose-600 dark:text-rose-400 truncate max-w-full">
+                                {item.name ? item.name.split(' ').slice(0, 2).map(w => w[0]).join('') : 'TS'}
+                              </span>
+                            </div>
+                          )}
                           <div className="space-y-0.5 flex-1 min-w-0">
                             {item.isPopular && (
                               <span className="inline-flex items-center gap-0.5 text-[9px] font-black bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-400 px-1.5 py-0.2 rounded-md uppercase">

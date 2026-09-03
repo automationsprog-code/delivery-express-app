@@ -70,6 +70,27 @@ export default function AutoMenuScannerModal({ store, onClose }) {
         { name: 'Grilled Pork BBQ (3 Sticks)', price: 95, category: 'Sides & BBQ', isPopular: false, image: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=500&auto=format&fit=crop&q=80' },
         { name: 'Extra Steamed Rice / Puso', price: 15, category: 'Rice', isPopular: false, image: 'https://images.unsplash.com/photo-1516684732162-798a0062be99?w=500&auto=format&fit=crop&q=80' }
       ]
+    },
+    {
+      title: "🍕 Tet's Spizzal (Pizzas, Pastas, Burgers, Wings & Barkada)",
+      desc: 'Full official menu with 12"/15"/18" Pizzas, Burgers & Wraps',
+      items: [
+        { name: 'Hawaiian Pizza (12")', price: 280, category: 'Pizza', isPopular: true, image: '' },
+        { name: 'Hawaiian Pizza (15")', price: 450, category: 'Pizza', isPopular: true, image: '' },
+        { name: 'Hawaiian Pizza (18" Party)', price: 780, category: 'Pizza', isPopular: false, image: '' },
+        { name: 'Pepperoni Pizza (12")', price: 450, category: 'Pizza', isPopular: true, image: '' },
+        { name: 'Pepperoni Pizza (15")', price: 640, category: 'Pizza', isPopular: true, image: '' },
+        { name: 'Pepperoni Pizza (18" Party)', price: 890, category: 'Pizza', isPopular: false, image: '' },
+        { name: 'Loaded Supreme Pizza (12")', price: 425, category: 'Pizza', isPopular: true, image: '' },
+        { name: 'Full House Pizza (12")', price: 480, category: 'Pizza', isPopular: true, image: '' },
+        { name: 'Carbonara Pasta', price: 140, category: 'Pasta', isPopular: true, image: '' },
+        { name: 'Shrimp Pesto Pasta', price: 170, category: 'Pasta', isPopular: true, image: '' },
+        { name: 'Caramelized Cheeseburger', price: 120, category: 'Burger', isPopular: true, image: '' },
+        { name: 'Double Cheeseburger w/ Fries & Drink', price: 260, category: 'Burger', isPopular: true, image: '' },
+        { name: '1 PC Chicken w/ Rice & Drink', price: 125, category: 'Chicken Meals', isPopular: true, image: '' },
+        { name: 'Hot & Spicy Chicken Wings', price: 280, category: 'Chicken Wings', isPopular: true, image: '' },
+        { name: 'Barkada Package (Pizza + Wraps + Burgers + Chicken)', price: 1299, category: 'Barkada Meals', isPopular: true, image: '' }
+      ]
     }
   ];
 

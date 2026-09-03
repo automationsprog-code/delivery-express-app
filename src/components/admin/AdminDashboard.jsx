@@ -1099,11 +1099,29 @@ export default function AdminDashboard() {
                           className="p-3 bg-slate-50 dark:bg-zinc-950 rounded-2xl border border-slate-200 dark:border-zinc-800/80 flex items-start justify-between gap-3"
                         >
                           <div className="flex gap-2.5 min-w-0">
-                            <img
-                              src={item.image}
-                              alt={item.name}
-                              className="w-12 h-12 rounded-xl object-cover border border-slate-200 dark:border-zinc-800 shrink-0"
-                            />
+                            {item.image && item.image.trim() !== '' ? (
+                              <img
+                                src={item.image}
+                                alt={item.name}
+                                className="w-12 h-12 rounded-xl object-cover border border-slate-200 dark:border-zinc-800 shrink-0 shadow-sm"
+                              />
+                            ) : (
+                              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500/20 via-rose-500/20 to-orange-500/20 dark:from-amber-500/10 dark:via-rose-500/10 dark:to-orange-500/10 border border-amber-500/30 flex flex-col items-center justify-center shrink-0 text-center p-0.5 shadow-sm">
+                                <span className="text-base">
+                                  {item.category?.toLowerCase().includes('pizza') ? '🍕' :
+                                   item.category?.toLowerCase().includes('burger') ? '🍔' :
+                                   item.category?.toLowerCase().includes('pasta') ? '🍝' :
+                                   item.category?.toLowerCase().includes('wings') || item.category?.toLowerCase().includes('chicken') ? '🍗' :
+                                   item.category?.toLowerCase().includes('salad') ? '🥗' :
+                                   item.category?.toLowerCase().includes('wrap') || item.category?.toLowerCase().includes('taco') ? '🌮' :
+                                   item.category?.toLowerCase().includes('fries') || item.category?.toLowerCase().includes('nacho') ? '🍟' :
+                                   '🍽️'}
+                                </span>
+                                <span className="text-[8px] font-black uppercase tracking-tighter text-rose-600 dark:text-rose-400 truncate max-w-full">
+                                  {item.name ? item.name.split(' ').slice(0, 2).map(w => w[0]).join('') : 'TS'}
+                                </span>
+                              </div>
+                            )}
                             <div className="space-y-0.5 min-w-0">
                               <h5 className="text-xs font-bold text-slate-900 dark:text-white truncate">
                                 {item.name}
