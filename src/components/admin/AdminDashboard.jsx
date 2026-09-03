@@ -1419,44 +1419,52 @@ export default function AdminDashboard() {
             </div>
 
             {paymentPreviewTab === 'gcash' ? (
-              <div className="space-y-3 flex flex-col items-center">
-                <span className="text-[10px] bg-blue-500/20 text-blue-300 uppercase font-extrabold px-3 py-1 rounded-full border border-blue-500/30">
-                  Customer GCash View
+              <div className="space-y-4 flex flex-col items-center w-full my-auto">
+                <span className="text-[11px] bg-blue-500/20 text-blue-300 uppercase font-extrabold px-3.5 py-1 rounded-full border border-blue-500/30 tracking-wider">
+                  Customer GCash Scan Preview
                 </span>
-                <div className="p-3 bg-white rounded-2xl shadow-lg">
+                
+                {/* Big High-Res QR Code Card */}
+                <div className="p-4 sm:p-5 bg-white rounded-3xl shadow-2xl border-2 border-white/40">
                   <img
-                    src={gcashQrUrl || 'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=DELIVERY_EXPRESS_GCASH'}
+                    src={gcashQrUrl || 'https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=DELIVERY_EXPRESS_GCASH'}
                     alt="GCash QR Code"
-                    className="w-40 h-40 object-contain"
+                    className="w-60 h-60 sm:w-68 sm:h-68 object-contain rounded-xl"
                   />
                 </div>
-                <div>
-                  <p className="text-sm font-extrabold text-amber-300">{gcashName}</p>
-                  <p className="text-xs text-blue-200 font-mono mt-0.5">{gcashNumber}</p>
+
+                <div className="text-center space-y-0.5">
+                  <p className="text-base font-black text-amber-300 tracking-wide">{gcashName}</p>
+                  <p className="text-sm text-blue-200 font-mono font-black">{gcashNumber}</p>
                 </div>
-                <p className="text-[11px] text-slate-300 leading-relaxed max-w-xs">
-                  Customers scan this when choosing GCash upon booking.
+
+                <p className="text-xs text-slate-300 leading-relaxed max-w-sm text-center">
+                  Customers will see and scan this high-definition QR code when selecting GCash payment upon booking.
                 </p>
               </div>
             ) : (
-              <div className="space-y-3 flex flex-col items-center">
-                <span className="text-[10px] bg-emerald-500/20 text-emerald-300 uppercase font-extrabold px-3 py-1 rounded-full border border-emerald-500/30">
-                  Customer Bank Transfer View
+              <div className="space-y-4 flex flex-col items-center w-full my-auto">
+                <span className="text-[11px] bg-emerald-500/20 text-emerald-300 uppercase font-extrabold px-3.5 py-1 rounded-full border border-emerald-500/30 tracking-wider">
+                  Customer Bank Transfer / QR Ph Preview
                 </span>
-                <div className="p-3 bg-white rounded-2xl shadow-lg">
+                
+                {/* Big High-Res Bank QR Card */}
+                <div className="p-4 sm:p-5 bg-white rounded-3xl shadow-2xl border-2 border-white/40">
                   <img
-                    src={bankQrUrl || 'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=DELIVERY_EXPRESS_BANK'}
+                    src={bankQrUrl || 'https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=DELIVERY_EXPRESS_BANK'}
                     alt="Bank QR Code"
-                    className="w-40 h-40 object-contain"
+                    className="w-60 h-60 sm:w-68 sm:h-68 object-contain rounded-xl"
                   />
                 </div>
-                <div>
-                  <p className="text-sm font-extrabold text-emerald-400">{bankName}</p>
+
+                <div className="text-center space-y-0.5">
+                  <p className="text-base font-black text-emerald-400">{bankName}</p>
                   <p className="text-xs text-white font-bold">{bankAccountName}</p>
-                  <p className="text-xs text-amber-300 font-mono mt-0.5">{bankAccountNumber}</p>
+                  <p className="text-sm text-amber-300 font-mono font-black tracking-wider">{bankAccountNumber}</p>
                 </div>
-                <p className="text-[11px] text-slate-300 leading-relaxed max-w-xs">
-                  Customers scan or transfer to this account when selecting Bank Transfer.
+
+                <p className="text-xs text-slate-300 leading-relaxed max-w-sm text-center">
+                  Customers scan or transfer to this account when selecting Bank Transfer upon booking.
                 </p>
               </div>
             )}

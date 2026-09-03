@@ -385,22 +385,22 @@ export default function BookingModal({ service, initialData = null, onClose, onB
 
               {/* If GCash is selected: Show Official Delivery Express GCash QR Code */}
               {paymentMethod === 'GCash' && (
-                <div className="p-4 bg-gradient-to-br from-blue-900/90 to-indigo-950 text-white rounded-3xl border border-blue-500/30 flex flex-col sm:flex-row items-center gap-4 shadow-lg animate-fadeIn">
-                  <div className="p-2 bg-white rounded-2xl shrink-0 shadow-md">
+                <div className="p-4 sm:p-5 bg-gradient-to-br from-blue-900/95 via-indigo-950 to-slate-950 text-white rounded-3xl border border-blue-500/40 flex flex-col sm:flex-row items-center gap-4 shadow-xl animate-fadeIn">
+                  <div className="p-3 bg-white rounded-2xl shrink-0 shadow-lg border border-white/50">
                     <img
-                      src={paymentSettings.gcashQrUrl || 'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=DELIVERY_EXPRESS_GCASH'}
+                      src={paymentSettings.gcashQrUrl || 'https://api.qrserver.com/v1/create-qr-code/?size=350x350&data=DELIVERY_EXPRESS_GCASH'}
                       alt="GCash QR Code"
-                      className="w-28 h-28 object-contain"
+                      className="w-36 h-36 sm:w-44 sm:h-44 object-contain"
                     />
                   </div>
-                  <div className="space-y-1 text-center sm:text-left">
-                    <span className="text-[10px] bg-blue-500/30 text-blue-200 font-bold px-2 py-0.5 rounded-full uppercase">
+                  <div className="space-y-1.5 text-center sm:text-left">
+                    <span className="text-[10px] bg-blue-500/30 text-blue-200 font-extrabold px-3 py-0.5 rounded-full uppercase tracking-wider">
                       Official Delivery Express GCash
                     </span>
-                    <p className="text-sm font-black text-white">{paymentSettings.gcashName}</p>
-                    <p className="text-xs font-mono font-bold text-amber-300">{paymentSettings.gcashNumber}</p>
-                    <p className="text-[11px] text-blue-200">
-                      Scan with your GCash app or send money to the account above.
+                    <p className="text-base font-black text-amber-300">{paymentSettings.gcashName}</p>
+                    <p className="text-sm font-mono font-black text-white">{paymentSettings.gcashNumber}</p>
+                    <p className="text-xs text-blue-200 leading-relaxed">
+                      Scan using your GCash app Camera or send money directly to the mobile number above.
                     </p>
                   </div>
                 </div>
@@ -408,23 +408,23 @@ export default function BookingModal({ service, initialData = null, onClose, onB
 
               {/* If Bank Transfer is selected: Show Official Bank QR Code & Details */}
               {paymentMethod === 'Bank Transfer' && (
-                <div className="p-4 bg-gradient-to-br from-emerald-950/90 via-slate-900 to-zinc-950 text-white rounded-3xl border border-emerald-500/30 flex flex-col sm:flex-row items-center gap-4 shadow-lg animate-fadeIn">
-                  <div className="p-2 bg-white rounded-2xl shrink-0 shadow-md">
+                <div className="p-4 sm:p-5 bg-gradient-to-br from-emerald-950/95 via-slate-900 to-zinc-950 text-white rounded-3xl border border-emerald-500/40 flex flex-col sm:flex-row items-center gap-4 shadow-xl animate-fadeIn">
+                  <div className="p-3 bg-white rounded-2xl shrink-0 shadow-lg border border-white/50">
                     <img
-                      src={paymentSettings.bankQrUrl || 'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=DELIVERY_EXPRESS_BANK'}
+                      src={paymentSettings.bankQrUrl || 'https://api.qrserver.com/v1/create-qr-code/?size=350x350&data=DELIVERY_EXPRESS_BANK'}
                       alt="Bank QR Code"
-                      className="w-28 h-28 object-contain"
+                      className="w-36 h-36 sm:w-44 sm:h-44 object-contain"
                     />
                   </div>
-                  <div className="space-y-1 text-center sm:text-left">
-                    <span className="text-[10px] bg-emerald-500/30 text-emerald-300 font-bold px-2 py-0.5 rounded-full uppercase">
+                  <div className="space-y-1.5 text-center sm:text-left">
+                    <span className="text-[10px] bg-emerald-500/30 text-emerald-300 font-extrabold px-3 py-0.5 rounded-full uppercase tracking-wider">
                       Official Bank QR / Transfer
                     </span>
-                    <p className="text-sm font-black text-emerald-400">{paymentSettings.bankName || 'BPI / BDO / Landbank'}</p>
-                    <p className="text-xs font-bold text-white">{paymentSettings.bankAccountName || 'DELIVERY EXPRESS BALAMBAN'}</p>
-                    <p className="text-xs font-mono font-bold text-amber-300">{paymentSettings.bankAccountNumber || '1234-5678-9012'}</p>
-                    <p className="text-[11px] text-emerald-200">
-                      Scan with your Mobile Banking App or InstaPay / QR Ph.
+                    <p className="text-base font-black text-emerald-400">{paymentSettings.bankName || 'BPI / BDO / Landbank'}</p>
+                    <p className="text-xs font-bold text-slate-200">{paymentSettings.bankAccountName || 'DELIVERY EXPRESS BALAMBAN'}</p>
+                    <p className="text-sm font-mono font-black text-amber-300">{paymentSettings.bankAccountNumber || '1234-5678-9012'}</p>
+                    <p className="text-xs text-emerald-200 leading-relaxed">
+                      Scan using any Mobile Banking App (QR Ph / InstaPay) or transfer to the account number above.
                     </p>
                   </div>
                 </div>
