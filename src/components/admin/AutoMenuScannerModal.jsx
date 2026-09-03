@@ -477,6 +477,21 @@ export default function AutoMenuScannerModal({ store, onClose }) {
           {activeTab === 'review' && (
             <div className="space-y-4">
               
+              {/* Quick Template Switcher Pills */}
+              <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
+                <span className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase shrink-0">Switch Menu:</span>
+                {SAMPLE_MENUS.map((tpl, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => setExtractedDishes(tpl.items)}
+                    className="px-2.5 py-1 bg-white hover:bg-rose-50 hover:text-rose-600 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-300 rounded-xl text-[11px] font-bold shrink-0 transition-colors border border-slate-200 dark:border-zinc-700 shadow-sm"
+                  >
+                    {tpl.title.split(' ')[0]} {tpl.title.split(' ')[1]} ({tpl.items.length})
+                  </button>
+                ))}
+              </div>
+
               <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-300 dark:border-emerald-800 rounded-2xl p-4 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2.5">
                   <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
