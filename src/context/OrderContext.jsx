@@ -331,23 +331,30 @@ export function OrderProvider({ children }) {
               cloudCustomRiders = parsed.riders_roster;
             }
             if (parsed.registered_customers && Array.isArray(parsed.registered_customers)) {
-              const localCusts = JSON.parse(localStorage.getItem('delivery_express_registered_customers') || '[]');
-              const combined = [...localCusts];
-              parsed.registered_customers.forEach(c => {
-                const cleanC = {
-                  ...c,
-                  avatar: c.avatar && !c.avatar.includes('unsplash') ? c.avatar : null
-                };
-                if (!combined.some(x => (x.email && cleanC.email && x.email.toLowerCase() === cleanC.email.toLowerCase()) || (x.phone && cleanC.phone && x.phone.slice(-10) === cleanC.phone.slice(-10)))) {
-                  combined.push(cleanC);
-                }
-              });
-              const sanitized = combined.map(c => ({
+              const cloudCusts = parsed.registered_customers.map(c => ({
                 ...c,
                 avatar: c.avatar && !c.avatar.includes('unsplash') ? c.avatar : null
               }));
-              setRegisteredCustomers(sanitized);
-              try { localStorage.setItem('delivery_express_registered_customers', JSON.stringify(sanitized)); } catch (_) {}
+              
+              setRegisteredCustomers(cloudCusts);
+              try { localStorage.setItem('delivery_express_registered_customers', JSON.stringify(cloudCusts)); } catch (_) {}
+
+              // Auto-sync logged-in customer's profile on this device if updated from phone or cloud
+              setCurrentUser(prevUser => {
+                if (prevUser && prevUser.role === 'customer') {
+                  const matched = cloudCusts.find(c => 
+                    (prevUser.id && c.id === prevUser.id) ||
+                    (prevUser.email && c.email && c.email.toLowerCase() === prevUser.email.toLowerCase()) ||
+                    (prevUser.phone && c.phone && c.phone.slice(-10) === prevUser.phone.slice(-10))
+                  );
+                  if (matched) {
+                    const mergedUser = { ...prevUser, ...matched, role: 'customer' };
+                    try { localStorage.setItem('delivery_express_current_user', JSON.stringify(mergedUser)); } catch (_) {}
+                    return mergedUser;
+                  }
+                }
+                return prevUser;
+              });
             }
             localStorage.setItem('delivery_express_admin_password', cloudAdminPass);
           }

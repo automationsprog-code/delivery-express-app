@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useOrder } from '../../context/OrderContext';
 import { ORDER_STATUSES } from '../../lib/constants';
 import OrderChatModal from '../common/OrderChatModal';
+import DeliveryMap from '../map/DeliveryMap';
 import { 
   Bike, 
   MapPin, 
@@ -456,6 +457,70 @@ export default function RiderPortal() {
                       </div>
                     </div>
                   </div>
+
+                  {/* Waze-Style Live Navigation GPS Box (Active Dropoff & Live Turn-by-Turn Map) */}
+                  {(isOutForDelivery || isPurchasing || isAssigned) && (
+                    <div className="rounded-3xl overflow-hidden border-2 border-sky-500/40 bg-zinc-950 shadow-xl">
+                      {/* Navigation HUD Top Bar (Waze Dark Theme) */}
+                      <div className="bg-gradient-to-r from-slate-900 via-sky-950 to-slate-900 text-white p-3 sm:p-4 flex items-center justify-between gap-3 border-b border-sky-500/30">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="p-2 bg-sky-500 text-white rounded-2xl shadow-md shrink-0 animate-pulse">
+                            <Navigation className="w-5 h-5" />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[10px] font-black uppercase tracking-wider bg-sky-400/20 text-sky-300 px-2 py-0.5 rounded-full border border-sky-400/30">
+                                {isOutForDelivery ? 'Out for Delivery ➔ Drop-off' : isPurchasing ? 'Pickup / Store Stage' : 'Assigned Route'}
+                              </span>
+                              <span className="text-[10px] text-slate-400 font-bold">
+                                {order.distanceKm} km • ~{Math.ceil(order.distanceKm * 2.5 + 4)} mins
+                              </span>
+                            </div>
+                            <h5 className="font-extrabold text-xs sm:text-sm text-white truncate mt-0.5 flex items-center gap-1">
+                              <span>📍 Pin:</span>
+                              <span className="text-amber-300 truncate">
+                                {isOutForDelivery ? order.dropoffAddress : order.pickupAddress}
+                              </span>
+                            </h5>
+                          </div>
+                        </div>
+
+                        {/* Direct 1-Tap External Nav Launchers */}
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenWaze(isOutForDelivery ? order.dropoffAddress : order.pickupAddress)}
+                            className="px-3 py-1.5 bg-sky-500 hover:bg-sky-400 text-white text-[11px] font-black rounded-xl shadow-md transition-transform active:scale-95 flex items-center gap-1"
+                            title="Open Full Waze App Navigation"
+                          >
+                            <span>🚙 Waze</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenMaps(isOutForDelivery ? order.dropoffAddress : order.pickupAddress)}
+                            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-black rounded-xl shadow-md transition-transform active:scale-95 flex items-center gap-1"
+                            title="Open Google Maps Navigation"
+                          >
+                            <span>🗺️ Maps</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Interactive Live Map View with Rider Location & Drop-off Pin */}
+                      <div className="relative">
+                        <DeliveryMap
+                          pickupCoords={order.pickupCoords}
+                          dropoffCoords={order.dropoffCoords}
+                          riderCoords={currentRider.lat && currentRider.lng ? [currentRider.lat, currentRider.lng] : null}
+                          showRider={true}
+                          height="280px"
+                          zoom={15}
+                          pickupLabel={`Pickup: ${order.pickupAddress}`}
+                          dropoffLabel={`Drop-off: ${order.dropoffAddress}`}
+                        />
+                      </div>
+                    </div>
+                  )}
 
                   {/* Items & Customer Instructions (Filtered out internal technical metadata) */}
                   {order.details && Object.keys(order.details).length > 0 && (
