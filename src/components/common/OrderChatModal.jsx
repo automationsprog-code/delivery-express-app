@@ -38,16 +38,23 @@ export default function OrderChatModal({ order, onClose, senderRole = 'customer'
     return Array.isArray(liveOrder?.messages) ? liveOrder.messages : [];
   });
 
+  const assignedRiderObj = riders.find(r => 
+    (liveOrder?.riderId && r.id === liveOrder.riderId) || 
+    (liveOrder?.riderName && (r.name === liveOrder.riderName || r.name.toLowerCase().includes(liveOrder.riderName.toLowerCase()) || liveOrder.riderName.toLowerCase().includes(r.name.toLowerCase()))) ||
+    (liveOrder?.riderPhone && r.phone && r.phone === liveOrder.riderPhone)
+  );
+
+  const dynamicRiderName = assignedRiderObj?.name || liveOrder?.riderName || 'Kuya Nigel';
+
   const myName = senderRole === 'customer' 
     ? (liveOrder?.customerName || 'Customer') 
-    : (liveOrder?.riderName || 'Nigel');
+    : dynamicRiderName;
 
   const otherPersonName = senderRole === 'customer' 
-    ? (liveOrder?.riderName || 'Nigel') 
+    ? dynamicRiderName 
     : (liveOrder?.customerName || 'Customer');
 
-  const assignedRiderObj = riders.find(r => r.id === liveOrder?.riderId || r.name === liveOrder?.riderName);
-  const riderAvatar = assignedRiderObj?.avatar || localStorage.getItem(`rider_avatar_${liveOrder?.riderId}`) || '/rider-nigel.jpg';
+  const riderAvatar = assignedRiderObj?.avatar || localStorage.getItem(`rider_avatar_${liveOrder?.riderId}`) || (dynamicRiderName.toLowerCase().includes('nigel') ? '/rider-nigel.jpg' : null);
 
   // Grab-Style Canned Quick Chips
   const quickReplies = senderRole === 'customer' 

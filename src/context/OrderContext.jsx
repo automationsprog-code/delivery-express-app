@@ -367,6 +367,9 @@ export function OrderProvider({ children }) {
             if (parsed.riders_roster && Array.isArray(parsed.riders_roster)) {
               cloudCustomRiders = parsed.riders_roster;
             }
+            if (parsed.deleted_riders && Array.isArray(parsed.deleted_riders)) {
+              cloudDeletedRiders = parsed.deleted_riders;
+            }
             if (parsed.registered_customers && Array.isArray(parsed.registered_customers)) {
               const cloudCusts = parsed.registered_customers.map(c => ({
                 ...c,
@@ -425,6 +428,17 @@ export function OrderProvider({ children }) {
           }
         } catch (_) {}
 
+        // Deleted riders blacklist: guarantees deleted couriers NEVER re-appear
+        const localDeletedRiders = JSON.parse(localStorage.getItem('delivery_express_deleted_riders') || '[]');
+        const allDeletedRiders = new Set([...cloudDeletedRiders, ...localDeletedRiders]);
+        const isRiderDeleted = (r) => {
+          if (!r) return true;
+          if (r.id && allDeletedRiders.has(r.id)) return true;
+          if (r.phone && allDeletedRiders.has(r.phone)) return true;
+          if (r.name && allDeletedRiders.has(r.name.toLowerCase().trim())) return true;
+          return false;
+        };
+
         // 2. Fetch live riders with cloud synced avatars and passwords
         const { data: riderData, error: riderErr } = await supabase
           .from('riders')
@@ -436,7 +450,7 @@ export function OrderProvider({ children }) {
         // Priority 1: Cloud Roster from SYS-CONFIG-RATES (Permanent & RLS-immune)
         if (Array.isArray(cloudCustomRiders) && cloudCustomRiders.length > 0) {
           cloudCustomRiders.forEach(cr => {
-            if (cr && cr.name && !currentRiderList.some(r => r.id === cr.id || (r.phone && cr.phone && r.phone === cr.phone))) {
+            if (cr && cr.name && !isRiderDeleted(cr) && !currentRiderList.some(r => r.id === cr.id || (r.phone && cr.phone && r.phone === cr.phone))) {
               const pass = cloudRiderPasswords[cr.id] || cloudRiderPasswords[cr.phone] || cr.password || 'Pass123';
               const avatar = cloudRiderAvatars[cr.id] || cloudRiderAvatars[cr.phone] || cr.avatar || null;
               
@@ -460,7 +474,7 @@ export function OrderProvider({ children }) {
         // Priority 2: Supabase Riders Table
         if (!riderErr && riderData && riderData.length > 0) {
           riderData.forEach(r => {
-            if (!currentRiderList.some(cr => cr.id === r.id || (cr.phone && r.phone && cr.phone === r.phone))) {
+            if (!isRiderDeleted(r) && !currentRiderList.some(cr => cr.id === r.id || (cr.phone && r.phone && cr.phone === r.phone))) {
               const cloudAvatar = cloudRiderAvatars[r.id] || cloudRiderAvatars[r.phone] || cloudRiderAvatars[r.full_name] || localStorage.getItem(`rider_avatar_${r.id}`);
               let finalAvatar = (r.full_name && r.full_name.toLowerCase().includes('nigel')) ? '/rider-nigel.jpg' : null;
               if (cloudAvatar && cloudAvatar.length > 5 && !cloudAvatar.includes('unsplash')) {
@@ -494,15 +508,15 @@ export function OrderProvider({ children }) {
         const localSavedRiders = JSON.parse(localStorage.getItem('delivery_express_riders_balamban') || '[]');
         if (Array.isArray(localSavedRiders) && localSavedRiders.length > 0) {
           localSavedRiders.forEach(er => {
-            if (er && er.name && !currentRiderList.some(r => r.id === er.id || (r.phone && er.phone && r.phone === er.phone))) {
+            if (er && er.name && !isRiderDeleted(er) && !currentRiderList.some(r => r.id === er.id || (r.phone && er.phone && r.phone === er.phone))) {
               currentRiderList.push(er);
             }
           });
         }
 
-        // Priority 4: Ensure all 3 Core Official Riders (Nigel, Kuya Louie, Kuya Yael) are NEVER lost
+        // Priority 4: Default Fallback (Only add core riders if NOT explicitly deleted by admin)
         CORE_OFFICIAL_RIDERS.forEach(cor => {
-          if (!currentRiderList.some(r => r.id === cor.id || (r.phone && cor.phone && r.phone === cor.phone) || (r.name && cor.name && r.name.toLowerCase() === cor.name.toLowerCase()))) {
+          if (!isRiderDeleted(cor) && !currentRiderList.some(r => r.id === cor.id || (r.phone && cor.phone && r.phone === cor.phone) || (r.name && cor.name && r.name.toLowerCase() === cor.name.toLowerCase()))) {
             currentRiderList.push(cor);
           }
         });
@@ -530,10 +544,17 @@ export function OrderProvider({ children }) {
             .filter(o => o.tracking_number !== 'SYS-CONFIG-RATES' && o.customer_name !== 'SYSTEM_SETTINGS' && o.status !== 'deleted' && !allDeleted.has(o.tracking_number))
             .map(o => {
             const rawMessages = (o.details && o.details.chat_messages) ? o.details.chat_messages : (o.messages || []);
-            const assignedRiderObj = currentRiderList.find(r => r.id === o.rider_id);
-            const riderName = o.details?.rider_name || assignedRiderObj?.name || (o.rider_id ? 'Nigel' : null);
-            const riderPhone = o.details?.rider_phone || assignedRiderObj?.phone || (o.rider_id ? '09458819427' : null);
-            const assignedRiderId = o.rider_id || assignedRiderObj?.id || (riderName === 'Nigel' ? 'b2c77a52-42ae-4f07-a8fa-540722d74fae' : null);
+            const assignedRiderObj = currentRiderList.find(r => 
+              (o.rider_id && r.id === o.rider_id) || 
+              (o.details?.rider_id && r.id === o.details.rider_id) ||
+              (r.phone && o.details?.rider_phone && r.phone === o.details.rider_phone) ||
+              (r.name && o.details?.rider_name && (r.name.toLowerCase() === o.details.rider_name.toLowerCase() || r.name.toLowerCase().includes(o.details.rider_name.toLowerCase()) || o.details.rider_name.toLowerCase().includes(r.name.toLowerCase())))
+            );
+
+            // Dynamic Name & Phone Priority: assignedRiderObj takes top priority so admin name edits reflect immediately
+            const riderName = assignedRiderObj?.name || o.details?.rider_name || (o.rider_id ? 'Kuya Nigel' : null);
+            const riderPhone = assignedRiderObj?.phone || o.details?.rider_phone || (o.rider_id ? '09458819427' : null);
+            const assignedRiderId = assignedRiderObj?.id || o.rider_id || o.details?.rider_id || (riderName?.includes('Nigel') ? 'b2c77a52-42ae-4f07-a8fa-540722d74fae' : null);
 
             const st = o.status || 'pending';
             const isAssigned = st !== 'pending' && st !== 'cancelled' && (!!assignedRiderId || !!riderName);
@@ -683,6 +704,12 @@ export function OrderProvider({ children }) {
               setRiders(event.data.updatedRoster);
             }
             notifyDutyChangeOnce(event.data.riderId, event.data.riderName, event.data.isOnline);
+          } else if (event.data?.type === 'RIDER_PROFILE_UPDATED' && event.data.updatedRoster) {
+            setRiders(event.data.updatedRoster);
+            fetchSupabaseData();
+          } else if (event.data?.type === 'RIDER_DELETED' && event.data.updatedRoster) {
+            setRiders(event.data.updatedRoster);
+            fetchSupabaseData();
           } else if (event.data?.type === 'CUSTOMER_PROFILE_UPDATED' && event.data.customerList) {
             setRegisteredCustomers(event.data.customerList);
           } else if (event.data?.type === 'SERVICES_RATES_UPDATED' && Array.isArray(event.data.servicesRates)) {
@@ -1951,9 +1978,15 @@ export function OrderProvider({ children }) {
     setRiders(updatedRoster);
     try { localStorage.setItem('delivery_express_riders_balamban', JSON.stringify(updatedRoster)); } catch (_) {}
 
+    // Clean from deleted_riders blacklist
+    const localDeleted = JSON.parse(localStorage.getItem('delivery_express_deleted_riders') || '[]');
+    const cleanedDeleted = localDeleted.filter(d => d !== finalId && d !== newRider.phone && d !== newRider.name.toLowerCase().trim());
+    try { localStorage.setItem('delivery_express_deleted_riders', JSON.stringify(cleanedDeleted)); } catch (_) {}
+
     // 100% Reliable Cloud Sync to SYS-CONFIG-RATES
     await syncSysConfig({
       riders_roster: updatedRoster,
+      deleted_riders: cleanedDeleted,
       rider_passwords: {
         [finalId]: newRider.password,
         [newRider.phone]: newRider.password,
@@ -1965,14 +1998,25 @@ export function OrderProvider({ children }) {
       } : {}
     });
 
+    // Broadcast across tabs
+    try {
+      if (typeof window !== 'undefined' && window.BroadcastChannel) {
+        const bc = new BroadcastChannel('delivery_express_cross_tab');
+        bc.postMessage({ type: 'RIDER_PROFILE_UPDATED', riderId: finalId, updatedRoster });
+        setTimeout(() => bc.close(), 200);
+      }
+    } catch (_) {}
+
     showNotification(`Courier "${newRider.name}" added & cloud-synced!`, 'success');
     soundService.playOrderChime();
   };
 
   const updateRider = async (riderId, updatedFields) => {
     const baseList = Array.isArray(riders) && riders.length > 0 ? riders : CORE_OFFICIAL_RIDERS;
+    const oldRider = baseList.find(r => r.id === riderId || r.phone === riderId || r.name === riderId);
+    
     const updatedRoster = baseList.map(r => {
-      if (r.id === riderId) {
+      if (r.id === riderId || (oldRider && (r.id === oldRider.id || r.phone === oldRider.phone))) {
         return { ...r, ...updatedFields };
       }
       return r;
@@ -1980,33 +2024,88 @@ export function OrderProvider({ children }) {
     setRiders(updatedRoster);
     try { localStorage.setItem('delivery_express_riders_balamban', JSON.stringify(updatedRoster)); } catch (_) {}
 
+    const newName = updatedFields.name || oldRider?.name;
+    const newPhone = updatedFields.phone || oldRider?.phone;
+
+    // Update currentUser if currently logged in as this rider
+    setCurrentUser(prevUser => {
+      if (prevUser && (prevUser.role === 'rider' || prevUser.id === riderId || (oldRider && prevUser.phone === oldRider.phone))) {
+        const updatedUser = { ...prevUser, ...updatedFields, name: newName || prevUser.name };
+        try { localStorage.setItem('delivery_express_current_user', JSON.stringify(updatedUser)); } catch (_) {}
+        return updatedUser;
+      }
+      return prevUser;
+    });
+
+    // Update in-memory orders dynamically
+    setOrders(prev => prev.map(o => {
+      if (o.riderId === riderId || (oldRider && (o.riderId === oldRider.id || o.riderPhone === oldRider.phone || o.riderName === oldRider.name))) {
+        return {
+          ...o,
+          riderName: newName,
+          riderPhone: newPhone,
+          details: {
+            ...(o.details || {}),
+            rider_name: newName,
+            rider_phone: newPhone
+          }
+        };
+      }
+      return o;
+    }));
+
     if (updatedFields.avatar !== undefined) {
       if (updatedFields.avatar && !updatedFields.avatar.includes('unsplash')) {
         localStorage.setItem(`rider_avatar_${riderId}`, updatedFields.avatar);
+        if (oldRider?.phone) localStorage.setItem(`rider_avatar_${oldRider.phone}`, updatedFields.avatar);
       } else {
         localStorage.removeItem(`rider_avatar_${riderId}`);
       }
     }
     if (updatedFields.password) {
       localStorage.setItem(`rider_pass_${riderId}`, updatedFields.password);
+      if (oldRider?.phone) localStorage.setItem(`rider_pass_${oldRider.phone}`, updatedFields.password);
     }
 
-    const rider = baseList.find(r => r.id === riderId);
     await syncSysConfig({
       riders_roster: updatedRoster,
       rider_passwords: {
         ...(updatedFields.password ? {
           [riderId]: updatedFields.password,
-          ...(rider?.phone ? { [rider.phone]: updatedFields.password } : {}),
-          ...(rider?.name ? { [rider.name]: updatedFields.password } : {})
+          ...(oldRider?.phone ? { [oldRider.phone]: updatedFields.password } : {}),
+          ...(newName ? { [newName]: updatedFields.password } : {})
         } : {})
       },
       rider_avatars: {
-        ...(updatedFields.avatar ? { [riderId]: updatedFields.avatar } : {})
+        ...(updatedFields.avatar ? { [riderId]: updatedFields.avatar, ...(oldRider?.phone ? { [oldRider.phone]: updatedFields.avatar } : {}) } : {})
       }
     });
 
-    showNotification('Rider profile & photo updated across all devices!', 'success');
+    // Supabase table update if configured
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const payload = {};
+        if (updatedFields.name) payload.full_name = updatedFields.name;
+        if (updatedFields.phone) payload.phone = updatedFields.phone;
+        if (updatedFields.plate) payload.motorcycle_plate = updatedFields.plate;
+        if (isUuid(riderId)) {
+          await supabase.from('riders').update(payload).eq('id', riderId);
+        } else if (oldRider?.phone) {
+          await supabase.from('riders').update(payload).eq('phone', oldRider.phone);
+        }
+      } catch (_) {}
+    }
+
+    // Broadcast across tabs
+    try {
+      if (typeof window !== 'undefined' && window.BroadcastChannel) {
+        const bc = new BroadcastChannel('delivery_express_cross_tab');
+        bc.postMessage({ type: 'RIDER_PROFILE_UPDATED', riderId, updatedFields, updatedRoster });
+        setTimeout(() => bc.close(), 200);
+      }
+    } catch (_) {}
+
+    showNotification(`Courier "${newName || 'Profile'}" updated across all devices!`, 'success');
   };
 
   const deleteRider = async (riderId) => {
@@ -2014,30 +2113,66 @@ export function OrderProvider({ children }) {
     localStorage.removeItem(`rider_pass_${riderId}`);
 
     const baseList = Array.isArray(riders) && riders.length > 0 ? riders : CORE_OFFICIAL_RIDERS;
-    const rider = baseList.find(r => r.id === riderId);
-    const updatedRoster = baseList.filter(r => r.id !== riderId);
+    const targetRider = baseList.find(r => r.id === riderId || r.phone === riderId || r.name === riderId);
+    const updatedRoster = baseList.filter(r => r.id !== riderId && (targetRider ? (r.id !== targetRider.id && r.phone !== targetRider.phone) : true));
+    
     setRiders(updatedRoster);
     try { localStorage.setItem('delivery_express_riders_balamban', JSON.stringify(updatedRoster)); } catch (_) {}
-    
+
+    // Add to deleted_riders blacklist so it NEVER reappears on refresh or cloud sync
+    const localDeleted = JSON.parse(localStorage.getItem('delivery_express_deleted_riders') || '[]');
+    const newDeletedList = [...new Set([
+      ...localDeleted,
+      riderId,
+      ...(targetRider?.phone ? [targetRider.phone] : []),
+      ...(targetRider?.name ? [targetRider.name.toLowerCase().trim()] : [])
+    ])];
+    try { localStorage.setItem('delivery_express_deleted_riders', JSON.stringify(newDeletedList)); } catch (_) {}
+
     setOrders(prev => prev.map(o => {
-      if (o.riderId === riderId) {
+      if (o.riderId === riderId || (targetRider && (o.riderId === targetRider.id || o.riderPhone === targetRider.phone || o.riderName === targetRider.name))) {
         return {
           ...o,
           riderId: null,
           riderName: null,
           riderPhone: null,
           status: 'pending',
-          statusText: 'Waiting for Courier Assignment'
+          statusText: 'Waiting for Courier Assignment',
+          details: {
+            ...(o.details || {}),
+            rider_id: null,
+            rider_name: null,
+            rider_phone: null
+          }
         };
       }
       return o;
     }));
 
     await syncSysConfig({
-      riders_roster: updatedRoster
+      riders_roster: updatedRoster,
+      deleted_riders: newDeletedList
     });
 
-    showNotification(`Rider ${rider?.name || ''} deleted`, 'info');
+    if (isSupabaseConfigured && supabase) {
+      try {
+        if (isUuid(riderId)) {
+          await supabase.from('riders').delete().eq('id', riderId);
+        } else if (targetRider?.phone) {
+          await supabase.from('riders').delete().eq('phone', targetRider.phone);
+        }
+      } catch (_) {}
+    }
+
+    try {
+      if (typeof window !== 'undefined' && window.BroadcastChannel) {
+        const bc = new BroadcastChannel('delivery_express_cross_tab');
+        bc.postMessage({ type: 'RIDER_DELETED', riderId, deletedRiders: newDeletedList, updatedRoster });
+        setTimeout(() => bc.close(), 200);
+      }
+    } catch (_) {}
+
+    showNotification(`Courier "${targetRider?.name || 'Rider'}" deleted successfully!`, 'info');
   };
 
   // Robust Cloud Order Deletion (Permanent & Synced across all devices)

@@ -113,10 +113,16 @@ export default function LiveTracker() {
     return ORDER_STATUSES[status] || { label: status, color: 'bg-slate-100 text-slate-700 dark:bg-zinc-800 dark:text-zinc-300' };
   };
 
-  const assignedRider = activeOrder?.riderId 
-    ? (riders.find(r => r.id === activeOrder.riderId || r.name === activeOrder.riderName) || riders[0])
+  const assignedRider = (activeOrder?.riderId || activeOrder?.riderName || activeOrder?.riderPhone)
+    ? (riders.find(r => 
+        (activeOrder.riderId && r.id === activeOrder.riderId) || 
+        (activeOrder.riderPhone && r.phone && r.phone === activeOrder.riderPhone) ||
+        (activeOrder.riderName && (r.name === activeOrder.riderName || r.name.toLowerCase().includes(activeOrder.riderName.toLowerCase()) || activeOrder.riderName.toLowerCase().includes(r.name.toLowerCase())))
+      ) || (activeOrder.riderName ? { name: activeOrder.riderName, phone: activeOrder.riderPhone } : null))
     : null;
-  const riderAvatar = assignedRider?.avatar || '/rider-nigel.jpg';
+
+  const dynamicRiderName = assignedRider?.name || activeOrder?.riderName;
+  const riderAvatar = assignedRider?.avatar || localStorage.getItem(`rider_avatar_${activeOrder?.riderId}`) || (dynamicRiderName?.toLowerCase().includes('nigel') ? '/rider-nigel.jpg' : null);
 
   const pickupCoords = activeOrder?.pickupCoords || [10.5015, 123.7150];
   const dropoffCoords = activeOrder?.dropoffCoords || [10.4720, 123.7060];
@@ -289,11 +295,11 @@ export default function LiveTracker() {
             <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl p-5 shadow-sm space-y-4 card-float">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  {activeOrder.riderName ? (
+                  {dynamicRiderName ? (
                     <div className="relative">
                       <img
                         src={riderAvatar}
-                        alt={activeOrder.riderName}
+                        alt={dynamicRiderName}
                         className="w-14 h-14 rounded-2xl object-cover border-2 border-amber-500 shadow-md bg-white dark:bg-zinc-800"
                       />
                       <div className="absolute -bottom-1 -right-1 bg-emerald-500 text-white p-0.5 rounded-full">
@@ -309,16 +315,16 @@ export default function LiveTracker() {
                   <div>
                     <div className="flex items-center gap-2">
                       <h4 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white">
-                        {activeOrder.riderName ? activeOrder.riderName : 'Assigning nearest Balamban rider...'}
+                        {dynamicRiderName ? dynamicRiderName : 'Assigning nearest Balamban rider...'}
                       </h4>
-                      {activeOrder.riderName && (
+                      {dynamicRiderName && (
                         <span className="bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 text-[10px] font-bold px-2 py-0.5 rounded-md border border-amber-200 dark:border-amber-500/20">
                           ⭐ {assignedRider?.rating || 5.0}
                         </span>
                       )}
                     </div>
                     <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5 font-medium">
-                      {activeOrder.riderName ? 'Balamban Delivery Express Courier • On Duty' : 'Estimated dispatch time: < 3 mins'}
+                      {dynamicRiderName ? 'Balamban Delivery Express Courier • On Duty' : 'Estimated dispatch time: < 3 mins'}
                     </p>
                   </div>
                 </div>
@@ -389,7 +395,7 @@ export default function LiveTracker() {
                     </div>
                     <div>
                       <h4 className="text-sm sm:text-base font-black text-slate-900 dark:text-white">
-                        Rate Your Courier: {activeOrder.riderName || 'Nigel'}
+                        Rate Your Courier: {dynamicRiderName || 'Courier'}
                       </h4>
                       <p className="text-xs text-slate-500 dark:text-zinc-400">
                         How was your delivery experience in Balamban?
