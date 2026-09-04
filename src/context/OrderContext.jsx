@@ -616,9 +616,16 @@ export function OrderProvider({ children }) {
             }
           });
           setOrders(formatted);
-          if (formatted.length > 0 && !activeTrackingId) {
-            setActiveTrackingId(formatted[0].trackingNumber);
-          } else if (formatted.length === 0) {
+          if (formatted.length > 0) {
+            const activeOnly = formatted.filter(f => f.status !== 'delivered' && f.status !== 'cancelled' && !f.details?.is_deleted);
+            if (activeOnly.length > 0) {
+              if (!activeTrackingId || !activeOnly.some(f => f.trackingNumber === activeTrackingId || f.id === activeTrackingId)) {
+                setActiveTrackingId(activeOnly[0].trackingNumber);
+              }
+            } else {
+              setActiveTrackingId('');
+            }
+          } else {
             setActiveTrackingId('');
           }
         }
@@ -726,6 +733,7 @@ export function OrderProvider({ children }) {
             fetchSupabaseData();
           } else if (event.data?.type === 'ORDER_CANCELLED') {
             const cId = event.data.orderId;
+            setActiveTrackingId(prev => (prev === cId ? '' : prev));
             setOrders(prev => {
               const updated = prev.map(o => (o.id === cId || o.trackingNumber === cId) ? { ...o, status: 'cancelled', statusText: 'Cancelled by Customer' } : o);
               try { localStorage.setItem('delivery_express_orders_balamban', JSON.stringify(updated)); } catch (_) {}
@@ -1489,6 +1497,13 @@ export function OrderProvider({ children }) {
       return updatedOrdersList;
     });
 
+    const targetOrder = orders.find(o => o.id === orderId || o.trackingNumber === orderId);
+    const tracking = targetOrder?.trackingNumber || orderId;
+
+    if (activeTrackingId === tracking || activeTrackingId === orderId) {
+      setActiveTrackingId('');
+    }
+
     // 0-Latency Cross-Tab Broadcast to Admin and Courier tabs
     try {
       if (typeof window !== 'undefined' && window.BroadcastChannel) {
@@ -1500,8 +1515,6 @@ export function OrderProvider({ children }) {
 
     if (isSupabaseConfigured && supabase) {
       try {
-        const targetOrder = orders.find(o => o.id === orderId || o.trackingNumber === orderId);
-        const tracking = targetOrder?.trackingNumber || orderId;
         const currentDetails = targetOrder?.details || {};
 
         let cancelQuery = supabase.from('orders').update({

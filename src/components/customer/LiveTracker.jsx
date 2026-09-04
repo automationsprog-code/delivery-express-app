@@ -87,10 +87,10 @@ export default function LiveTracker() {
   const activeMyOrders = myOrders.filter(o => o.status !== 'delivered' && o.status !== 'cancelled');
 
   // Selected Active Order:
-  // 1. Explicitly selected active order
-  // 2. Or first active in-progress order
-  // 3. Or explicitly searched tracking number (even if completed)
-  const activeOrder = (activeTrackingId ? myOrders.find(o => o.trackingNumber === activeTrackingId || o.id === activeTrackingId) : null)
+  // 1. First active in-progress order matching activeTrackingId
+  // 2. Or first active in-progress order (pending, assigned, at_pickup, out_for_delivery)
+  // 3. Or explicitly searched tracking number (even if completed or cancelled)
+  const activeOrder = activeMyOrders.find(o => o.trackingNumber === activeTrackingId || o.id === activeTrackingId)
     || activeMyOrders[0]
     || (searchInput ? myOrders.find(o => o.trackingNumber?.toLowerCase() === searchInput.trim().toLowerCase() || o.id?.toLowerCase() === searchInput.trim().toLowerCase()) : null)
     || null;
