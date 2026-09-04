@@ -785,11 +785,17 @@ export default function AdminDashboard() {
 
                   <div className="pt-1 flex items-center justify-between gap-1.5">
                     <button
+                      type="button"
                       onClick={() => toggleRiderDuty(rider.id)}
-                      className="flex-1 py-2 px-2.5 bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 rounded-xl text-[11px] font-bold transition-colors"
-                      title="Cycle status: Active -> On Break -> Offline"
+                      className={`flex-1 py-2 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 shadow-2xs ${
+                        rider.isOnline || rider.status === 'active'
+                          ? 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-500/20'
+                          : 'bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-300'
+                      }`}
+                      title={rider.isOnline || rider.status === 'active' ? 'Click to set OFF DUTY' : 'Click to set ACTIVE ON DUTY'}
                     >
-                      Status: {currentStatus.toUpperCase()}
+                      <span className={`w-2 h-2 rounded-full ${rider.isOnline || rider.status === 'active' ? 'bg-white animate-pulse' : 'bg-slate-400'}`} />
+                      <span>{rider.isOnline || rider.status === 'active' ? 'ACTIVE ON DUTY' : 'OFF DUTY (Inactive)'}</span>
                     </button>
 
                     <button

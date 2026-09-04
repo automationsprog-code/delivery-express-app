@@ -1642,13 +1642,16 @@ export function OrderProvider({ children }) {
   };
 
   const toggleRiderDuty = async (riderId) => {
+    let currentlyActive = false;
     const rider = riders.find(r => 
       r.id === riderId || 
       r.name === riderId || 
       (r.id && riderId && String(r.id) === String(riderId)) ||
       (r.name && riderId && r.name.toLowerCase() === String(riderId).toLowerCase())
     );
-    const currentlyActive = rider ? Boolean(rider.isOnline === true && rider.status !== 'offline') : true;
+    if (rider) {
+      currentlyActive = Boolean(rider.isOnline === true || rider.status === 'active');
+    }
     const newIsOnline = !currentlyActive;
     await setRiderOnlineStatus(rider?.id || riderId, newIsOnline);
   };
