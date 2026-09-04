@@ -45,13 +45,24 @@ export default function Header() {
     notification,
     announcement,
     clearAnnouncement,
-    weather
+    weather,
+    riders
   } = useOrder();
   
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authTab, setAuthTab] = useState('customer');
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showCustomerProfileModal, setShowCustomerProfileModal] = useState(false);
+
+  const matchedRider = currentUser?.role === 'rider' && Array.isArray(riders)
+    ? riders.find(r => 
+        (currentUser.id && r.id === currentUser.id) ||
+        (currentUser.phone && r.phone && (r.phone === currentUser.phone || r.phone.slice(-10) === currentUser.phone.slice(-10))) ||
+        (currentUser.name && (r.name.toLowerCase() === currentUser.name.toLowerCase() || r.name.toLowerCase().includes(currentUser.name.toLowerCase()) || currentUser.name.toLowerCase().includes(r.name.toLowerCase())))
+      )
+    : null;
+
+  const displayRiderName = matchedRider?.name || currentUser?.name || 'Courier';
 
   const isOpen = isWithinOperatingHours();
 
@@ -228,7 +239,7 @@ export default function Header() {
                 ) : (
                   <div className="px-1.5 sm:px-2 py-0.5 text-[11px] sm:text-xs font-extrabold text-slate-900 dark:text-white flex items-center gap-1 truncate max-w-[70px] sm:max-w-[130px]">
                     {currentUser.role === 'rider' ? (
-                      <span className="truncate">{currentUser.name}</span>
+                      <span className="truncate">{displayRiderName}</span>
                     ) : (
                       <span>Admin</span>
                     )}

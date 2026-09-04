@@ -72,9 +72,18 @@ export default function RiderPortal() {
   const [isSimulatingMove, setIsSimulatingMove] = useState(false);
   const [podError, setPodError] = useState('');
 
-  const currentRider = riders.find(r => r.id === selectedRiderId || r.id === currentUser?.id || r.name === currentUser?.name) || riders[0] || {
+  const currentRider = riders.find(r => 
+    (currentUser?.id && r.id === currentUser.id) ||
+    (selectedRiderId && r.id === selectedRiderId) ||
+    (currentUser?.phone && r.phone && (r.phone === currentUser.phone || r.phone.slice(-10) === currentUser.phone.slice(-10))) ||
+    (currentUser?.name && (
+      r.name.toLowerCase() === currentUser.name.toLowerCase() ||
+      r.name.toLowerCase().includes(currentUser.name.toLowerCase()) ||
+      currentUser.name.toLowerCase().includes(r.name.toLowerCase())
+    ))
+  ) || riders[0] || {
     id: 'b2c77a52-42ae-4f07-a8fa-540722d74fae',
-    name: 'Nigel',
+    name: 'Kuya Nigel',
     isOnline: true,
     rating: 5.0,
     avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',

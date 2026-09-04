@@ -533,6 +533,27 @@ export function OrderProvider({ children }) {
           if (!currentUser) {
             setSelectedRiderId(currentRiderList[0].id);
           }
+
+          // Auto-sync logged-in rider's profile if updated from Admin (e.g. Nigel -> Kuya Nigel)
+          setCurrentUser(prevUser => {
+            if (prevUser && prevUser.role === 'rider') {
+              const matchedRider = currentRiderList.find(r => 
+                (prevUser.id && r.id === prevUser.id) ||
+                (prevUser.phone && r.phone && (r.phone === prevUser.phone || r.phone.slice(-10) === prevUser.phone.slice(-10))) ||
+                (prevUser.name && (
+                  r.name.toLowerCase() === prevUser.name.toLowerCase() ||
+                  r.name.toLowerCase().includes(prevUser.name.toLowerCase()) ||
+                  prevUser.name.toLowerCase().includes(r.name.toLowerCase())
+                ))
+              );
+              if (matchedRider) {
+                const mergedUser = { ...prevUser, ...matchedRider, role: 'rider', name: matchedRider.name };
+                try { localStorage.setItem('delivery_express_current_user', JSON.stringify(mergedUser)); } catch (_) {}
+                return mergedUser;
+              }
+            }
+            return prevUser;
+          });
         }
 
         // 3. Format and filter live delivery orders (exclude system configuration row)
@@ -2095,6 +2116,21 @@ export function OrderProvider({ children }) {
         }
       } catch (_) {}
     }
+
+    // Auto-sync logged-in rider's profile if updated on this client
+    setCurrentUser(prevUser => {
+      if (prevUser && prevUser.role === 'rider') {
+        const isTarget = (prevUser.id && (prevUser.id === riderId || (oldRider?.id && prevUser.id === oldRider.id))) ||
+          (prevUser.phone && ((oldRider?.phone && prevUser.phone === oldRider.phone) || (updatedFields.phone && prevUser.phone === updatedFields.phone))) ||
+          (prevUser.name && (prevUser.name === oldRider?.name || prevUser.name === newName));
+        if (isTarget) {
+          const merged = { ...prevUser, ...updatedFields, role: 'rider', name: newName || prevUser.name };
+          try { localStorage.setItem('delivery_express_current_user', JSON.stringify(merged)); } catch (_) {}
+          return merged;
+        }
+      }
+      return prevUser;
+    });
 
     // Broadcast across tabs
     try {
