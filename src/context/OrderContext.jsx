@@ -661,6 +661,9 @@ export function OrderProvider({ children }) {
             } else if (newRecord.status === 'delivered') {
               soundService.playSuccessFanfare();
               showNotification(`✅ Order #${newRecord.tracking_number} Delivered & Completed!`, 'success');
+            } else if (newRecord.status === 'cancelled') {
+              soundService.playOrderChime();
+              showNotification(`⚠️ Order #${newRecord.tracking_number} was Cancelled`, 'warning');
             }
           } else {
             lastKnownOrderStatusMapRef.current[newRecord.tracking_number] = newRecord.status;
@@ -720,6 +723,17 @@ export function OrderProvider({ children }) {
             fetchSupabaseData();
           } else if (event.data?.type === 'RIDER_DELETED' && event.data.updatedRoster) {
             setRiders(event.data.updatedRoster);
+            fetchSupabaseData();
+          } else if (event.data?.type === 'ORDER_CANCELLED') {
+            const cId = event.data.orderId;
+            setOrders(prev => {
+              const updated = prev.map(o => (o.id === cId || o.trackingNumber === cId) ? { ...o, status: 'cancelled', statusText: 'Cancelled by Customer' } : o);
+              try { localStorage.setItem('delivery_express_orders_balamban', JSON.stringify(updated)); } catch (_) {}
+              return updated;
+            });
+            showNotification(`⚠️ Order #${cId} was cancelled by customer`, 'warning');
+            fetchSupabaseData();
+          } else if (event.data?.type === 'ORDER_STATUS_CHANGED') {
             fetchSupabaseData();
           } else if (event.data?.type === 'CUSTOMER_PROFILE_UPDATED' && event.data.customerList) {
             setRegisteredCustomers(event.data.customerList);
@@ -1454,21 +1468,35 @@ export function OrderProvider({ children }) {
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
 
-    setOrders(prev => prev.map(order => {
-      if (order.id === orderId || order.trackingNumber === orderId) {
-        return {
-          ...order,
-          status: 'cancelled',
-          statusText: 'Cancelled by Customer',
-          logs: [
-            { step: 'Booking Submitted', time: 'Done', done: true },
-            { step: `Cancelled: ${reason}`, time: 'Just now', done: true }
-          ],
-          messages: [...(order.messages || []), cancelMsg]
-        };
+    let updatedOrdersList = [];
+    setOrders(prev => {
+      updatedOrdersList = prev.map(order => {
+        if (order.id === orderId || order.trackingNumber === orderId) {
+          return {
+            ...order,
+            status: 'cancelled',
+            statusText: 'Cancelled by Customer',
+            logs: [
+              { step: 'Booking Submitted', time: 'Done', done: true },
+              { step: `Cancelled: ${reason}`, time: 'Just now', done: true }
+            ],
+            messages: [...(order.messages || []), cancelMsg]
+          };
+        }
+        return order;
+      });
+      try { localStorage.setItem('delivery_express_orders_balamban', JSON.stringify(updatedOrdersList)); } catch (_) {}
+      return updatedOrdersList;
+    });
+
+    // 0-Latency Cross-Tab Broadcast to Admin and Courier tabs
+    try {
+      if (typeof window !== 'undefined' && window.BroadcastChannel) {
+        const bc = new BroadcastChannel('delivery_express_cross_tab');
+        bc.postMessage({ type: 'ORDER_CANCELLED', orderId, reason });
+        setTimeout(() => bc.close(), 200);
       }
-      return order;
-    }));
+    } catch (_) {}
 
     if (isSupabaseConfigured && supabase) {
       try {
@@ -1621,6 +1649,15 @@ export function OrderProvider({ children }) {
         console.warn('Supabase assign rider error:', err);
       }
     }
+
+    // 0-Latency Cross-Tab Broadcast
+    try {
+      if (typeof window !== 'undefined' && window.BroadcastChannel) {
+        const bc = new BroadcastChannel('delivery_express_cross_tab');
+        bc.postMessage({ type: 'ORDER_STATUS_CHANGED', orderId, status: 'assigned', riderId: rider.id });
+        setTimeout(() => bc.close(), 200);
+      }
+    } catch (_) {}
 
     soundService.playOrderChime();
     showNotification(`Courier ${rider.name} assigned!`, 'success');
@@ -1793,7 +1830,7 @@ export function OrderProvider({ children }) {
 
         const updatedLogs = [
           { step: 'Booking Confirmed (Balamban)', time: 'Received', done: true },
-          { step: `Rider Assigned (${order.riderName || currentRiderName || 'Nigel'})`, time: 'Done', done: isAssigned },
+          { step: `Rider Assigned (${order.riderName || currentRiderName || 'Courier'})`, time: 'Done', done: isAssigned },
           { step: 'Purchased / Picked Up', time: isPurchased ? 'Done' : 'Pending', done: isPurchased },
           { step: 'Out for Delivery', time: isOut ? 'On the way' : 'Pending', done: isOut },
           { step: 'Delivered & Completed', time: isDeliv ? 'Delivered' : 'Pending', done: isDeliv }
@@ -1808,6 +1845,15 @@ export function OrderProvider({ children }) {
       }
       return order;
     }));
+
+    // 0-Latency Cross-Tab Broadcast
+    try {
+      if (typeof window !== 'undefined' && window.BroadcastChannel) {
+        const bc = new BroadcastChannel('delivery_express_cross_tab');
+        bc.postMessage({ type: 'ORDER_STATUS_CHANGED', orderId, status: dbStatus });
+        setTimeout(() => bc.close(), 200);
+      }
+    } catch (_) {}
 
     if (isSupabaseConfigured && supabase) {
       try {
@@ -1854,7 +1900,7 @@ export function OrderProvider({ children }) {
       if (order.id === orderId || order.trackingNumber === orderId) {
         const updatedLogs = [
           { step: 'Booking Confirmed (Balamban)', time: 'Received', done: true },
-          { step: `Rider Assigned (${order.riderName || 'Nigel'})`, time: 'Done', done: true },
+          { step: `Rider Assigned (${order.riderName || 'Courier'})`, time: 'Done', done: true },
           { step: 'Purchased / Picked Up', time: 'Done', done: true },
           { step: 'Out for Delivery', time: 'Done', done: true },
           { step: 'Delivered & Completed', time: 'Just now', done: true }
