@@ -192,6 +192,8 @@ export function OrderProvider({ children }) {
     return CORE_OFFICIAL_RIDERS;
   });
 
+  const lastKnownOrderStatusMapRef = useRef({});
+
   const [selectedRiderId, setSelectedRiderId] = useState(() => {
     const savedUser = localStorage.getItem('delivery_express_current_user');
     if (savedUser) {
@@ -608,6 +610,11 @@ export function OrderProvider({ children }) {
               deliveryNotes: o.delivery_notes
             };
           });
+          (formatted || []).forEach(f => {
+            if (f.trackingNumber) {
+              lastKnownOrderStatusMapRef.current[f.trackingNumber] = f.status;
+            }
+          });
           setOrders(formatted);
           if (formatted.length > 0 && !activeTrackingId) {
             setActiveTrackingId(formatted[0].trackingNumber);
@@ -631,14 +638,17 @@ export function OrderProvider({ children }) {
         const oldRecord = payload.old;
 
         if (eventType === 'INSERT' && newRecord && newRecord.tracking_number !== 'SYS-CONFIG-RATES' && newRecord.status !== 'deleted') {
-          // Play attention-grabbing high chime & vibrate
+          lastKnownOrderStatusMapRef.current[newRecord.tracking_number] = newRecord.status || 'pending';
           soundService.playNewBookingAlert();
           showNotification(
             `🔔 Bag-ong Booking: #${newRecord.tracking_number} gikan kang ${newRecord.customer_name || 'Customer'}!`,
             'success'
           );
         } else if (eventType === 'UPDATE' && newRecord && newRecord.tracking_number !== 'SYS-CONFIG-RATES' && newRecord.status !== 'deleted') {
-          if (oldRecord && oldRecord.status !== newRecord.status) {
+          const prevStatus = lastKnownOrderStatusMapRef.current[newRecord.tracking_number] || oldRecord?.status;
+          
+          if (prevStatus && prevStatus !== newRecord.status) {
+            lastKnownOrderStatusMapRef.current[newRecord.tracking_number] = newRecord.status;
             if (newRecord.status === 'assigned') {
               soundService.playOrderChime();
               showNotification(`🛵 Courier Assigned: Order #${newRecord.tracking_number}`, 'info');
@@ -652,6 +662,8 @@ export function OrderProvider({ children }) {
               soundService.playSuccessFanfare();
               showNotification(`✅ Order #${newRecord.tracking_number} Delivered & Completed!`, 'success');
             }
+          } else {
+            lastKnownOrderStatusMapRef.current[newRecord.tracking_number] = newRecord.status;
           }
         }
 

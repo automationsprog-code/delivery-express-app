@@ -587,20 +587,42 @@ export default function LiveTracker() {
                 </div>
               </div>
 
-              {/* Errand Specific Details */}
+              {/* Errand & Food Order Specific Details */}
               {activeOrder.details && Object.keys(activeOrder.details).length > 0 && (
                 <div className="p-3.5 bg-slate-50 dark:bg-zinc-950 rounded-2xl border border-slate-200 dark:border-zinc-800 space-y-1.5 text-xs">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 block">
                     Order / Item Specifications:
                   </span>
                   {Object.entries(activeOrder.details)
-                    .filter(([k]) => k !== 'chat_messages' && k !== 'rider_name' && k !== 'rider_phone' && k !== 'rider_plate' && k !== 'cancel_reason')
-                    .map(([key, val]) => (
-                      <div key={key} className="text-slate-700 dark:text-zinc-300">
-                        <span className="text-slate-400 dark:text-zinc-500 capitalize">{key.replace(/([A-Z])/g, ' $1')}: </span>
-                        <span className="font-bold whitespace-pre-line">{String(val)}</span>
-                      </div>
-                    ))}
+                    .filter(([k, v]) => {
+                      if (!v) return false;
+                      const ignored = [
+                        'chat_messages', 'rider_name', 'rider_phone', 'rider_plate', 'rider_id',
+                        'cancel_reason', 'customer_avatar', 'customer_email', 'customer_id',
+                        'updated_at', 'timestamp', 'created_at', 'rating_feedback', 'rating_stars'
+                      ];
+                      if (ignored.includes(k)) return false;
+                      if (typeof v === 'string' && v.startsWith('data:image')) return false;
+                      return true;
+                    })
+                    .map(([key, val]) => {
+                      const displayKey = key
+                        .replace(/_/g, ' ')
+                        .replace(/([A-Z])/g, ' $1')
+                        .replace(/^./, str => str.toUpperCase())
+                        .trim();
+                      
+                      const displayVal = (key === 'estimatedCost' || key === 'item_cost' || key === 'itemCost')
+                        ? `₱${Number(val).toLocaleString()}`
+                        : String(val);
+
+                      return (
+                        <div key={key} className="text-slate-700 dark:text-zinc-300 flex items-start gap-1">
+                          <span className="text-slate-400 dark:text-zinc-500 font-semibold shrink-0">{displayKey}:</span>
+                          <span className="font-bold text-slate-900 dark:text-white whitespace-pre-line">{displayVal}</span>
+                        </div>
+                      );
+                    })}
                 </div>
               )}
 

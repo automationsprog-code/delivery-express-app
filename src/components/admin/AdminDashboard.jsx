@@ -387,7 +387,9 @@ export default function AdminDashboard() {
           </div>
           <div className="mt-3">
             <span className="text-2xl sm:text-3xl font-black text-rose-600 dark:text-rose-400">{activeOrdersCount}</span>
-            <span className="text-[11px] text-slate-400 dark:text-zinc-500 block">{pendingOrdersCount} awaiting courier</span>
+            <span className="text-[11px] text-slate-400 dark:text-zinc-500 block">
+              {pendingOrdersCount > 0 ? `${pendingOrdersCount} awaiting courier` : `${activeOrdersCount} in progress / assigned`}
+            </span>
           </div>
         </div>
 
