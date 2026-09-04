@@ -508,6 +508,12 @@ export function OrderProvider({ children }) {
         });
 
         if (currentRiderList.length > 0) {
+          currentRiderList.forEach(r => {
+            const k = getNormalizedRiderKey(r.id, r.name);
+            if (lastRiderDutyMapRef.current[k] === undefined) {
+              lastRiderDutyMapRef.current[k] = Boolean(r.isOnline || r.status === 'active');
+            }
+          });
           setRiders(currentRiderList);
           try { localStorage.setItem('delivery_express_riders_balamban', JSON.stringify(currentRiderList)); } catch (_) {}
           if (!currentUser) {
@@ -989,6 +995,19 @@ export function OrderProvider({ children }) {
 
   const notifTimeoutRef = useRef(null);
   const lastDutyNotifiedRef = useRef({});
+  const lastRiderDutyMapRef = useRef({});
+
+  // Universal helper to normalize rider ID/name for existing (Nigel, Louie, Yael) and all future riders
+  const getNormalizedRiderKey = (riderKey, riderName) => {
+    const rawName = String(riderName || '').toLowerCase().trim();
+    if (rawName.includes('nigel')) return 'rider_nigel';
+    if (rawName.includes('louie')) return 'rider_louie';
+    if (rawName.includes('yael')) return 'rider_yael';
+    if (rawName) return `rider_${rawName.replace(/[^a-z0-9]/g, '_')}`;
+    const rawKey = String(riderKey || '').toLowerCase().trim();
+    if (rawKey) return `rider_${rawKey.replace(/[^a-z0-9]/g, '_')}`;
+    return 'rider_general';
+  };
 
   const showNotification = (msg, type = 'info') => {
     if (notifTimeoutRef.current) {
@@ -1000,19 +1019,42 @@ export function OrderProvider({ children }) {
     }, 3500);
   };
 
-  const notifyDutyChangeOnce = (riderKey, riderName, isOnline) => {
-    const key = `${riderKey}_${isOnline}`;
+  const notifyDutyChangeOnce = (riderKey, riderName, isOnline, isManualUserToggle = false) => {
+    const normKey = getNormalizedRiderKey(riderKey, riderName);
+    const targetStatus = Boolean(isOnline);
     const now = Date.now();
-    if (lastDutyNotifiedRef.current[key] && now - lastDutyNotifiedRef.current[key] < 8000) {
-      return; // Deduped: prevent repeated pop-ups for 8 seconds
+    const prevStatus = lastRiderDutyMapRef.current[normKey];
+    const lastNotifiedAt = lastDutyNotifiedRef.current[normKey] || 0;
+
+    // 1. If we already know the rider is in this state, do NOT notify again (silences repeated pop-ups from re-syncs, queries, background events)
+    if (!isManualUserToggle && prevStatus !== undefined && prevStatus === targetStatus) {
+      return;
     }
-    lastDutyNotifiedRef.current[key] = now;
+
+    // 2. Strict 10-second debounce per rider to guarantee only 1 notification appears
+    if (now - lastNotifiedAt < 10000) {
+      lastRiderDutyMapRef.current[normKey] = targetStatus;
+      return;
+    }
+
+    // Record transition timestamp and state
+    lastRiderDutyMapRef.current[normKey] = targetStatus;
+    lastDutyNotifiedRef.current[normKey] = now;
+
+    let cleanName = riderName;
+    if (!cleanName || cleanName === 'Courier') {
+      if (normKey.includes('nigel')) cleanName = 'Nigel';
+      else if (normKey.includes('louie')) cleanName = 'Kuya Louie Richard';
+      else if (normKey.includes('yael')) cleanName = 'Kuya Yael';
+      else cleanName = 'Courier';
+    }
+
     soundService.playOrderChime();
     showNotification(
-      isOnline 
-        ? `🟢 Courier Alert: ${riderName} is now ACTIVE & ON DUTY!` 
-        : `⚪ Courier Alert: ${riderName} is now OFF DUTY (Inactive).`,
-      isOnline ? 'success' : 'info'
+      targetStatus 
+        ? `🟢 Courier Alert: ${cleanName} is now ACTIVE & ON DUTY!` 
+        : `⚪ Courier Alert: ${cleanName} is now OFF DUTY (Inactive).`,
+      targetStatus ? 'success' : 'info'
     );
   };
 
@@ -1635,7 +1677,7 @@ export function OrderProvider({ children }) {
     const riderDisplayName = targetRiderObj?.name || 'Courier';
 
     soundService.triggerVibrate([100, 50, 100]);
-    notifyDutyChangeOnce(riderId, riderDisplayName, boolVal);
+    notifyDutyChangeOnce(riderId, riderDisplayName, boolVal, true);
 
     // 1-Click Broadcast notification to Admin & other tabs
     try {
