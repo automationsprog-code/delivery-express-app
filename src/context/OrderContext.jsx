@@ -10,7 +10,7 @@ const OrderContext = createContext();
 export const CORE_OFFICIAL_RIDERS = [
   {
     id: 'b2c77a52-42ae-4f07-a8fa-540722d74fae',
-    name: 'Nigel',
+    name: 'Kuya Nigel',
     phone: '09458819427',
     plate: 'MIO GEAR - G629MC',
     zone: 'Balamban Proper',
@@ -23,38 +23,6 @@ export const CORE_OFFICIAL_RIDERS = [
     password: 'Pass123',
     lat: 10.5015,
     lng: 123.7150
-  },
-  {
-    id: 'rider-kuya-louie-1',
-    name: 'Kuya Louie Richard',
-    phone: '09172587841',
-    plate: 'HONDA CLICK - Y676M',
-    zone: 'Toledo City',
-    municipality: 'Toledo City',
-    avatar: null,
-    rating: 5.0,
-    trips: 0,
-    isOnline: false,
-    status: 'offline',
-    password: 'Pass123',
-    lat: 10.3750,
-    lng: 123.6390
-  },
-  {
-    id: 'rider-kuya-yael-2',
-    name: 'Kuya Yael',
-    phone: '09518590255',
-    plate: 'MIO GEAR - G629MC',
-    zone: 'Toledo City',
-    municipality: 'Toledo City',
-    avatar: null,
-    rating: 5.0,
-    trips: 0,
-    isOnline: false,
-    status: 'offline',
-    password: 'Pass123',
-    lat: 10.3750,
-    lng: 123.6390
   }
 ];
 
@@ -198,17 +166,27 @@ export function OrderProvider({ children }) {
 
   const [riders, setRiders] = useState(() => {
     try {
+      let localDeleted = [];
+      try {
+        localDeleted = JSON.parse(localStorage.getItem('delivery_express_deleted_riders') || '[]');
+      } catch (_) {
+        localDeleted = [];
+      }
+      const deletedSet = new Set(Array.isArray(localDeleted) ? localDeleted.map(d => String(d).toLowerCase().trim()) : []);
+
+      const isDeleted = (r) => {
+        if (!r) return true;
+        if (r.id && (deletedSet.has(String(r.id).toLowerCase()) || deletedSet.has(String(r.id)))) return true;
+        if (r.phone && deletedSet.has(String(r.phone).trim())) return true;
+        if (r.name && deletedSet.has(String(r.name).toLowerCase().trim())) return true;
+        return false;
+      };
+
       const saved = localStorage.getItem('delivery_express_riders_balamban');
       const parsed = saved ? JSON.parse(saved) : null;
       if (Array.isArray(parsed) && parsed.length > 0) {
-        // Merge core riders if missing
-        const combined = [...parsed];
-        CORE_OFFICIAL_RIDERS.forEach(cor => {
-          if (!combined.some(r => r.id === cor.id || r.phone === cor.phone)) {
-            combined.push(cor);
-          }
-        });
-        return combined;
+        const filtered = parsed.filter(r => !isDeleted(r));
+        if (filtered.length > 0) return filtered;
       }
     } catch (_) {}
     return CORE_OFFICIAL_RIDERS;

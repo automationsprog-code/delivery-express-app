@@ -29,7 +29,7 @@ export default function AuthModal({ onClose, defaultTab = 'customer' }) {
   
   const [selectedRole, setSelectedRole] = useState(defaultTab);
   const [customerMode, setCustomerMode] = useState('signup'); // 'signup' | 'signin' | 'google_prompt'
-  const [selectedRiderId, setSelectedRiderId] = useState(riders[0]?.id || 'rider-nigel-1');
+  const [selectedRiderId, setSelectedRiderId] = useState(riders[0]?.id || 'b2c77a52-42ae-4f07-a8fa-540722d74fae');
   
   // Passwords
   const [passwordInput, setPasswordInput] = useState('');
