@@ -444,7 +444,7 @@ export function OrderProvider({ children }) {
                 ...cr,
                 isOnline: isRiderOnline,
                 status: isRiderOnline ? 'active' : 'offline',
-                avatar: avatar && !avatar.includes('unsplash') ? avatar : (cr.name && cr.name.toLowerCase().includes('nigel') ? '/rider-nigel.jpg' : null),
+                avatar: avatar && !avatar.includes('unsplash') ? avatar : null,
                 password: pass
               });
             }
@@ -456,7 +456,7 @@ export function OrderProvider({ children }) {
           riderData.forEach(r => {
             if (!isRiderDeleted(r) && !currentRiderList.some(cr => cr.id === r.id || (cr.phone && r.phone && cr.phone === r.phone))) {
               const cloudAvatar = cloudRiderAvatars[r.id] || cloudRiderAvatars[r.phone] || cloudRiderAvatars[r.full_name] || localStorage.getItem(`rider_avatar_${r.id}`);
-              let finalAvatar = (r.full_name && r.full_name.toLowerCase().includes('nigel')) ? '/rider-nigel.jpg' : null;
+              let finalAvatar = null;
               if (cloudAvatar && cloudAvatar.length > 5 && !cloudAvatar.includes('unsplash')) {
                 finalAvatar = cloudAvatar;
               }
@@ -553,9 +553,9 @@ export function OrderProvider({ children }) {
             );
 
             // Dynamic Name & Phone Priority: assignedRiderObj takes top priority so admin name edits reflect immediately
-            const riderName = assignedRiderObj?.name || o.details?.rider_name || (o.rider_id ? 'Kuya Nigel' : null);
-            const riderPhone = assignedRiderObj?.phone || o.details?.rider_phone || (o.rider_id ? '09458819427' : null);
-            const assignedRiderId = assignedRiderObj?.id || o.rider_id || o.details?.rider_id || (riderName?.includes('Nigel') ? 'b2c77a52-42ae-4f07-a8fa-540722d74fae' : null);
+            const riderName = assignedRiderObj?.name || o.details?.rider_name || null;
+            const riderPhone = assignedRiderObj?.phone || o.details?.rider_phone || null;
+            const assignedRiderId = assignedRiderObj?.id || o.rider_id || o.details?.rider_id || null;
 
             const st = o.status || 'pending';
             const isAssigned = st !== 'pending' && st !== 'cancelled' && (!!assignedRiderId || !!riderName);

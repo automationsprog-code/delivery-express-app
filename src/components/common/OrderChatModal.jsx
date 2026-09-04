@@ -54,7 +54,7 @@ export default function OrderChatModal({ order, onClose, senderRole = 'customer'
     ? dynamicRiderName 
     : (liveOrder?.customerName || 'Customer');
 
-  const riderAvatar = assignedRiderObj?.avatar || localStorage.getItem(`rider_avatar_${liveOrder?.riderId}`) || (dynamicRiderName.toLowerCase().includes('nigel') ? '/rider-nigel.jpg' : null);
+  const riderAvatar = (assignedRiderObj?.avatar && !assignedRiderObj.avatar.includes('unsplash')) ? assignedRiderObj.avatar : null;
 
   // Grab-Style Canned Quick Chips
   const quickReplies = senderRole === 'customer' 
@@ -245,11 +245,17 @@ export default function OrderChatModal({ order, onClose, senderRole = 'customer'
             </button>
 
             <div className="relative">
-              <img
-                src={senderRole === 'customer' ? riderAvatar : (order?.customerAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80')}
-                alt={otherPersonName}
-                className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl object-cover border-2 border-white/80 shadow-md bg-white"
-              />
+              {(senderRole === 'customer' ? riderAvatar : order?.customerAvatar) ? (
+                <img
+                  src={senderRole === 'customer' ? riderAvatar : order.customerAvatar}
+                  alt={otherPersonName}
+                  className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl object-cover border-2 border-white/80 shadow-md bg-white"
+                />
+              ) : (
+                <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-white/20 text-white flex items-center justify-center font-black text-sm border-2 border-white/80 shadow-md uppercase">
+                  {(otherPersonName || 'U').charAt(0)}
+                </div>
+              )}
               <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-emerald-300 border-2 border-[#00B14F] rounded-full animate-pulse" />
             </div>
 

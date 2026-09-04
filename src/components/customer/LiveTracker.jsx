@@ -122,7 +122,7 @@ export default function LiveTracker() {
     : null;
 
   const dynamicRiderName = assignedRider?.name || activeOrder?.riderName;
-  const riderAvatar = assignedRider?.avatar || localStorage.getItem(`rider_avatar_${activeOrder?.riderId}`) || (dynamicRiderName?.toLowerCase().includes('nigel') ? '/rider-nigel.jpg' : null);
+  const riderAvatar = (assignedRider?.avatar && !assignedRider.avatar.includes('unsplash')) ? assignedRider.avatar : null;
 
   const pickupCoords = activeOrder?.pickupCoords || [10.5015, 123.7150];
   const dropoffCoords = activeOrder?.dropoffCoords || [10.4720, 123.7060];
@@ -296,16 +296,27 @@ export default function LiveTracker() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   {dynamicRiderName ? (
-                    <div className="relative">
-                      <img
-                        src={riderAvatar}
-                        alt={dynamicRiderName}
-                        className="w-14 h-14 rounded-2xl object-cover border-2 border-amber-500 shadow-md bg-white dark:bg-zinc-800"
-                      />
-                      <div className="absolute -bottom-1 -right-1 bg-emerald-500 text-white p-0.5 rounded-full">
-                        <ShieldCheck className="w-3.5 h-3.5" />
+                    riderAvatar ? (
+                      <div className="relative">
+                        <img
+                          src={riderAvatar}
+                          alt={dynamicRiderName}
+                          className="w-14 h-14 rounded-2xl object-cover border-2 border-amber-500 shadow-md bg-white dark:bg-zinc-800"
+                        />
+                        <div className="absolute -bottom-1 -right-1 bg-emerald-500 text-white p-0.5 rounded-full">
+                          <ShieldCheck className="w-3.5 h-3.5" />
+                        </div>
                       </div>
-                    </div>
+                    ) : (
+                      <div className="relative">
+                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-500 via-orange-500 to-amber-600 text-zinc-950 flex items-center justify-center font-black text-xl border-2 border-amber-500 shadow-md uppercase">
+                          {(dynamicRiderName || 'R').charAt(0)}
+                        </div>
+                        <div className="absolute -bottom-1 -right-1 bg-emerald-500 text-white p-0.5 rounded-full">
+                          <ShieldCheck className="w-3.5 h-3.5" />
+                        </div>
+                      </div>
+                    )
                   ) : (
                     <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-500 to-rose-500 text-white flex items-center justify-center shadow-lg shadow-amber-500/30 animate-pulse">
                       <Bike className="w-7 h-7 text-white" />

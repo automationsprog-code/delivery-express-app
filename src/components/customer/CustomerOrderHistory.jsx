@@ -307,8 +307,8 @@ Thank you for trusting Delivery Express!
       ) : (
         <div className="space-y-4">
           {filteredHistory.map((order) => {
-            const assignedRider = riders.find(r => r.id === order.riderId || r.name === order.riderName) || riders[0];
-            const riderPhoto = assignedRider?.avatar || '/rider-nigel.jpg';
+            const assignedRider = riders.find(r => (order.riderId && r.id === order.riderId) || (order.riderName && r.name === order.riderName)) || null;
+            const riderPhoto = (assignedRider?.avatar && !assignedRider.avatar.includes('unsplash')) ? assignedRider.avatar : null;
             const statusConfig = ORDER_STATUSES[order.status] || { label: order.status, color: 'bg-slate-100 text-slate-700' };
 
             return (
@@ -402,11 +402,17 @@ Thank you for trusting Delivery Express!
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <div className="relative">
-                          <img
-                            src={riderPhoto}
-                            alt={order.riderName || 'Courier'}
-                            className="w-11 h-11 rounded-2xl object-cover border border-amber-400 shadow-sm"
-                          />
+                          {riderPhoto ? (
+                            <img
+                              src={riderPhoto}
+                              alt={order.riderName || 'Courier'}
+                              className="w-11 h-11 rounded-2xl object-cover border border-amber-400 shadow-sm"
+                            />
+                          ) : (
+                            <div className="w-11 h-11 rounded-2xl bg-amber-500 text-zinc-950 flex items-center justify-center font-black text-sm border border-amber-400 shadow-sm uppercase">
+                              {(order.riderName || assignedRider?.name || 'C').charAt(0)}
+                            </div>
+                          )}
                           <span className="absolute -bottom-1 -right-1 bg-emerald-500 text-white p-0.5 rounded-full">
                             <ShieldCheck className="w-3 h-3" />
                           </span>
@@ -414,10 +420,10 @@ Thank you for trusting Delivery Express!
                         <div>
                           <span className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase block">Assigned Courier</span>
                           <h4 className="font-black text-slate-900 dark:text-white">
-                            {order.riderName || 'Nigel'}
+                            {order.riderName || assignedRider?.name || 'Courier'}
                           </h4>
                           <p className="text-[11px] text-slate-500 dark:text-zinc-400">
-                            {assignedRider?.plate || 'MIO GEAR - G629MC'}
+                            {assignedRider?.plate || 'Motorcycle'}
                           </p>
                         </div>
                       </div>
