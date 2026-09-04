@@ -36,7 +36,11 @@ import {
   ShoppingBag,
   Store,
   Receipt,
-  Utensils
+  Utensils,
+  Package,
+  FileText,
+  Pill,
+  CreditCard
 } from 'lucide-react';
 
 export default function RiderPortal() {
@@ -187,36 +191,65 @@ export default function RiderPortal() {
   const renderOrderItemsDetails = (order) => {
     const details = order.details || {};
     const items = Array.isArray(details.items) ? details.items : (Array.isArray(order.items) ? order.items : []);
-    const storeName = details.store_name || details.storeName || (order.serviceId === 'food_delivery' ? order.pickupAddress : null);
-    const instructions = details.item_description || details.instructions || details.notes || order.deliveryNotes || details.recipient_notes;
-    const pasabuyItems = details.pasabuy_items || details.grocery_list;
-    const packageType = details.package_type || details.document_type;
-    const hasAnyDetails = items.length > 0 || storeName || instructions || pasabuyItems || packageType || order.itemCost > 0;
+    
+    // 1. Store / Origin Merchant Name
+    const storeName = details.store_name || details.storeName || details.restaurantName || details.bakeshopName || details.pharmacyName || details.marketLocation || details.billerName || (order.serviceId === 'food_delivery' ? order.pickupAddress : null);
+    
+    // 2. Extracted Specific Order Lists
+    const foodOrders = details.foodOrders || details.food_orders;
+    const shoppingList = details.shoppingList || details.shopping_list || details.pasabuy_items || details.pasabuyItems;
+    const medicineList = details.medicineList || details.medicine_list;
+    const groceryList = details.groceryList || details.grocery_list;
+    const itemSpecs = details.itemSpecs || details.item_specs;
+    const errandInstructions = details.errandInstructions || details.errand_instructions || details.errandType;
+    const itemDescription = details.itemDescription || details.item_description;
+    
+    // 3. Package & Document specs
+    const packageType = details.packageType || details.package_type || details.documentType || details.document_type;
+    const itemValue = details.itemValue || details.item_value;
+    const envelopeCount = details.envelopeCount || details.envelope_count;
+
+    // 4. Bills payment info
+    const billsInfo = (details.billerName || details.accountNumber) ? {
+      biller: details.billerName || 'Biller',
+      accountNumber: details.accountNumber || '',
+      accountName: details.accountName || '',
+      amountDue: details.amountDue || order.itemCost || 0
+    } : null;
+
+    // 5. Notes & Landmarks
+    const customerNotes = order.customerNotes || details.customerNotes || details.instructions || details.notes || order.deliveryNotes || details.recipientNotes || details.recipient_notes;
+    const pickupLandmark = order.pickupLandmark || details.pickupLandmark;
+    const dropoffLandmark = order.dropoffLandmark || details.dropoffLandmark;
+    const estimatedCost = order.itemCost || details.estimatedCost || details.budgetLimit || details.maxBudget || details.amountDue || 0;
+
+    const hasAnyDetails = items.length > 0 || foodOrders || shoppingList || medicineList || groceryList || itemSpecs || errandInstructions || itemDescription || packageType || billsInfo || customerNotes || storeName || estimatedCost > 0 || pickupLandmark || dropoffLandmark;
 
     if (!hasAnyDetails) return null;
 
     return (
-      <div className="p-4 bg-amber-50/80 dark:bg-amber-950/30 border border-amber-300/80 dark:border-amber-600/40 rounded-2xl text-xs space-y-3 shadow-sm">
-        {/* Header with Store Name & Cost */}
+      <div className="p-4 bg-amber-50/90 dark:bg-amber-950/40 border border-amber-300/80 dark:border-amber-600/50 rounded-2xl text-xs space-y-3 shadow-sm">
+        {/* Header with Store / Origin Name & Estimated Cost */}
         <div className="flex items-center justify-between border-b border-amber-300/60 dark:border-amber-700/50 pb-2">
           <div className="flex items-center gap-1.5 min-w-0">
-            <ShoppingBag className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+            <Store className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
             <span className="font-black uppercase tracking-wider text-[11px] text-amber-950 dark:text-amber-200 truncate">
-              {storeName ? `Store: ${storeName}` : 'Order / Items List'}
+              {storeName ? `Store: ${storeName}` : 'Order / Item Details'}
             </span>
           </div>
-          {order.itemCost > 0 && (
+          {estimatedCost > 0 && (
             <span className="bg-rose-100 dark:bg-rose-950/80 text-rose-700 dark:text-rose-300 text-[11px] font-black px-2.5 py-0.5 rounded-full border border-rose-300 dark:border-rose-800 shrink-0">
-              Est. Item Cost: ₱{order.itemCost.toLocaleString()}
+              Est. Item Cost: ₱{Number(estimatedCost).toLocaleString()}
             </span>
           )}
         </div>
 
-        {/* Itemized Food List */}
+        {/* 1. Itemized Menu Dishes (From Store Catalog) */}
         {items.length > 0 && (
           <div className="space-y-1.5">
-            <span className="text-[10px] font-extrabold uppercase text-slate-500 dark:text-zinc-400 block">
-              Items to Purchase / Pickup ({items.length}):
+            <span className="text-[10px] font-extrabold uppercase text-slate-600 dark:text-zinc-400 block flex items-center gap-1">
+              <Utensils className="w-3.5 h-3.5 text-amber-600" />
+              <span>Menu Dishes / Cart Items ({items.length}):</span>
             </span>
             <div className="space-y-1.5">
               {items.map((it, idx) => (
@@ -241,38 +274,147 @@ export default function RiderPortal() {
           </div>
         )}
 
-        {/* Pasabuy Custom Shopping List */}
-        {pasabuyItems && (
-          <div className="bg-white dark:bg-zinc-900 p-3 rounded-xl border border-amber-200/70 dark:border-zinc-800 space-y-1">
+        {/* 2. Custom Food Orders (From Food Booking Form) */}
+        {foodOrders && (
+          <div className="bg-white dark:bg-zinc-900 p-3 rounded-xl border border-amber-200/70 dark:border-zinc-800 space-y-1 shadow-2xs">
             <span className="text-[10px] font-extrabold uppercase text-amber-700 dark:text-amber-400 block flex items-center gap-1">
-              <Receipt className="w-3.5 h-3.5" />
-              <span>Shopping / Pasabuy List:</span>
+              <Utensils className="w-3.5 h-3.5 text-amber-600" />
+              <span>Food Orders & Quantity:</span>
             </span>
-            <p className="font-bold text-slate-800 dark:text-zinc-200 whitespace-pre-line text-xs">
-              {pasabuyItems}
+            <p className="font-extrabold text-slate-900 dark:text-zinc-100 whitespace-pre-line text-xs pl-1">
+              {foodOrders}
             </p>
           </div>
         )}
 
-        {/* Package / Document Info */}
+        {/* 3. Pasabuy Custom Shopping List */}
+        {shoppingList && (
+          <div className="bg-white dark:bg-zinc-900 p-3 rounded-xl border border-amber-200/70 dark:border-zinc-800 space-y-1 shadow-2xs">
+            <span className="text-[10px] font-extrabold uppercase text-amber-700 dark:text-amber-400 block flex items-center gap-1">
+              <ShoppingBag className="w-3.5 h-3.5 text-rose-600" />
+              <span>Pasabuy / Shopping List:</span>
+            </span>
+            <p className="font-extrabold text-slate-900 dark:text-zinc-100 whitespace-pre-line text-xs pl-1">
+              {shoppingList}
+            </p>
+          </div>
+        )}
+
+        {/* 4. Medicine / Pharmacy List */}
+        {medicineList && (
+          <div className="bg-white dark:bg-zinc-900 p-3 rounded-xl border border-amber-200/70 dark:border-zinc-800 space-y-1 shadow-2xs">
+            <span className="text-[10px] font-extrabold uppercase text-blue-700 dark:text-blue-400 block flex items-center gap-1">
+              <Pill className="w-3.5 h-3.5 text-blue-600" />
+              <span>Medicine / Pharmacy List:</span>
+            </span>
+            <p className="font-extrabold text-slate-900 dark:text-zinc-100 whitespace-pre-line text-xs pl-1">
+              {medicineList}
+            </p>
+          </div>
+        )}
+
+        {/* 5. Market / Mall Kumpra Grocery List */}
+        {groceryList && (
+          <div className="bg-white dark:bg-zinc-900 p-3 rounded-xl border border-amber-200/70 dark:border-zinc-800 space-y-1 shadow-2xs">
+            <span className="text-[10px] font-extrabold uppercase text-emerald-700 dark:text-emerald-400 block flex items-center gap-1">
+              <ShoppingBag className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Market / Mall Kumpra List:</span>
+            </span>
+            <p className="font-extrabold text-slate-900 dark:text-zinc-100 whitespace-pre-line text-xs pl-1">
+              {groceryList}
+            </p>
+          </div>
+        )}
+
+        {/* 6. Cake / Flower / Gift Specifications */}
+        {itemSpecs && (
+          <div className="bg-white dark:bg-zinc-900 p-3 rounded-xl border border-amber-200/70 dark:border-zinc-800 space-y-1 shadow-2xs">
+            <span className="text-[10px] font-extrabold uppercase text-pink-700 dark:text-pink-400 block flex items-center gap-1">
+              <Package className="w-3.5 h-3.5 text-pink-600" />
+              <span>Cake / Flower / Gift Specifications:</span>
+            </span>
+            <p className="font-extrabold text-slate-900 dark:text-zinc-100 whitespace-pre-line text-xs pl-1">
+              {itemSpecs}
+            </p>
+          </div>
+        )}
+
+        {/* 7. General Errand & Tasks */}
+        {errandInstructions && (
+          <div className="bg-white dark:bg-zinc-900 p-3 rounded-xl border border-amber-200/70 dark:border-zinc-800 space-y-1 shadow-2xs">
+            <span className="text-[10px] font-extrabold uppercase text-amber-700 dark:text-amber-400 block flex items-center gap-1">
+              <FileText className="w-3.5 h-3.5 text-amber-600" />
+              <span>Errand Task Instructions:</span>
+            </span>
+            <p className="font-extrabold text-slate-900 dark:text-zinc-100 whitespace-pre-line text-xs pl-1">
+              {errandInstructions}
+            </p>
+          </div>
+        )}
+
+        {/* 8. Parcel / Item Description */}
+        {itemDescription && (
+          <div className="bg-white dark:bg-zinc-900 p-3 rounded-xl border border-amber-200/70 dark:border-zinc-800 space-y-1 shadow-2xs">
+            <span className="text-[10px] font-extrabold uppercase text-slate-700 dark:text-zinc-300 block flex items-center gap-1">
+              <Package className="w-3.5 h-3.5 text-indigo-600" />
+              <span>Parcel / Cargo Description:</span>
+            </span>
+            <p className="font-extrabold text-slate-900 dark:text-zinc-100 whitespace-pre-line text-xs pl-1">
+              {itemDescription}
+            </p>
+          </div>
+        )}
+
+        {/* 9. Bills Payment Info */}
+        {billsInfo && (
+          <div className="bg-white dark:bg-zinc-900 p-3 rounded-xl border border-amber-200/70 dark:border-zinc-800 space-y-1 text-xs shadow-2xs">
+            <span className="text-[10px] font-extrabold uppercase text-purple-700 dark:text-purple-400 block flex items-center gap-1">
+              <CreditCard className="w-3.5 h-3.5 text-purple-600" />
+              <span>Bills Payment Details:</span>
+            </span>
+            <div className="grid grid-cols-2 gap-2 text-slate-700 dark:text-zinc-300 pt-1">
+              <div><strong className="text-slate-900 dark:text-white">Biller:</strong> {billsInfo.biller}</div>
+              {billsInfo.accountNumber && <div><strong className="text-slate-900 dark:text-white">Account #:</strong> {billsInfo.accountNumber}</div>}
+              {billsInfo.accountName && <div><strong className="text-slate-900 dark:text-white">Name:</strong> {billsInfo.accountName}</div>}
+            </div>
+          </div>
+        )}
+
+        {/* 10. Package / Document Tag */}
         {packageType && (
           <div className="flex items-center gap-2">
             <span className="text-[10px] font-bold text-slate-500 uppercase">Package Type:</span>
-            <span className="bg-white dark:bg-zinc-900 text-slate-800 dark:text-zinc-200 font-extrabold px-2 py-0.5 rounded-lg border border-slate-200 dark:border-zinc-800 text-[11px]">
-              {packageType}
+            <span className="bg-white dark:bg-zinc-900 text-slate-800 dark:text-zinc-200 font-extrabold px-2.5 py-1 rounded-lg border border-slate-200 dark:border-zinc-800 text-[11px] shadow-2xs">
+              {packageType} {envelopeCount ? `(${envelopeCount} env)` : ''}
             </span>
           </div>
         )}
 
-        {/* Customer Special Notes / Instructions */}
-        {instructions && (
-          <div className="bg-amber-100/60 dark:bg-amber-900/20 p-2.5 rounded-xl border border-amber-200 dark:border-amber-800/40 text-[11px]">
-            <span className="text-[10px] font-black uppercase text-amber-800 dark:text-amber-300 block mb-0.5">
-              Customer Note:
-            </span>
-            <p className="font-semibold italic text-slate-800 dark:text-zinc-200 whitespace-pre-line">
-              "{instructions}"
-            </p>
+        {/* 11. Landmarks & Delivery Instructions */}
+        {(pickupLandmark || dropoffLandmark || customerNotes) && (
+          <div className="bg-amber-100/70 dark:bg-amber-900/30 p-3 rounded-xl border border-amber-300/80 dark:border-amber-700/60 text-[11px] space-y-1">
+            {pickupLandmark && (
+              <div className="text-slate-800 dark:text-zinc-200">
+                <span className="font-extrabold text-blue-700 dark:text-blue-300 uppercase text-[10px] mr-1.5">Pickup Landmark:</span>
+                <span>{pickupLandmark}</span>
+              </div>
+            )}
+            {dropoffLandmark && (
+              <div className="text-slate-800 dark:text-zinc-200">
+                <span className="font-extrabold text-emerald-700 dark:text-emerald-300 uppercase text-[10px] mr-1.5">Drop-off Landmark:</span>
+                <span>{dropoffLandmark}</span>
+              </div>
+            )}
+            {customerNotes && (
+              <div className="pt-1 border-t border-amber-200/80 dark:border-amber-700/50">
+                <span className="text-[10px] font-black uppercase text-amber-900 dark:text-amber-300 block mb-0.5">
+                  Customer Special Instructions:
+                </span>
+                <p className="font-bold italic text-slate-900 dark:text-zinc-100 whitespace-pre-line">
+                  "{customerNotes}"
+                </p>
+              </div>
+            )}
           </div>
         )}
       </div>
