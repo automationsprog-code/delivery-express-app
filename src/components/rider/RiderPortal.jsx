@@ -81,20 +81,13 @@ export default function RiderPortal() {
       r.name.toLowerCase().includes(currentUser.name.toLowerCase()) ||
       currentUser.name.toLowerCase().includes(r.name.toLowerCase())
     ))
-  ) || riders[0] || {
-    id: 'b2c77a52-42ae-4f07-a8fa-540722d74fae',
-    name: 'Kuya Nigel',
-    isOnline: true,
-    rating: 5.0,
-    avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
-    plate: 'MIO GEAR - G629MC',
-    zone: 'Balamban Proper'
-  };
+  ) || riders[0] || null;
 
-  const isOnline = currentRider.isOnline !== false && currentRider.status !== 'offline';
+  const isOnline = Boolean(currentRider?.isOnline !== false && currentRider?.status !== 'offline');
 
   // Orders assigned to this rider
   const myActiveOrders = orders.filter(o => 
+    currentRider &&
     (o.riderId === currentRider.id || o.riderName === currentRider.name || o.details?.rider_name === currentRider.name) && 
     o.status !== 'delivered' && 
     o.status !== 'cancelled' &&
@@ -103,6 +96,7 @@ export default function RiderPortal() {
   );
 
   const myCompletedOrders = orders.filter(o => 
+    currentRider &&
     (o.riderId === currentRider.id || o.riderName === currentRider.name || o.details?.rider_name === currentRider.name) && 
     o.status === 'delivered' &&
     !o.details?.is_deleted &&
@@ -124,7 +118,7 @@ export default function RiderPortal() {
 
   // Automatic Background GPS Location Stream (Grab/FoodPanda Style)
   useEffect(() => {
-    if (!isOnline || !isLocationSharing) {
+    if (!currentRider || !isOnline || !isLocationSharing) {
       setGpsStatus('Paused');
       return;
     }
@@ -140,24 +134,19 @@ export default function RiderPortal() {
     const watchId = navigator.geolocation.watchPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
-        updateRiderLocation(currentRider.id, latitude, longitude);
+        if (currentRider?.id) {
+          updateRiderLocation(currentRider.id, latitude, longitude);
+        }
         setGpsStatus('Live');
       },
       (err) => {
         console.warn('GPS location error:', err);
-        setGpsStatus('Searching...');
       },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 5000
-      }
+      { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 }
     );
 
-    return () => {
-      navigator.geolocation.clearWatch(watchId);
-    };
-  }, [isOnline, isLocationSharing, currentRider.id]);
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, [currentRider?.id, isOnline, isLocationSharing]);
 
   const handleOpenMaps = (address) => {
     window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address + ', Balamban, Cebu')}`, '_blank');
@@ -458,6 +447,22 @@ export default function RiderPortal() {
     setPodNotes('');
     setPodError('');
   };
+
+  if (!currentRider) {
+    return (
+      <div className="max-w-md mx-auto my-12 p-8 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl text-center space-y-4 shadow-sm">
+        <div className="w-14 h-14 bg-amber-100 dark:bg-amber-950/60 rounded-2xl flex items-center justify-center mx-auto text-amber-600 border border-amber-300 dark:border-amber-700">
+          <Bike className="w-7 h-7" />
+        </div>
+        <div>
+          <h3 className="text-lg font-black text-slate-900 dark:text-white">No Courier Account Found</h3>
+          <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">
+            The courier roster is currently empty or your account was removed by the Admin.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 pb-20 md:pb-6">

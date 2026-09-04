@@ -186,18 +186,21 @@ export function OrderProvider({ children }) {
         if (!r) return true;
         if (r.id && (deletedSet.has(String(r.id).toLowerCase()) || deletedSet.has(String(r.id)))) return true;
         if (r.phone && deletedSet.has(String(r.phone).trim())) return true;
-        if (r.name && deletedSet.has(String(r.name).toLowerCase().trim())) return true;
+        if (r.name && (deletedSet.has(String(r.name).toLowerCase().trim()) || deletedSet.has(String(r.name).trim()))) return true;
         return false;
       };
 
       const saved = localStorage.getItem('delivery_express_riders_balamban');
-      const parsed = saved ? JSON.parse(saved) : null;
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        const filtered = parsed.filter(r => !isDeleted(r));
-        if (filtered.length > 0) return filtered;
+      if (saved !== null) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed.filter(r => !isDeleted(r));
+        }
       }
+      const coreFiltered = CORE_OFFICIAL_RIDERS.filter(r => !isDeleted(r));
+      return coreFiltered;
     } catch (_) {}
-    return CORE_OFFICIAL_RIDERS;
+    return [];
   });
 
   const lastKnownOrderStatusMapRef = useRef({});
@@ -539,7 +542,21 @@ export function OrderProvider({ children }) {
                 const mergedUser = { ...prevUser, ...matchedRider, role: 'rider', name: matchedRider.name };
                 try { localStorage.setItem('delivery_express_current_user', JSON.stringify(mergedUser)); } catch (_) {}
                 return mergedUser;
+              } else {
+                localStorage.removeItem('delivery_express_current_user');
+                return null;
               }
+            }
+            return prevUser;
+          });
+        } else {
+          setRiders([]);
+          try { localStorage.setItem('delivery_express_riders_balamban', JSON.stringify([])); } catch (_) {}
+          setSelectedRiderId('');
+          setCurrentUser(prevUser => {
+            if (prevUser && prevUser.role === 'rider') {
+              localStorage.removeItem('delivery_express_current_user');
+              return null;
             }
             return prevUser;
           });

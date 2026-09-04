@@ -498,64 +498,74 @@ export default function AuthModal({ onClose, defaultTab = 'customer' }) {
                 <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1.5">
                   Select Registered Courier Account:
                 </label>
-                <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
-                  {riders.map(r => (
-                    <div
-                      key={r.id}
-                      onClick={() => setSelectedRiderId(r.id)}
-                      className={`p-3 rounded-2xl border cursor-pointer flex items-center justify-between transition-all ${
-                        selectedRiderId === r.id
-                          ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-500 shadow-sm'
-                          : 'bg-slate-50 dark:bg-zinc-950 border-slate-200 dark:border-zinc-800'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2.5">
-                        {r.avatar && (r.avatar.startsWith('data:') || r.avatar.startsWith('http') || (r.name && r.name.toLowerCase().includes('nigel') && r.avatar === '/rider-nigel.jpg')) ? (
-                          <img src={r.avatar} alt={r.name} className="w-8 h-8 rounded-full object-cover border border-amber-500" />
-                        ) : (
-                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 text-zinc-950 flex items-center justify-center font-black text-xs border border-amber-500 uppercase">
-                            {(r.name || 'R').split(' ').map(n => n[0]).slice(0, 2).join('')}
+                {riders.length === 0 ? (
+                  <div className="p-4 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-2xl text-center space-y-1">
+                    <p className="font-extrabold text-amber-900 dark:text-amber-200 text-xs">No Registered Couriers</p>
+                    <p className="text-[11px] text-amber-700 dark:text-amber-400">Please add a courier in the Admin Dashboard first.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                    {riders.map(r => (
+                      <div
+                        key={r.id}
+                        onClick={() => setSelectedRiderId(r.id)}
+                        className={`p-3 rounded-2xl border cursor-pointer flex items-center justify-between transition-all ${
+                          selectedRiderId === r.id
+                            ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-500 shadow-sm'
+                            : 'bg-slate-50 dark:bg-zinc-950 border-slate-200 dark:border-zinc-800'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          {r.avatar && (r.avatar.startsWith('data:') || r.avatar.startsWith('http') || (r.name && r.name.toLowerCase().includes('nigel') && r.avatar === '/rider-nigel.jpg')) ? (
+                            <img src={r.avatar} alt={r.name} className="w-8 h-8 rounded-full object-cover border border-amber-500" />
+                          ) : (
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 text-zinc-950 flex items-center justify-center font-black text-xs border border-amber-500 uppercase">
+                              {(r.name || 'R').split(' ').map(n => n[0]).slice(0, 2).join('')}
+                            </div>
+                          )}
+                          <div>
+                            <p className="font-extrabold text-slate-900 dark:text-white">{r.name}</p>
+                            <span className="text-[10px] text-slate-400 dark:text-zinc-500">{r.plate}</span>
                           </div>
-                        )}
-                        <div>
-                          <p className="font-extrabold text-slate-900 dark:text-white">{r.name}</p>
-                          <span className="text-[10px] text-slate-400 dark:text-zinc-500">{r.plate}</span>
                         </div>
+                        {selectedRiderId === r.id && (
+                          <CheckCircle2 className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                        )}
                       </div>
-                      {selectedRiderId === r.id && (
-                        <CheckCircle2 className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                      )}
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
-              <div>
-                <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
-                  Courier Password *
-                </label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    required
-                    value={passwordInput}
-                    onChange={(e) => setPasswordInput(e.target.value)}
-                    placeholder="Enter your private password"
-                    className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-2xl px-3.5 py-2.5 pr-10 text-slate-900 dark:text-white focus:outline-none focus:border-amber-500"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-3 text-slate-400 hover:text-slate-600"
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
+              {riders.length > 0 && (
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
+                    Courier Password *
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      value={passwordInput}
+                      onChange={(e) => setPasswordInput(e.target.value)}
+                      placeholder="Enter your private password"
+                      className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-2xl px-3.5 py-2.5 pr-10 text-slate-900 dark:text-white focus:outline-none focus:border-amber-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-3 text-slate-400 hover:text-slate-600"
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
 
               <button
                 type="submit"
-                className="w-full py-3.5 px-4 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-zinc-950 font-black rounded-2xl text-xs sm:text-sm shadow-md flex items-center justify-center gap-2 transition-all"
+                disabled={riders.length === 0}
+                className="w-full py-3.5 px-4 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 disabled:opacity-50 disabled:cursor-not-allowed text-zinc-950 font-black rounded-2xl text-xs sm:text-sm shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer"
               >
                 <span>Authorize & Open Rider Console</span>
                 <ArrowRight className="w-4 h-4" />
