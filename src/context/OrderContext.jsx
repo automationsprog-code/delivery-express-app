@@ -7,6 +7,57 @@ import confetti from 'canvas-confetti';
 
 const OrderContext = createContext();
 
+export const CORE_OFFICIAL_RIDERS = [
+  {
+    id: 'b2c77a52-42ae-4f07-a8fa-540722d74fae',
+    name: 'Nigel',
+    phone: '09458819427',
+    plate: 'MIO GEAR - G629MC',
+    zone: 'Balamban Proper',
+    municipality: 'Balamban',
+    avatar: '/rider-nigel.jpg',
+    rating: 5.0,
+    trips: 2,
+    isOnline: true,
+    status: 'active',
+    password: 'Pass123',
+    lat: 10.5015,
+    lng: 123.7150
+  },
+  {
+    id: 'rider-kuya-louie-1',
+    name: 'Kuya Louie Richard',
+    phone: '09172587841',
+    plate: 'HONDA CLICK - Y676M',
+    zone: 'Toledo City',
+    municipality: 'Toledo City',
+    avatar: null,
+    rating: 5.0,
+    trips: 0,
+    isOnline: false,
+    status: 'offline',
+    password: 'Pass123',
+    lat: 10.3750,
+    lng: 123.6390
+  },
+  {
+    id: 'rider-kuya-yael-2',
+    name: 'Kuya Yael',
+    phone: '09518590255',
+    plate: 'MIO GEAR - G629MC',
+    zone: 'Toledo City',
+    municipality: 'Toledo City',
+    avatar: null,
+    rating: 5.0,
+    trips: 0,
+    isOnline: false,
+    status: 'offline',
+    password: 'Pass123',
+    lat: 10.3750,
+    lng: 123.6390
+  }
+];
+
 export function OrderProvider({ children }) {
   const [theme, setTheme] = useState(() => {
     return localStorage.getItem('delivery_express_theme') || 'light';
