@@ -440,9 +440,11 @@ export function OrderProvider({ children }) {
               const pass = cloudRiderPasswords[cr.id] || cloudRiderPasswords[cr.phone] || cr.password || 'Pass123';
               const avatar = cloudRiderAvatars[cr.id] || cloudRiderAvatars[cr.phone] || cr.avatar || null;
               
-              // Check live status from Supabase riders table if present
+              // Check live status: SYS-CONFIG-RATES cr.isOnline is authoritative for roster duty toggle
               const dbRiderMatch = Array.isArray(riderData) ? riderData.find(dr => dr.id === cr.id || dr.phone === cr.phone || dr.full_name === cr.name) : null;
-              const isRiderOnline = dbRiderMatch ? Boolean(dbRiderMatch.is_online) : Boolean(cr.isOnline !== false && cr.status !== 'offline');
+              const isRiderOnline = cr.isOnline !== undefined 
+                ? Boolean(cr.isOnline) 
+                : (dbRiderMatch ? Boolean(dbRiderMatch.is_online) : Boolean(cr.status === 'active'));
 
               currentRiderList.push({
                 ...cr,
@@ -724,8 +726,12 @@ export function OrderProvider({ children }) {
           const localRiders = JSON.parse(localStorage.getItem('delivery_express_riders_balamban') || '[]');
           if (Array.isArray(localRiders) && localRiders.length > 0) {
             newDetails.riders_roster = localRiders;
+          } else {
+            newDetails.riders_roster = CORE_OFFICIAL_RIDERS;
           }
-        } catch (_) {}
+        } catch (_) {
+          newDetails.riders_roster = CORE_OFFICIAL_RIDERS;
+        }
       }
 
       if (!newDetails.registered_customers || !Array.isArray(newDetails.registered_customers) || newDetails.registered_customers.length === 0) {
@@ -1581,26 +1587,50 @@ export function OrderProvider({ children }) {
   const setRiderOnlineStatus = async (riderId, isOnline) => {
     const boolVal = Boolean(isOnline);
     const nextStatus = boolVal ? 'active' : 'offline';
-    let updatedRoster = [];
-    let targetRiderObj = null;
 
-    setRiders(prev => {
-      updatedRoster = prev.map(r => {
-        const matches = r.id === riderId || 
-                        r.name === riderId || 
-                        (r.id && riderId && String(r.id) === String(riderId)) ||
-                        (r.name && riderId && r.name.toLowerCase() === String(riderId).toLowerCase());
-        if (matches) {
-          targetRiderObj = r;
-          return { ...r, isOnline: boolVal, status: nextStatus };
-        }
-        return r;
-      });
+    // Synchronously obtain base roster
+    let baseRoster = Array.isArray(riders) && riders.length > 0 ? [...riders] : [];
+    if (baseRoster.length === 0) {
       try {
-        localStorage.setItem('delivery_express_riders_balamban', JSON.stringify(updatedRoster));
+        const local = JSON.parse(localStorage.getItem('delivery_express_riders_balamban') || '[]');
+        if (Array.isArray(local) && local.length > 0) baseRoster = local;
       } catch (_) {}
-      return updatedRoster;
+    }
+    if (baseRoster.length === 0) {
+      baseRoster = [...CORE_OFFICIAL_RIDERS];
+    } else {
+      CORE_OFFICIAL_RIDERS.forEach(cor => {
+        if (!baseRoster.some(r => r.id === cor.id || r.phone === cor.phone || (r.name && cor.name && r.name.toLowerCase() === cor.name.toLowerCase()))) {
+          baseRoster.push(cor);
+        }
+      });
+    }
+
+    // Identify target rider
+    const targetRiderObj = baseRoster.find(r => 
+      r.id === riderId || 
+      r.name === riderId || 
+      String(r.id) === String(riderId) || 
+      (r.name && typeof riderId === 'string' && r.name.toLowerCase() === riderId.toLowerCase())
+    );
+
+    const updatedRoster = baseRoster.map(r => {
+      const matches = r.id === riderId || 
+                      r.name === riderId || 
+                      (r.id && riderId && String(r.id) === String(riderId)) ||
+                      (r.name && riderId && typeof riderId === 'string' && r.name.toLowerCase() === riderId.toLowerCase()) ||
+                      (targetRiderObj && (r.id === targetRiderObj.id || (r.phone && targetRiderObj.phone && r.phone === targetRiderObj.phone)));
+      if (matches) {
+        return { ...r, isOnline: boolVal, status: nextStatus };
+      }
+      return r;
     });
+
+    // Commit synchronous state and storage updates
+    setRiders(updatedRoster);
+    try {
+      localStorage.setItem('delivery_express_riders_balamban', JSON.stringify(updatedRoster));
+    } catch (_) {}
 
     const riderDisplayName = targetRiderObj?.name || 'Courier';
 
@@ -1615,7 +1645,7 @@ export function OrderProvider({ children }) {
           type: 'RIDER_DUTY_CHANGED', 
           riderId, 
           riderName: riderDisplayName, 
-          isOnline: boolVal,
+          isOnline: boolVal, 
           updatedRoster 
         });
         setTimeout(() => bc.close(), 200);
@@ -1643,11 +1673,12 @@ export function OrderProvider({ children }) {
 
   const toggleRiderDuty = async (riderId) => {
     let currentlyActive = false;
-    const rider = riders.find(r => 
+    const currentList = Array.isArray(riders) && riders.length > 0 ? riders : CORE_OFFICIAL_RIDERS;
+    const rider = currentList.find(r => 
       r.id === riderId || 
       r.name === riderId || 
       (r.id && riderId && String(r.id) === String(riderId)) ||
-      (r.name && riderId && r.name.toLowerCase() === String(riderId).toLowerCase())
+      (r.name && riderId && typeof riderId === 'string' && r.name.toLowerCase() === riderId.toLowerCase())
     );
     if (rider) {
       currentlyActive = Boolean(rider.isOnline === true || rider.status === 'active');
@@ -1873,12 +1904,10 @@ export function OrderProvider({ children }) {
     localStorage.setItem(`rider_pass_${newRider.phone}`, newRider.password);
     localStorage.setItem(`rider_pass_${newRider.name}`, newRider.password);
 
-    let updatedRoster = [];
-    setRiders(prev => {
-      updatedRoster = [...prev.filter(r => r.id !== finalId && r.phone !== newRider.phone), newRider];
-      try { localStorage.setItem('delivery_express_riders_balamban', JSON.stringify(updatedRoster)); } catch (_) {}
-      return updatedRoster;
-    });
+    const baseList = Array.isArray(riders) && riders.length > 0 ? riders : CORE_OFFICIAL_RIDERS;
+    const updatedRoster = [...baseList.filter(r => r.id !== finalId && r.phone !== newRider.phone), newRider];
+    setRiders(updatedRoster);
+    try { localStorage.setItem('delivery_express_riders_balamban', JSON.stringify(updatedRoster)); } catch (_) {}
 
     // 100% Reliable Cloud Sync to SYS-CONFIG-RATES
     await syncSysConfig({
@@ -1899,17 +1928,15 @@ export function OrderProvider({ children }) {
   };
 
   const updateRider = async (riderId, updatedFields) => {
-    let updatedRoster = [];
-    setRiders(prev => {
-      updatedRoster = prev.map(r => {
-        if (r.id === riderId) {
-          return { ...r, ...updatedFields };
-        }
-        return r;
-      });
-      try { localStorage.setItem('delivery_express_riders_balamban', JSON.stringify(updatedRoster)); } catch (_) {}
-      return updatedRoster;
+    const baseList = Array.isArray(riders) && riders.length > 0 ? riders : CORE_OFFICIAL_RIDERS;
+    const updatedRoster = baseList.map(r => {
+      if (r.id === riderId) {
+        return { ...r, ...updatedFields };
+      }
+      return r;
     });
+    setRiders(updatedRoster);
+    try { localStorage.setItem('delivery_express_riders_balamban', JSON.stringify(updatedRoster)); } catch (_) {}
 
     if (updatedFields.avatar !== undefined) {
       if (updatedFields.avatar && !updatedFields.avatar.includes('unsplash')) {
@@ -1922,7 +1949,7 @@ export function OrderProvider({ children }) {
       localStorage.setItem(`rider_pass_${riderId}`, updatedFields.password);
     }
 
-    const rider = riders.find(r => r.id === riderId);
+    const rider = baseList.find(r => r.id === riderId);
     await syncSysConfig({
       riders_roster: updatedRoster,
       rider_passwords: {
@@ -1944,13 +1971,11 @@ export function OrderProvider({ children }) {
     localStorage.removeItem(`rider_avatar_${riderId}`);
     localStorage.removeItem(`rider_pass_${riderId}`);
 
-    const rider = riders.find(r => r.id === riderId);
-    let updatedRoster = [];
-    setRiders(prev => {
-      updatedRoster = prev.filter(r => r.id !== riderId);
-      try { localStorage.setItem('delivery_express_riders_balamban', JSON.stringify(updatedRoster)); } catch (_) {}
-      return updatedRoster;
-    });
+    const baseList = Array.isArray(riders) && riders.length > 0 ? riders : CORE_OFFICIAL_RIDERS;
+    const rider = baseList.find(r => r.id === riderId);
+    const updatedRoster = baseList.filter(r => r.id !== riderId);
+    setRiders(updatedRoster);
+    try { localStorage.setItem('delivery_express_riders_balamban', JSON.stringify(updatedRoster)); } catch (_) {}
     
     setOrders(prev => prev.map(o => {
       if (o.riderId === riderId) {
