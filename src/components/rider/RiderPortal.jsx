@@ -97,17 +97,24 @@ export default function RiderPortal() {
   const myActiveOrders = orders.filter(o => 
     (o.riderId === currentRider.id || o.riderName === currentRider.name || o.details?.rider_name === currentRider.name) && 
     o.status !== 'delivered' && 
-    o.status !== 'cancelled'
+    o.status !== 'cancelled' &&
+    !o.details?.is_deleted &&
+    o.status !== 'deleted'
   );
 
   const myCompletedOrders = orders.filter(o => 
     (o.riderId === currentRider.id || o.riderName === currentRider.name || o.details?.rider_name === currentRider.name) && 
-    o.status === 'delivered'
+    o.status === 'delivered' &&
+    !o.details?.is_deleted &&
+    o.status !== 'deleted'
   );
 
   // Available unassigned orders
   const unassignedOrders = orders.filter(o => 
-    !o.riderId && !o.riderName && !o.details?.rider_name && o.status === 'pending'
+    !o.riderId && !o.riderName && !o.details?.rider_name && 
+    o.status === 'pending' &&
+    !o.details?.is_deleted &&
+    o.status !== 'deleted'
   );
 
   const totalEarningsToday = myCompletedOrders.reduce((acc, curr) => acc + (curr.estimatedFare || 80), 0);

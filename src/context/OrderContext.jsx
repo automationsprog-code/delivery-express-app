@@ -148,7 +148,15 @@ export function OrderProvider({ children }) {
     try {
       const saved = localStorage.getItem('delivery_express_orders_balamban');
       const parsed = saved ? JSON.parse(saved) : [];
-      return Array.isArray(parsed) ? parsed : [];
+      let localDeleted = [];
+      try {
+        localDeleted = JSON.parse(localStorage.getItem('delivery_express_deleted_orders') || '[]');
+      } catch (_) {}
+      const deletedSet = new Set(Array.isArray(localDeleted) ? localDeleted : []);
+      if (Array.isArray(parsed)) {
+        return parsed.filter(o => o && !deletedSet.has(o.trackingNumber) && !deletedSet.has(o.id) && !o.details?.is_deleted);
+      }
+      return [];
     } catch (_) {
       return [];
     }
@@ -290,6 +298,7 @@ export function OrderProvider({ children }) {
         let cloudRiderAvatars = {};
         let cloudCustomRiders = [];
         let cloudDeletedOrders = [];
+        let cloudDeletedRiders = [];
         let cloudAdminPass = localStorage.getItem('delivery_express_admin_password') || 'Pass123';
 
         // 1. Fetch live orders (includes real-time cloud system configuration)
