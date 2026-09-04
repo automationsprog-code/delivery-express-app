@@ -542,7 +542,7 @@ export function OrderProvider({ children }) {
           const allDeleted = new Set([...cloudDeletedOrders, ...localDeletedOrders]);
 
           const formatted = (orderData || [])
-            .filter(o => o.tracking_number !== 'SYS-CONFIG-RATES' && o.customer_name !== 'SYSTEM_SETTINGS' && o.status !== 'deleted' && !allDeleted.has(o.tracking_number))
+            .filter(o => o.tracking_number !== 'SYS-CONFIG-RATES' && o.customer_name !== 'SYSTEM_SETTINGS' && o.status !== 'deleted' && !o.details?.is_deleted && !allDeleted.has(o.tracking_number))
             .map(o => {
             const rawMessages = (o.details && o.details.chat_messages) ? o.details.chat_messages : (o.messages || []);
             const assignedRiderObj = currentRiderList.find(r => 
@@ -2278,8 +2278,13 @@ export function OrderProvider({ children }) {
     if (isSupabaseConfigured && supabase) {
       try {
         if (tracking && tracking !== 'SYS-CONFIG-RATES') {
-          // 1. Mark as deleted in Supabase
-          await supabase.from('orders').update({ status: 'deleted' }).eq('tracking_number', tracking);
+          // 1. Mark as cancelled with is_deleted in Supabase (valid enum)
+          const targetDetails = target?.details || {};
+          await supabase.from('orders').update({
+            status: 'cancelled',
+            details: { ...targetDetails, is_deleted: true }
+          }).eq('tracking_number', tracking);
+          
           // 2. Attempt hard delete if policy allows
           await supabase.from('orders').delete().eq('tracking_number', tracking);
         }
